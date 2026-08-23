@@ -72,6 +72,94 @@ Describe 'Deployment validation engine' {
         $result.evidence.probe | Should -Be 'anonymous POST'
     }
 
+    It 'creates safe coded failures without exposing sensitive details' {
+        $failure = New-AzdCheckFailure -Code 'identity.requiredRoleMissing' `
+            -Summary 'A required role is missing.' -Expected @('Role.Read.All') `
+            -Details @{ roleName = 'Role.Read.All'; callbackUrl = 'https://example.invalid/?sig=secret' } `
+            -Remediation 'Correct the role assignment.'
+
+        $failure.status | Should -Be 'fail'
+        $failure.actual.failureCode | Should -Be 'identity.requiredRoleMissing'
+        $failure.actual.roleName | Should -Be 'Role.Read.All'
+        (ConvertTo-AzdSafeData -Value $failure).actual.callbackUrl | Should -Be '[REDACTED]'
+    }
+
+    It 'rejects details that redefine the reserved failure code' {
+        {
+            New-AzdCheckFailure -Code 'context.mismatch' -Summary 'Context mismatch.' `
+                -Expected 'Exact context.' -Details @{ FailureCode = 'overridden' } `
+                -Remediation 'Correct context.'
+        } | Should -Throw "*reserved 'failureCode'*"
+    }
+
+    It 'gates dependent actions after a failed prerequisite' {
+        $script:dependentInvoked = $false
+        $definitions = @(
+            New-AzdValidationCheckDefinition -Id 'context.exact' -Phase context -Title 'Context' -Summary 'Context' `
+                -Action { New-AzdCheckFailure -Code 'context.mismatch' -Summary 'Context mismatch.' `
+                    -Expected 'Exact context.' -Remediation 'Correct context.' }
+            New-AzdValidationCheckDefinition -Id 'runtime.dependent' -Phase runtime -Title 'Dependent' -Summary 'Dependent' `
+                -DependsOn 'context.exact' -Action { $script:dependentInvoked = $true }
+        )
+
+        $results = @(Invoke-AzdValidationSet -Definitions $definitions -AllowSyntheticDelivery)
+
+        $script:dependentInvoked | Should -BeFalse
+        ($results | Where-Object id -eq 'context.exact').status | Should -Be 'fail'
+        ($results | Where-Object id -eq 'runtime.dependent').status | Should -Be 'skipped'
+        ($results | Where-Object id -eq 'runtime.dependent').summary | Should -Match 'context\.exact'
+    }
+
+    It 'plans dependent checks without evaluating prerequisite outcomes' {
+        $script:planDependencyInvoked = $false
+        $definitions = @(
+            New-AzdValidationCheckDefinition -Id 'context.planned' -Phase context -Title 'Context' -Summary 'Context' `
+                -Action { throw 'must not execute' }
+            New-AzdValidationCheckDefinition -Id 'runtime.planned' -Phase runtime -Title 'Runtime' -Summary 'Runtime' `
+                -DependsOn 'context.planned' -Action { $script:planDependencyInvoked = $true }
+        )
+
+        $results = @(Invoke-AzdValidationSet -Definitions $definitions -Plan)
+
+        $script:planDependencyInvoked | Should -BeFalse
+        @($results | Where-Object status -eq 'planned').Count | Should -Be 2
+    }
+
+    It 'allows warning prerequisites' {
+        $script:allowedInvoked = $false
+        $definitions = @(
+            New-AzdValidationCheckDefinition -Id 'context.warning' -Phase context -Title 'Warning' -Summary 'Warning' `
+                -Action { New-AzdCheckOutcome -Status warning -Summary 'Warning is acceptable.' }
+            New-AzdValidationCheckDefinition -Id 'runtime.allowed' -Phase runtime -Title 'Allowed' -Summary 'Allowed' `
+                -DependsOn 'context.warning' -Action { $script:allowedInvoked = $true }
+        )
+
+        $results = @(Invoke-AzdValidationSet -Definitions $definitions)
+
+        $script:allowedInvoked | Should -BeTrue
+        ($results | Where-Object id -eq 'runtime.allowed').status | Should -Be 'pass'
+    }
+
+    It 'rejects missing, forward, and duplicate dependencies before any action' {
+        $script:invalidGraphInvoked = $false
+        $forward = @(
+            New-AzdValidationCheckDefinition -Id 'runtime.forward' -Phase runtime -Title 'Forward' -Summary 'Forward' `
+                -DependsOn 'runtime.later' -Action { $script:invalidGraphInvoked = $true }
+            New-AzdValidationCheckDefinition -Id 'runtime.later' -Phase runtime -Title 'Later' -Summary 'Later' `
+                -Action { $script:invalidGraphInvoked = $true }
+        )
+        { Invoke-AzdValidationSet -Definitions $forward } | Should -Throw '*unknown or non-earlier*'
+
+        $duplicate = @(
+            New-AzdValidationCheckDefinition -Id 'runtime.same' -Phase runtime -Title 'First' -Summary 'First' `
+                -Action { $script:invalidGraphInvoked = $true }
+            New-AzdValidationCheckDefinition -Id 'runtime.same' -Phase runtime -Title 'Second' -Summary 'Second' `
+                -Action { $script:invalidGraphInvoked = $true }
+        )
+        { Invoke-AzdValidationSet -Definitions $duplicate } | Should -Throw '*duplicated*'
+        $script:invalidGraphInvoked | Should -BeFalse
+    }
+
     It 'turns malformed adapter output into a valid failed harness result' {
         $malformed = [pscustomobject]@{ id = 'runtime.incomplete'; phase = 'runtime'; status = 'pass' }
         $report = New-AzdValidationReport -TemplateName example -TemplateVersion 0.1.0 -Mode verify `
