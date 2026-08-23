@@ -6,7 +6,9 @@ Describe 'Portfolio JSON schemas' {
         @{ Name = 'component manifest'; Schema = 'component-manifest.schema.json'; Fixture = 'component-manifest.json' },
         @{ Name = 'component lock'; Schema = 'azd-components-lock.schema.json'; Fixture = 'azd-components.lock.json' },
         @{ Name = 'deployment validation'; Schema = 'deployment-validation.schema.json'; Fixture = 'deployment-validation.json' },
-        @{ Name = 'deployment receipt'; Schema = 'deployment-receipt.schema.json'; Fixture = 'deployment-receipt.json' }
+        @{ Name = 'deployment receipt'; Schema = 'deployment-receipt.schema.json'; Fixture = 'deployment-receipt.json' },
+        @{ Name = 'notification envelope'; Schema = 'notification-envelope.schema.json'; Fixture = 'notification-envelope.json' },
+        @{ Name = 'notification delivery result'; Schema = 'notification-delivery-result.schema.json'; Fixture = 'notification-delivery-result.json' }
     )
 
     It 'accepts the valid <Name> fixture' -ForEach $cases {

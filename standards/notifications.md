@@ -6,8 +6,8 @@ consent, cost, and operating models behind one infrastructure module.
 
 They should share portfolio contracts for:
 
-- message facts and Adaptive Card content;
-- correlation and idempotency identifiers;
+- normalized domain-event metadata and route-level delivery outcomes;
+- correlation and opaque idempotency identifiers;
 - explicit connection and consent readiness;
 - labeled delivery smoke tests;
 - deployment receipts and validation results;
@@ -19,3 +19,8 @@ report infrastructure readiness, consent readiness, and proven delivery as
 separate states.
 
 No delivery test runs during ordinary read-only deployment validation.
+
+Portable notification data conforms to
+`schemas/notification-envelope.schema.json`. Each route records a result that
+conforms to `schemas/notification-delivery-result.schema.json`. See
+`docs/notification-contracts.md` for identifier, evidence, and secret boundaries.
