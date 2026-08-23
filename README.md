@@ -25,6 +25,8 @@ The first foundation release establishes:
 - versioned JSON contracts for component manifests, consumer locks, deployment
   receipts, and deployment-validation reports;
 - a small PowerShell deployment-validation component;
+- a delegated Microsoft Graph session coordinator that proves context and token
+  usability before reuse;
 - safe component synchronization and drift-validation tooling;
 - a template skeleton that demonstrates the portfolio contract; and
 - automated validation for the reference repository itself.

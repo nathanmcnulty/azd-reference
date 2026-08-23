@@ -32,7 +32,7 @@ proves a stable boundary.
 2. Azure Monitor scheduled-query alert and action-group receiver modules.
 3. Teams managed-connector authorization and delivery proof.
 4. Identity-only storage, observability, and Flex Consumption Function baseline.
-5. Aggregated one-login Graph authentication and application-role planning.
+5. Application-role planning beyond the delegated Graph authentication component.
 6. Polling contracts and fixtures; shared runtime only after compatible state and
    credential interfaces exist.
 

@@ -49,6 +49,7 @@ jobs:
       - name: Run contract and synchronization tests
         run: |
           Install-Module Pester -RequiredVersion 5.7.1 -Force -Scope CurrentUser
+          Install-Module Microsoft.Graph.Authentication -RequiredVersion 2.38.0 -Force -Scope CurrentUser
           Invoke-Pester ./tests -CI
 
       - name: Enforce canonical component version changes
