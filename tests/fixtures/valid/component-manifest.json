@@ -1,0 +1,12 @@
+{
+  "manifestVersion": "1.0",
+  "id": "deployment-validation",
+  "version": "0.1.0",
+  "description": "Validation engine",
+  "files": [
+    {
+      "source": "components/engine.psm1",
+      "target": "scripts/vendor/engine.psm1"
+    }
+  ]
+}

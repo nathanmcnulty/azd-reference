@@ -1,0 +1,55 @@
+name: Validate reference foundation
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Validate PowerShell syntax and analysis
+        run: |
+          Install-Module PSScriptAnalyzer -RequiredVersion 1.25.0 -Force -Scope CurrentUser
+          $parseErrors = @()
+          Get-ChildItem . -Recurse -File | Where-Object Extension -in '.ps1', '.psm1' | ForEach-Object {
+            $tokens = $null
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile(
+              $_.FullName,
+              [ref] $tokens,
+              [ref] $errors
+            ) | Out-Null
+            $parseErrors += @($errors)
+          }
+          if ($parseErrors.Count) { throw ($parseErrors | Format-List | Out-String) }
+          $analysis = @(
+            foreach ($path in './components', './tooling', './skeleton') {
+              Invoke-ScriptAnalyzer -Path $path -Recurse -Severity Error
+            }
+          )
+          if ($analysis.Count) { throw ($analysis | Format-Table | Out-String) }
+
+      - name: Run contract and synchronization tests
+        run: |
+          Install-Module Pester -RequiredVersion 5.7.1 -Force -Scope CurrentUser
+          Invoke-Pester ./tests -CI
+
+      - name: Build skeleton Bicep
+        run: |
+          az bicep install --version v0.42.1
+          az bicep build --file ./skeleton/infra/main.bicep --stdout | Out-Null

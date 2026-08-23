@@ -1,0 +1,12 @@
+{
+  "manifestVersion": "1.0",
+  "components": [
+    {
+      "id": "deployment-validation",
+      "version": "0.1.0",
+      "sourceRepository": "https://github.com/example/azd-reference",
+      "sourceRevision": "main",
+      "files": []
+    }
+  ]
+}

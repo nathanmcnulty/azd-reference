@@ -1,0 +1,6 @@
+* text=auto
+**/vendor/** text eol=lf
+azd-components.lock.json text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+*.yaml text eol=lf
