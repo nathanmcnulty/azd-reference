@@ -47,6 +47,21 @@ Warnings and skipped checks remain visible but do not fail the process.
 Reports use repository-relative paths, are gitignored, and must not contain
 tokens, callback URLs, authorization query strings, or unreviewed command output.
 
+Use `New-AzdCheckFailure` for expected operational failures. Supply a stable,
+allowlisted `failureCode`, safe details, and specific remediation; do not place
+raw exception messages in reports. Unexpected exceptions remain reduced to the
+exception type by the shared engine.
+
+## Prerequisites
+
+Use `-DependsOn` when a check must not run unless an earlier check succeeded.
+The engine centrally skips dependent actions after a failed, skipped, or missing
+prerequisite. `Pass`, `Warning`, and `Info` satisfy a dependency. Plan mode still
+lists every check without executing prerequisites or dependent actions.
+
+Tenant, subscription, and identity-context checks must gate all cloud requests,
+negative probes, and delivery actions that rely on that context.
+
 ## Hook placement
 
 - Use `postprovision` when infrastructure or tenant configuration is sufficient.
