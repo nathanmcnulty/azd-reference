@@ -23,7 +23,8 @@ The first foundation release establishes:
 
 - repository, lifecycle, validation, and component-management standards;
 - versioned JSON contracts for component manifests, consumer locks, deployment
-  receipts, and deployment-validation reports;
+  receipts, deployment-validation reports, notification envelopes, and delivery
+  results;
 - a small PowerShell deployment-validation component;
 - safe component synchronization and drift-validation tooling;
 - a template skeleton that demonstrates the portfolio contract; and
