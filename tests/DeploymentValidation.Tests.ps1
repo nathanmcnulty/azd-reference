@@ -84,6 +84,14 @@ Describe 'Deployment validation engine' {
         (ConvertTo-AzdSafeData -Value $failure).actual.callbackUrl | Should -Be '[REDACTED]'
     }
 
+    It 'rejects details that redefine the reserved failure code' {
+        {
+            New-AzdCheckFailure -Code 'context.mismatch' -Summary 'Context mismatch.' `
+                -Expected 'Exact context.' -Details @{ FailureCode = 'overridden' } `
+                -Remediation 'Correct context.'
+        } | Should -Throw "*reserved 'failureCode'*"
+    }
+
     It 'gates dependent actions after a failed prerequisite' {
         $script:dependentInvoked = $false
         $definitions = @(
