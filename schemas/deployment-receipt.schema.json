@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "azd deployment receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "generatedAt",
+    "template",
+    "templateVersion",
+    "mode",
+    "summary",
+    "artifacts",
+    "operationalActions",
+    "details"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0"
+    },
+    "generatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "template": {
+      "type": "string",
+      "minLength": 1
+    },
+    "templateVersion": {
+      "type": "string",
+      "minLength": 1
+    },
+    "mode": {
+      "enum": [
+        "plan",
+        "enforce"
+      ]
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "applied",
+        "unchanged",
+        "skipped",
+        "warnings",
+        "failed"
+      ],
+      "properties": {
+        "applied": { "type": "integer", "minimum": 0 },
+        "unchanged": { "type": "integer", "minimum": 0 },
+        "skipped": { "type": "integer", "minimum": 0 },
+        "warnings": { "type": "integer", "minimum": 0 },
+        "failed": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^(?![A-Za-z]:)(?!/)(?!\\.{1,2}(?:/|$))(?!.*?/\\.{1,2}(?:/|$))[^\\\\\\u0000-\\u001F]+$"
+      }
+    },
+    "operationalActions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "details": {
+      "type": "object"
+    }
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "manifestVersion": "1.0",
+  "id": "deployment-validation",
+  "version": "1.0.0",
+  "description": "Invalid stable version during pilot",
+  "files": [
+    {
+      "source": "/absolute/engine.psm1",
+      "target": "scripts/vendor/engine.psm1"
+    }
+  ]
+}

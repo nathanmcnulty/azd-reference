@@ -1,0 +1,49 @@
+{
+  "schemaVersion": "1.0",
+  "reportType": "azdDeploymentValidation",
+  "startedAt": "2026-08-22T12:00:00.0000000Z",
+  "completedAt": "2026-08-22T12:00:01.0000000Z",
+  "durationMs": 1000,
+  "template": {
+    "name": "azd-example",
+    "version": "0.1.0"
+  },
+  "environment": {
+    "name": "dev",
+    "tenantId": "00000000-0000-0000-0000-000000000000",
+    "subscriptionId": "00000000-0000-0000-0000-000000000000",
+    "resourceGroup": "rg-example-dev"
+  },
+  "mode": "verify",
+  "requirements": {
+    "tools": ["az"],
+    "modules": [],
+    "permissions": ["Resource Group Reader"]
+  },
+  "outcome": "passed",
+  "summary": {
+    "pass": 1,
+    "fail": 0,
+    "warning": 0,
+    "info": 0,
+    "skipped": 0,
+    "planned": 0
+  },
+  "checks": [
+    {
+      "id": "infrastructure.resource-group",
+      "phase": "infrastructure",
+      "title": "Resource group exists",
+      "status": "pass",
+      "summary": "The resource group is readable.",
+      "sideEffect": "readOnly",
+      "durationMs": 10,
+      "expected": "readable",
+      "actual": "readable",
+      "evidence": {},
+      "remediation": null,
+      "metadata": {}
+    }
+  ],
+  "nextSteps": []
+}

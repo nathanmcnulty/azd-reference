@@ -1,0 +1,21 @@
+{
+  "$schema": "../../../schemas/component-manifest.schema.json",
+  "manifestVersion": "1.0",
+  "id": "deployment-validation",
+  "version": "0.2.0",
+  "description": "Structured deployment validation with defense-in-depth report redaction.",
+  "files": [
+    {
+      "source": "components/powershell/deployment-validation/Azd.DeploymentValidation.psd1",
+      "target": "scripts/vendor/Azd.DeploymentValidation/Azd.DeploymentValidation.psd1"
+    },
+    {
+      "source": "components/powershell/deployment-validation/Azd.DeploymentValidation.psm1",
+      "target": "scripts/vendor/Azd.DeploymentValidation/Azd.DeploymentValidation.psm1"
+    },
+    {
+      "source": "schemas/deployment-validation.schema.json",
+      "target": "scripts/vendor/Azd.DeploymentValidation/deployment-validation.schema.json"
+    }
+  ]
+}

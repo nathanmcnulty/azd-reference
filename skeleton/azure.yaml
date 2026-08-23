@@ -1,0 +1,14 @@
+name: replace-with-solution-name
+metadata:
+  template: replace-with-solution-name@0.1.0
+infra:
+  provider: bicep
+  path: infra
+hooks:
+  postprovision:
+    shell: pwsh
+    run: ./scripts/Test-Deployment.ps1
+    interactive: false
+    continueOnError: false
+requiredVersions:
+  azd: ">= 1.23.0"
