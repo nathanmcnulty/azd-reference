@@ -23,7 +23,8 @@ Import-Module (Join-Path $PSScriptRoot 'Deployment.Validation.psm1') -Force
 
 $startedAt = [datetimeoffset]::UtcNow
 $mode = if ($Plan) { 'plan' } elseif ($TestDelivery) { 'delivery' } else { 'verify' }
-$checks = @(Invoke-ProjectDeploymentValidationChecks -Plan:$Plan -TestDelivery:$TestDelivery)
+$definitions = @(Get-ProjectValidationDefinition)
+$checks = @(Invoke-AzdValidationSet -Definitions $definitions -Plan:$Plan -AllowSyntheticDelivery:$TestDelivery)
 $report = New-AzdValidationReport `
     -TemplateName 'replace-with-solution-name' `
     -TemplateVersion '0.1.0' `

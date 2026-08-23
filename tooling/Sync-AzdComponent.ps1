@@ -104,7 +104,7 @@ function Export-GitBlob {
             $copyTask = $process.StandardOutput.BaseStream.CopyToAsync($destinationStream)
             $errorTask = $process.StandardError.ReadToEndAsync()
             $process.WaitForExit()
-            $copyTask.GetAwaiter().GetResult()
+            [void] $copyTask.GetAwaiter().GetResult()
             $errorText = $errorTask.GetAwaiter().GetResult()
         }
         finally {

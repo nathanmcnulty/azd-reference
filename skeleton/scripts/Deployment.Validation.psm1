@@ -1,64 +1,65 @@
 Set-StrictMode -Version Latest
 
-function Invoke-ProjectDeploymentValidationChecks {
+function Get-ProjectValidationDefinition {
     [CmdletBinding()]
-    param(
-        [switch] $Plan,
-        [switch] $TestDelivery
-    )
+    param()
 
     $repositoryRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 
-    Invoke-AzdValidationCheck `
+    New-AzdValidationCheckDefinition `
         -Id 'context.template-root' `
         -Phase context `
         -Title 'Template root is complete' `
         -Summary 'azure.yaml exists at the repository root.' `
         -SideEffect none `
-        -Plan:$Plan `
         -Action {
             if (-not (Test-Path -LiteralPath (Join-Path $repositoryRoot 'azure.yaml') -PathType Leaf)) {
                 throw 'azure.yaml was not found.'
             }
         }
 
-    Invoke-AzdValidationCheck `
+    New-AzdValidationCheckDefinition `
         -Id 'context.azure-cli-session' `
         -Phase context `
         -Title 'Azure CLI context is available' `
         -Summary 'An existing Azure CLI session is available for read-only validation.' `
         -SideEffect readOnly `
-        -Plan:$Plan `
         -Remediation 'Run az login using the normal broker or browser flow, then rerun validation.' `
         -Action {
-            & az account show --only-show-errors --output none
+            if (-not $env:AZURE_TENANT_ID -or -not $env:AZURE_SUBSCRIPTION_ID) {
+                throw 'Expected Azure tenant and subscription values are missing.'
+            }
+            $contextJson = & az account show --only-show-errors --output json
             if ($LASTEXITCODE -ne 0) { throw 'No usable cached Azure CLI context was found.' }
+            $context = $contextJson | ConvertFrom-Json
+            if ([string] $context.tenantId -ne [string] $env:AZURE_TENANT_ID -or
+                [string] $context.id -ne [string] $env:AZURE_SUBSCRIPTION_ID) {
+                throw 'The cached Azure CLI context does not match the expected tenant and subscription.'
+            }
         }
 
-    Invoke-AzdValidationCheck `
+    New-AzdValidationCheckDefinition `
         -Id 'infrastructure.resource-group' `
         -Phase infrastructure `
         -Title 'Resource group exists' `
         -Summary 'The deployed resource group is readable in the selected subscription.' `
         -SideEffect readOnly `
-        -Plan:$Plan `
         -Remediation 'Confirm AZURE_RESOURCE_GROUP and the selected Azure subscription, then rerun validation.' `
         -Action {
             if (-not $env:AZURE_RESOURCE_GROUP) { throw 'AZURE_RESOURCE_GROUP is missing.' }
-            & az group show --name $env:AZURE_RESOURCE_GROUP --only-show-errors --output none
+            if (-not $env:AZURE_SUBSCRIPTION_ID) { throw 'AZURE_SUBSCRIPTION_ID is missing.' }
+            & az group show --subscription $env:AZURE_SUBSCRIPTION_ID --name $env:AZURE_RESOURCE_GROUP --only-show-errors --output none
             if ($LASTEXITCODE -ne 0) { throw 'The deployed resource group could not be read.' }
         }
 
-    Invoke-AzdValidationCheck `
+    New-AzdValidationCheckDefinition `
         -Id 'delivery.not-configured' `
         -Phase delivery `
         -Title 'Synthetic delivery test' `
         -Summary 'The solution-specific delivery test succeeded.' `
         -SideEffect syntheticDelivery `
-        -Plan:$Plan `
-        -AllowSyntheticDelivery:$TestDelivery `
         -SkipReason 'No solution-specific delivery test has been configured in this skeleton.' `
         -Action { throw 'Replace this placeholder with the solution delivery adapter.' }
 }
 
-Export-ModuleMember -Function 'Invoke-ProjectDeploymentValidationChecks'
+Export-ModuleMember -Function 'Get-ProjectValidationDefinition'
