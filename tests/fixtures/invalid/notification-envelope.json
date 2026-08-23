@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "1.0",
+  "eventId": "event-42",
+  "eventType": "PIM activation",
+  "source": "graph",
+  "occurredAt": "not-a-date",
+  "severity": "urgent",
+  "correlationId": "correlation-42",
+  "isTest": false,
+  "environment": {
+    "name": "dev",
+    "tenantId": "not-a-guid"
+  },
+  "data": {}
+}

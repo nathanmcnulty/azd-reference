@@ -23,7 +23,8 @@ The first foundation release establishes:
 
 - repository, lifecycle, validation, and component-management standards;
 - versioned JSON contracts for component manifests, consumer locks, deployment
-  receipts, and deployment-validation reports;
+  receipts, deployment-validation reports, notification envelopes, and delivery
+  results;
 - a small PowerShell deployment-validation component;
 - a delegated Microsoft Graph session coordinator that proves context and token
   usability before reuse;

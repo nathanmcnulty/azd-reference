@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "1.0",
+  "eventId": "event-42",
+  "eventType": "entra.pim.roleActivated",
+  "correlationId": "correlation-42",
+  "idempotencyKey": "plaintext-key",
+  "route": {
+    "id": "admin-primary",
+    "audience": "administrator",
+    "transport": "teams"
+  },
+  "status": "failed",
+  "attempt": -1,
+  "recordedAt": "2026-08-23T20:00:03Z",
+  "isTest": false,
+  "environment": {
+    "name": "dev",
+    "tenantId": "11111111-1111-4111-8111-111111111111"
+  },
+  "evidence": {}
+}
