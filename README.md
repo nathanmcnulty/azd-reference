@@ -26,6 +26,8 @@ The first foundation release establishes:
   receipts, deployment-validation reports, notification envelopes, and delivery
   results;
 - a small PowerShell deployment-validation component;
+- a delegated Microsoft Graph session coordinator that proves context and token
+  usability before reuse;
 - safe component synchronization and drift-validation tooling;
 - a template skeleton that demonstrates the portfolio contract; and
 - automated validation for the reference repository itself.
