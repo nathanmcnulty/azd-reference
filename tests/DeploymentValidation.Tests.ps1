@@ -72,6 +72,71 @@ Describe 'Deployment validation engine' {
         $result.evidence.probe | Should -Be 'anonymous POST'
     }
 
+    It 'creates safe coded failures without exposing sensitive details' {
+        $failure = New-AzdCheckFailure -Code 'identity.requiredRoleMissing' `
+            -Summary 'A required role is missing.' -Expected @('Role.Read.All') `
+            -Details @{ roleName = 'Role.Read.All'; callbackUrl = 'https://example.invalid/?sig=secret' } `
+            -Remediation 'Correct the role assignment.'
+
+        $failure.status | Should -Be 'fail'
+        $failure.actual.failureCode | Should -Be 'identity.requiredRoleMissing'
+        $failure.actual.roleName | Should -Be 'Role.Read.All'
+        (ConvertTo-AzdSafeData -Value $failure).actual.callbackUrl | Should -Be '[REDACTED]'
+    }
+
+    It 'gates dependent actions after a failed prerequisite' {
+        $script:dependentInvoked = $false
+        $definitions = @(
+            New-AzdValidationCheckDefinition -Id 'context.exact' -Phase context -Title 'Context' -Summary 'Context' `
+                -Action { New-AzdCheckFailure -Code 'context.mismatch' -Summary 'Context mismatch.' `
+                    -Expected 'Exact context.' -Remediation 'Correct context.' }
+            New-AzdValidationCheckDefinition -Id 'runtime.dependent' -Phase runtime -Title 'Dependent' -Summary 'Dependent' `
+                -DependsOn 'context.exact' -Action { $script:dependentInvoked = $true }
+        )
+
+        $results = @(Invoke-AzdValidationSet -Definitions $definitions -AllowSyntheticDelivery)
+
+        $script:dependentInvoked | Should -BeFalse
+        ($results | Where-Object id -eq 'context.exact').status | Should -Be 'fail'
+        ($results | Where-Object id -eq 'runtime.dependent').status | Should -Be 'skipped'
+        ($results | Where-Object id -eq 'runtime.dependent').summary | Should -Match 'context\.exact'
+    }
+
+    It 'plans dependent checks without evaluating prerequisite outcomes' {
+        $script:planDependencyInvoked = $false
+        $definitions = @(
+            New-AzdValidationCheckDefinition -Id 'context.planned' -Phase context -Title 'Context' -Summary 'Context' `
+                -Action { throw 'must not execute' }
+            New-AzdValidationCheckDefinition -Id 'runtime.planned' -Phase runtime -Title 'Runtime' -Summary 'Runtime' `
+                -DependsOn 'context.planned' -Action { $script:planDependencyInvoked = $true }
+        )
+
+        $results = @(Invoke-AzdValidationSet -Definitions $definitions -Plan)
+
+        $script:planDependencyInvoked | Should -BeFalse
+        @($results | Where-Object status -eq 'planned').Count | Should -Be 2
+    }
+
+    It 'allows warning prerequisites but gates missing or forward dependencies' {
+        $script:allowedInvoked = $false
+        $script:blockedInvoked = $false
+        $definitions = @(
+            New-AzdValidationCheckDefinition -Id 'context.warning' -Phase context -Title 'Warning' -Summary 'Warning' `
+                -Action { New-AzdCheckOutcome -Status warning -Summary 'Warning is acceptable.' }
+            New-AzdValidationCheckDefinition -Id 'runtime.allowed' -Phase runtime -Title 'Allowed' -Summary 'Allowed' `
+                -DependsOn 'context.warning' -Action { $script:allowedInvoked = $true }
+            New-AzdValidationCheckDefinition -Id 'runtime.blocked' -Phase runtime -Title 'Blocked' -Summary 'Blocked' `
+                -DependsOn 'runtime.later' -Action { $script:blockedInvoked = $true }
+            New-AzdValidationCheckDefinition -Id 'runtime.later' -Phase runtime -Title 'Later' -Summary 'Later' -Action {}
+        )
+
+        $results = @(Invoke-AzdValidationSet -Definitions $definitions)
+
+        $script:allowedInvoked | Should -BeTrue
+        $script:blockedInvoked | Should -BeFalse
+        ($results | Where-Object id -eq 'runtime.blocked').status | Should -Be 'skipped'
+    }
+
     It 'turns malformed adapter output into a valid failed harness result' {
         $malformed = [pscustomobject]@{ id = 'runtime.incomplete'; phase = 'runtime'; status = 'pass' }
         $report = New-AzdValidationReport -TemplateName example -TemplateVersion 0.1.0 -Mode verify `
