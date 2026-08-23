@@ -127,6 +127,11 @@ function New-AzdCheckFailure {
         [string] $Remediation
     )
 
+    if (@($Details.Keys | Where-Object { [string]::Equals(
+                    [string] $_, 'failureCode', [System.StringComparison]::OrdinalIgnoreCase) }).Count -gt 0) {
+        throw "Details cannot redefine the reserved 'failureCode' field."
+    }
+
     $actual = [ordered] @{ failureCode = $Code }
     foreach ($name in $Details.Keys) {
         $actual[[string] $name] = $Details[$name]
