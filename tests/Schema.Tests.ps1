@@ -29,4 +29,18 @@ Describe 'Portfolio JSON schemas' {
             (Get-Content -LiteralPath $manifest.FullName -Raw | Test-Json -SchemaFile $schemaPath -ErrorAction Stop) | Should -BeTrue
         }
     }
+
+    It 'rejects parent traversal in every repository-relative path contract' {
+        $manifest = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'fixtures/valid/component-manifest.json') -Raw | ConvertFrom-Json
+        $manifest.files[0].source = '../outside.psm1'
+        { $manifest | ConvertTo-Json -Depth 10 | Test-Json -SchemaFile (Join-Path $script:repoRoot 'schemas/component-manifest.schema.json') -ErrorAction Stop } | Should -Throw
+
+        $lock = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'fixtures/valid/azd-components.lock.json') -Raw | ConvertFrom-Json
+        $lock.components[0].files[0].target = 'scripts/../../outside.psm1'
+        { $lock | ConvertTo-Json -Depth 10 | Test-Json -SchemaFile (Join-Path $script:repoRoot 'schemas/azd-components-lock.schema.json') -ErrorAction Stop } | Should -Throw
+
+        $receipt = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'fixtures/valid/deployment-receipt.json') -Raw | ConvertFrom-Json
+        $receipt.artifacts = @('../../outside.json')
+        { $receipt | ConvertTo-Json -Depth 10 | Test-Json -SchemaFile (Join-Path $script:repoRoot 'schemas/deployment-receipt.schema.json') -ErrorAction Stop } | Should -Throw
+    }
 }

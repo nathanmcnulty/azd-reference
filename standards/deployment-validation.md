@@ -17,7 +17,7 @@ deployed solution. It is not an Azure Developer CLI built-in command.
 
 | Mode | Authentication | Side effects | Purpose |
 | --- | --- | --- | --- |
-| `-Plan` | None preferred | Prohibited | Explain checks, prerequisites, and proposed delivery probes. |
+| `-Plan` | Prohibited | Prohibited | Explain checks, prerequisites, and proposed delivery probes. |
 | Default | Reuse existing session | Read-only | Verify deployed state and negative security probes. |
 | `-TestDelivery` | Reuse existing session | Explicitly allowed | Send clearly labeled smoke-test events and prove downstream delivery. |
 
@@ -36,7 +36,7 @@ multiple login prompts by sharing the selected cached context across checks.
 Each result conforms to `schemas/deployment-validation.schema.json` and contains:
 
 - stable check ID and category;
-- `Pass`, `Fail`, `Warning`, `Skipped`, or `Planned` status;
+- `Pass`, `Fail`, `Warning`, `Info`, `Skipped`, or `Planned` status;
 - concise summary and allowlisted evidence;
 - actionable remediation when appropriate;
 - duration and side-effect classification.

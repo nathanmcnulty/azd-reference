@@ -21,3 +21,8 @@ connection strings, or deployment output containing secrets in a public issue.
 No reusable component may contain credentials or tenant-specific values. Use
 documented `azd` environment variables, managed identities, Key Vault references,
 or deployment-time parameters as appropriate for the consuming solution.
+
+Validation report redaction is a defense-in-depth boundary, not permission to
+capture arbitrary command output. Checks must emit only reviewed, allowlisted
+evidence. The validation engine sanitizes the complete report again immediately
+before schema validation and writing it to disk.

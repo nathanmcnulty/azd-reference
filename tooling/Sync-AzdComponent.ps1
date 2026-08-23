@@ -59,12 +59,64 @@ function Get-NormalizedRepositoryUrl {
     }
     if ($url -match '^git@github\.com:(?<path>.+?)(?:\.git)?$') {
         $repositoryPath = $Matches.path -replace '\.git$', ''
+        if ($repositoryPath -notmatch '^[^/]+/[^/]+$') {
+            throw 'The GitHub origin must identify exactly one owner and repository.'
+        }
         return "https://github.com/$repositoryPath"
     }
     if (-not [System.Uri]::IsWellFormedUriString($url, [System.UriKind]::Absolute)) {
         throw "The origin remote is not an absolute URI: '$url'."
     }
-    return $url -replace '\.git$', ''
+    $uri = [System.Uri] $url
+    if ($uri.Scheme -ne 'https' -or $uri.Host -ne 'github.com' -or $uri.UserInfo -or $uri.Query -or $uri.Fragment) {
+        throw 'The origin remote must be an HTTPS GitHub URL without credentials, query, or fragment.'
+    }
+    $repositoryPath = $uri.AbsolutePath.Trim('/') -replace '\.git$', ''
+    if ($repositoryPath -notmatch '^[^/]+/[^/]+$') {
+        throw 'The GitHub origin must identify exactly one owner and repository.'
+    }
+    return "https://github.com/$repositoryPath"
+}
+
+function Export-GitBlob {
+    param(
+        [Parameter(Mandatory)][string] $ReferenceRoot,
+        [Parameter(Mandatory)][string] $Revision,
+        [Parameter(Mandatory)][string] $RelativePath,
+        [Parameter(Mandatory)][string] $Destination
+    )
+
+    $startInfo = [System.Diagnostics.ProcessStartInfo]::new()
+    $startInfo.FileName = 'git'
+    $startInfo.UseShellExecute = $false
+    $startInfo.RedirectStandardOutput = $true
+    $startInfo.RedirectStandardError = $true
+    foreach ($argument in '-C', $ReferenceRoot, 'cat-file', 'blob', "${Revision}:$RelativePath") {
+        [void] $startInfo.ArgumentList.Add($argument)
+    }
+
+    $process = [System.Diagnostics.Process]::new()
+    $process.StartInfo = $startInfo
+    try {
+        if (-not $process.Start()) { throw 'Unable to start Git blob export.' }
+        $destinationStream = [System.IO.File]::Create($Destination)
+        try {
+            $copyTask = $process.StandardOutput.BaseStream.CopyToAsync($destinationStream)
+            $errorTask = $process.StandardError.ReadToEndAsync()
+            $process.WaitForExit()
+            $copyTask.GetAwaiter().GetResult()
+            $errorText = $errorTask.GetAwaiter().GetResult()
+        }
+        finally {
+            $destinationStream.Dispose()
+        }
+        if ($process.ExitCode -ne 0) {
+            throw "Unable to export committed component source '$RelativePath'. $errorText"
+        }
+    }
+    finally {
+        $process.Dispose()
+    }
 }
 
 $referenceRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
@@ -85,7 +137,12 @@ if ($manifestMatches.Count -ne 1) {
 }
 
 $manifestPath = $manifestMatches[0].FullName
-$manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+$manifestRaw = Get-Content -LiteralPath $manifestPath -Raw
+$manifestSchema = Join-Path $referenceRoot 'schemas/component-manifest.schema.json'
+if (-not ($manifestRaw | Test-Json -SchemaFile $manifestSchema -ErrorAction Stop)) {
+    throw "Component '$Component' does not satisfy the component manifest schema."
+}
+$manifest = $manifestRaw | ConvertFrom-Json
 if ($manifest.manifestVersion -ne '1.0') {
     throw "Unsupported component manifest version '$($manifest.manifestVersion)'."
 }
@@ -96,9 +153,19 @@ if ($LASTEXITCODE -ne 0 -or $sourceRevision -notmatch '^[0-9a-f]{40}$') {
 }
 
 $sourceRelativePaths = @(
-    [System.IO.Path]::GetRelativePath($referenceRoot, $manifestPath)
+    [System.IO.Path]::GetRelativePath($referenceRoot, $manifestPath).Replace('\', '/')
     @($manifest.files | ForEach-Object { [string] $_.source })
 )
+foreach ($sourceRelativePath in $sourceRelativePaths) {
+    & git -C $referenceRoot ls-files --error-unmatch -- $sourceRelativePath *> $null
+    if ($LASTEXITCODE -ne 0) {
+        throw "Component source must be tracked by Git at HEAD: '$sourceRelativePath'."
+    }
+    & git -C $referenceRoot cat-file -e "${sourceRevision}:$sourceRelativePath" 2>$null
+    if ($LASTEXITCODE -ne 0) {
+        throw "Component source is not present at HEAD: '$sourceRelativePath'."
+    }
+}
 $sourceStatus = @(& git -C $referenceRoot status --porcelain -- @sourceRelativePaths)
 if ($LASTEXITCODE -ne 0 -or $sourceStatus.Count -gt 0) {
     throw "Component '$Component' must be synchronized from clean, committed source."
@@ -106,35 +173,97 @@ if ($LASTEXITCODE -ne 0 -or $sourceStatus.Count -gt 0) {
 
 $plannedFiles = @()
 $targetKeys = @{}
+$componentSourceRoot = [System.IO.Path]::GetRelativePath($referenceRoot, (Split-Path -Parent $manifestPath)).Replace('\', '/') + '/'
 foreach ($file in @($manifest.files)) {
-    $sourceFullPath = Resolve-SafeFilePath -Root $referenceRoot -RelativePath ([string] $file.source) -Label 'Component source'
-    $targetFullPath = Resolve-SafeFilePath -Root $targetRoot -RelativePath ([string] $file.target) -Label 'Component target'
+    $sourceRelativePath = ([string] $file.source).Replace('\', '/')
+    $targetRelativePath = ([string] $file.target).Replace('\', '/')
+    if (-not ($sourceRelativePath.StartsWith($componentSourceRoot, [System.StringComparison]::Ordinal) -or
+        $sourceRelativePath.StartsWith('schemas/', [System.StringComparison]::Ordinal))) {
+        throw "Component source must be beneath its component directory or schemas/: '$sourceRelativePath'."
+    }
+    $targetLower = $targetRelativePath.ToLowerInvariant()
+    if ($targetLower -eq 'azd-components.lock.json' -or
+        $targetLower -eq '.git' -or $targetLower.StartsWith('.git/') -or
+        $targetLower -eq '.azd' -or $targetLower.StartsWith('.azd/') -or
+        $targetLower -eq '.github' -or $targetLower.StartsWith('.github/') -or
+        $targetLower.StartsWith('.azd-reference-staging-')) {
+        throw "Component target uses a reserved path: '$targetRelativePath'."
+    }
+    $sourceFullPath = Resolve-SafeFilePath -Root $referenceRoot -RelativePath $sourceRelativePath -Label 'Component source'
+    $targetFullPath = Resolve-SafeFilePath -Root $targetRoot -RelativePath $targetRelativePath -Label 'Component target'
     if (-not (Test-Path -LiteralPath $sourceFullPath -PathType Leaf)) {
         throw "Component source file does not exist: '$($file.source)'."
+    }
+    if (Test-Path -LiteralPath $targetFullPath -PathType Container) {
+        throw "Component target must be a file, not a directory: '$targetRelativePath'."
     }
     $targetKey = $targetFullPath.ToUpperInvariant()
     if ($targetKeys.ContainsKey($targetKey)) {
         throw "Component manifest maps more than one source to '$($file.target)'."
     }
     $targetKeys[$targetKey] = $true
+    $blobTemporary = [System.IO.Path]::GetTempFileName()
+    try {
+        Export-GitBlob -ReferenceRoot $referenceRoot -Revision $sourceRevision -RelativePath $sourceRelativePath -Destination $blobTemporary
+        $blobHash = (Get-FileHash -LiteralPath $blobTemporary -Algorithm SHA256).Hash.ToLowerInvariant()
+    }
+    finally {
+        if (Test-Path -LiteralPath $blobTemporary) { [System.IO.File]::Delete($blobTemporary) }
+    }
     $plannedFiles += [pscustomobject]@{
-        Source = ([string] $file.source).Replace('\', '/')
+        Source = $sourceRelativePath
         SourceFullPath = $sourceFullPath
-        Target = ([string] $file.target).Replace('\', '/')
+        Target = $targetRelativePath
         TargetFullPath = $targetFullPath
-        Sha256 = (Get-FileHash -LiteralPath $sourceFullPath -Algorithm SHA256).Hash.ToLowerInvariant()
+        Sha256 = $blobHash
     }
 }
 
 $lockPath = Join-Path $targetRoot 'azd-components.lock.json'
 $lock = if (Test-Path -LiteralPath $lockPath) {
-    Get-Content -LiteralPath $lockPath -Raw | ConvertFrom-Json
+    $lockRaw = Get-Content -LiteralPath $lockPath -Raw
+    if (-not ($lockRaw | Test-Json -SchemaFile (Join-Path $referenceRoot 'schemas/azd-components-lock.schema.json') -ErrorAction Stop)) {
+        throw 'The consumer component lock does not satisfy its schema.'
+    }
+    $lockRaw | ConvertFrom-Json
 }
 else {
     [pscustomobject]@{ manifestVersion = '1.0'; components = @() }
 }
 if ($lock.manifestVersion -ne '1.0') {
     throw "Unsupported consumer lock version '$($lock.manifestVersion)'."
+}
+
+$claimedTargets = @{}
+$claimedComponentIds = @{}
+foreach ($lockedComponent in @($lock.components)) {
+    $lockedComponentId = [string] $lockedComponent.id
+    if ($claimedComponentIds.ContainsKey($lockedComponentId)) {
+        throw "The consumer lock contains duplicate component ID '$lockedComponentId'."
+    }
+    $claimedComponentIds[$lockedComponentId] = $true
+    foreach ($lockedFile in @($lockedComponent.files)) {
+        $lockedTarget = [string] $lockedFile.target
+        $lockedTargetLower = $lockedTarget.ToLowerInvariant()
+        if ($lockedTargetLower -eq 'azd-components.lock.json' -or
+            $lockedTargetLower -eq '.git' -or $lockedTargetLower.StartsWith('.git/') -or
+            $lockedTargetLower -eq '.azd' -or $lockedTargetLower.StartsWith('.azd/') -or
+            $lockedTargetLower -eq '.github' -or $lockedTargetLower.StartsWith('.github/') -or
+            $lockedTargetLower.StartsWith('.azd-reference-staging-')) {
+            throw "The consumer lock contains a reserved target path: '$lockedTarget'."
+        }
+        $claimedKey = $lockedTargetLower
+        if ($claimedTargets.ContainsKey($claimedKey)) {
+            throw "The consumer lock assigns '$lockedTarget' to more than one component."
+        }
+        $claimedTargets[$claimedKey] = $lockedComponentId
+    }
+}
+foreach ($planned in $plannedFiles) {
+    $claimedKey = $planned.Target.ToLowerInvariant()
+    if ($claimedTargets.ContainsKey($claimedKey) -and $claimedTargets[$claimedKey] -ne $Component) {
+        throw "Component target '$($planned.Target)' is already owned by '$($claimedTargets[$claimedKey])'."
+    }
 }
 
 $existingComponent = @($lock.components | Where-Object id -eq $Component)
@@ -206,6 +335,10 @@ if ($lock.PSObject.Properties.Name -contains 'baseline') {
 }
 $newLockData.components = @($otherComponents + $newComponentLock | Sort-Object id)
 $newLock = [pscustomobject] $newLockData
+$newLockJson = $newLock | ConvertTo-Json -Depth 20
+if (-not ($newLockJson | Test-Json -SchemaFile (Join-Path $referenceRoot 'schemas/azd-components-lock.schema.json') -ErrorAction Stop)) {
+    throw 'The proposed consumer component lock does not satisfy its schema.'
+}
 
 $description = "Synchronize $Component@$($manifest.version) into '$targetRoot'"
 if (-not $PSCmdlet.ShouldProcess($targetRoot, $description)) {
@@ -230,7 +363,11 @@ try {
     $index = 0
     foreach ($planned in $plannedFiles) {
         $staged = Join-Path $stagingRoot ("source-$index")
-        Copy-Item -LiteralPath $planned.SourceFullPath -Destination $staged
+        Export-GitBlob -ReferenceRoot $referenceRoot -Revision $sourceRevision -RelativePath $planned.Source -Destination $staged
+        $stagedHash = (Get-FileHash -LiteralPath $staged -Algorithm SHA256).Hash.ToLowerInvariant()
+        if ($stagedHash -ne $planned.Sha256) {
+            throw "Committed source hash changed while staging '$($planned.Source)'."
+        }
         $planned | Add-Member -NotePropertyName StagedPath -NotePropertyValue $staged
         $index++
     }
@@ -252,8 +389,7 @@ try {
     }
 
     $lockTemporary = Join-Path $stagingRoot 'azd-components.lock.new.json'
-    $lockJson = $newLock | ConvertTo-Json -Depth 20
-    [System.IO.File]::WriteAllText($lockTemporary, $lockJson + [Environment]::NewLine, [System.Text.UTF8Encoding]::new($false))
+    [System.IO.File]::WriteAllText($lockTemporary, $newLockJson + "`n", [System.Text.UTF8Encoding]::new($false))
     Move-Item -LiteralPath $lockTemporary -Destination $lockPath -Force
 }
 catch {

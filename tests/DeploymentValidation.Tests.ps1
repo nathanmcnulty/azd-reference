@@ -39,22 +39,126 @@ Describe 'Deployment validation engine' {
     It 'redacts sensitive keys and signed URLs recursively' {
         $safe = ConvertTo-AzdSafeData -Value @{
             clientSecret = 'do-not-write'
-            nested = @{ callbackUrl = 'https://example.invalid/callback?sig=do-not-write'; name = 'safe' }
+            token = 'ey.do-not-write'
+            hostKey = 'host-do-not-write'
+            authorizationHeader = 'Bearer do-not-write'
+            connectionString = 'AccountName=a;AccountKey=do-not-write'
+            credential = 'credential-do-not-write'
+            nested = @{
+                callback = @{ value = 'https://example.invalid/callback' }
+                signedUri = [uri] 'https://example.invalid/callback?sig=do-not-write'
+                name = 'safe'
+            }
         }
         $safe.clientSecret | Should -Be '[REDACTED]'
-        $safe.nested.callbackUrl | Should -Be '[REDACTED]'
+        $safe.token | Should -Be '[REDACTED]'
+        $safe.hostKey | Should -Be '[REDACTED]'
+        $safe.authorizationHeader | Should -Be '[REDACTED]'
+        $safe.connectionString | Should -Be '[REDACTED]'
+        $safe.credential | Should -Be '[REDACTED]'
+        $safe.nested.callback | Should -Be '[REDACTED]'
+        $safe.nested.signedUri | Should -Be '[REDACTED URL]'
         $safe.nested.name | Should -Be 'safe'
+    }
+
+    It 'supports structured failed outcomes' {
+        $result = Invoke-AzdValidationCheck -Id 'security.structured-failure' -Phase security -Title 'Structured failure' `
+            -Summary 'Expected failure' -Expected 401 -Action {
+                New-AzdCheckOutcome -Status fail -Summary 'The endpoint accepted an unauthenticated request.' `
+                    -Expected 401 -Actual 200 -Evidence @{ probe = 'anonymous POST' } -Remediation 'Require authentication.'
+            }
+        $result.status | Should -Be 'fail'
+        $result.actual | Should -Be 200
+        $result.evidence.probe | Should -Be 'anonymous POST'
+    }
+
+    It 'turns malformed adapter output into a valid failed harness result' {
+        $malformed = [pscustomobject]@{ id = 'runtime.incomplete'; phase = 'runtime'; status = 'pass' }
+        $report = New-AzdValidationReport -TemplateName example -TemplateVersion 0.1.0 -Mode verify `
+            -StartedAt ([datetimeoffset]::UtcNow) -Checks @($malformed)
+        $report.outcome | Should -Be 'failed'
+        $report.checks[0].id | Should -Be 'runtime.validation-harness.0'
+        { Assert-AzdValidationSucceeded -Report $report } | Should -Throw
+    }
+
+    It 'applies plan and delivery policy centrally to declarative checks' {
+        $script:readInvoked = $false
+        $script:deliveryInvoked = $false
+        $definitions = @(
+            New-AzdValidationCheckDefinition -Id 'runtime.read' -Phase runtime -Title 'Read' -Summary 'Read' `
+                -SideEffect readOnly -Action { $script:readInvoked = $true }
+            New-AzdValidationCheckDefinition -Id 'delivery.synthetic' -Phase delivery -Title 'Delivery' -Summary 'Delivery' `
+                -SideEffect syntheticDelivery -Action { $script:deliveryInvoked = $true }
+        )
+        $planned = @(Invoke-AzdValidationSet -Definitions $definitions -Plan -AllowSyntheticDelivery)
+        $script:readInvoked | Should -BeFalse
+        $script:deliveryInvoked | Should -BeFalse
+        @($planned | Where-Object status -eq planned).Count | Should -Be 2
+
+        $verified = @(Invoke-AzdValidationSet -Definitions $definitions)
+        $script:readInvoked | Should -BeTrue
+        $script:deliveryInvoked | Should -BeFalse
+        ($verified | Where-Object id -eq 'delivery.synthetic').status | Should -Be 'skipped'
     }
 
     It 'writes an atomic schema-valid repository-relative report' {
         $check = Invoke-AzdValidationCheck -Id 'context.local' -Phase context -Title 'Local' -Summary 'Local passed' -SideEffect none -Action {}
         $report = New-AzdValidationReport -TemplateName example -TemplateVersion 0.1.0 -Mode verify `
             -StartedAt ([datetimeoffset]::UtcNow) -Checks @($check) -Requirements @{ tools = @(); modules = @(); permissions = @() }
-        $relative = Write-AzdValidationReport -Report $report -OutputPath 'reports/result.json' -RepositoryRoot $TestDrive
+        $schemaPath = Join-Path $script:repoRoot 'schemas/deployment-validation.schema.json'
+        $relative = Write-AzdValidationReport -Report $report -OutputPath 'reports/result.json' -RepositoryRoot $TestDrive -SchemaPath $schemaPath
         $relative | Should -Be 'reports/result.json'
         $output = Join-Path $TestDrive 'reports/result.json'
         Test-Path -LiteralPath $output | Should -BeTrue
-        (Get-Content -LiteralPath $output -Raw | Test-Json -SchemaFile (Join-Path $script:repoRoot 'schemas/deployment-validation.schema.json') -ErrorAction Stop) | Should -BeTrue
+        (Get-Content -LiteralPath $output -Raw | Test-Json -SchemaFile $schemaPath -ErrorAction Stop) | Should -BeTrue
+    }
+
+    It 'sanitizes the complete report before writing and rendering' {
+        $check = Invoke-AzdValidationCheck -Id 'runtime.secret-boundary' -Phase runtime -Title 'Boundary' `
+            -Summary 'Safe initial summary' -Action {
+                New-AzdCheckOutcome -Status warning `
+                    -Summary 'Callback https://example.invalid/hook?sig=summary-secret' `
+                    -Evidence @{ authorizationHeader = 'Bearer header-secret'; signedUri = [uri] 'https://example.invalid/hook?sig=uri-secret' } `
+                    -Remediation 'Retry with Bearer remediation-secret'
+            }
+        $report = New-AzdValidationReport -TemplateName example -TemplateVersion 0.1.0 -Mode verify `
+            -StartedAt ([datetimeoffset]::UtcNow) -Checks @($check) -NextSteps @('Open https://example.invalid/hook?sig=next-step-secret')
+        $schemaPath = Join-Path $script:repoRoot 'schemas/deployment-validation.schema.json'
+        Write-AzdValidationReport -Report $report -OutputPath 'reports/safe.json' -RepositoryRoot $TestDrive -SchemaPath $schemaPath | Out-Null
+        $raw = Get-Content -LiteralPath (Join-Path $TestDrive 'reports/safe.json') -Raw
+        foreach ($secret in 'summary-secret', 'header-secret', 'uri-secret', 'remediation-secret', 'next-step-secret') {
+            $raw | Should -Not -Match $secret
+        }
+        $rendered = (& { Write-AzdValidationSummary -Report $report } 6>&1 | Out-String)
+        $rendered | Should -Not -Match 'summary-secret|remediation-secret'
+    }
+
+    It 'rejects invalid reports before replacing an existing report' {
+        $schemaPath = Join-Path $script:repoRoot 'schemas/deployment-validation.schema.json'
+        $output = Join-Path $TestDrive 'reports/existing.json'
+        New-Item -ItemType Directory -Path (Split-Path -Parent $output) -Force | Out-Null
+        Set-Content -LiteralPath $output -Value 'preserve-me' -NoNewline
+        { Write-AzdValidationReport -Report ([pscustomobject]@{ outcome = 'passed' }) -OutputPath 'reports/existing.json' `
+                -RepositoryRoot $TestDrive -SchemaPath $schemaPath } | Should -Throw '*does not satisfy*'
+        Get-Content -LiteralPath $output -Raw | Should -Be 'preserve-me'
+    }
+
+    It 'rejects report paths that traverse a link or reparse point' {
+        $root = Join-Path $TestDrive 'root'
+        $outside = Join-Path $TestDrive 'outside'
+        New-Item -ItemType Directory -Path $root, $outside | Out-Null
+        $linkPath = Join-Path $root 'reports'
+        if ([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([System.Runtime.InteropServices.OSPlatform]::Windows)) {
+            New-Item -ItemType Junction -Path $linkPath -Target $outside | Out-Null
+        }
+        else {
+            New-Item -ItemType SymbolicLink -Path $linkPath -Target $outside | Out-Null
+        }
+        $check = Invoke-AzdValidationCheck -Id 'context.link' -Phase context -Title 'Link' -Summary 'Link' -Action {}
+        $report = New-AzdValidationReport -TemplateName example -TemplateVersion 0.1.0 -Mode verify -StartedAt ([datetimeoffset]::UtcNow) -Checks @($check)
+        $schemaPath = Join-Path $script:repoRoot 'schemas/deployment-validation.schema.json'
+        { Write-AzdValidationReport -Report $report -OutputPath 'reports/escape.json' -RepositoryRoot $root -SchemaPath $schemaPath } | Should -Throw '*reparse point*'
+        Test-Path -LiteralPath (Join-Path $outside 'escape.json') | Should -BeFalse
     }
 
     It 'rejects report output outside the repository root' {

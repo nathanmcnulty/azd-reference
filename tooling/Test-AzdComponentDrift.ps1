@@ -18,7 +18,12 @@ if (-not (Test-Path -LiteralPath $lockPath -PathType Leaf)) {
     throw "No azd-components.lock.json was found in '$targetRoot'."
 }
 
-$lock = Get-Content -LiteralPath $lockPath -Raw | ConvertFrom-Json
+$referenceRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
+$lockRaw = Get-Content -LiteralPath $lockPath -Raw
+if (-not ($lockRaw | Test-Json -SchemaFile (Join-Path $referenceRoot 'schemas/azd-components-lock.schema.json') -ErrorAction Stop)) {
+    throw 'The consumer component lock does not satisfy its schema.'
+}
+$lock = $lockRaw | ConvertFrom-Json
 if ($lock.manifestVersion -ne '1.0') {
     throw "Unsupported consumer lock version '$($lock.manifestVersion)'."
 }
@@ -32,9 +37,28 @@ $isWindowsPlatform = [System.Runtime.InteropServices.RuntimeInformation]::IsOSPl
     [System.Runtime.InteropServices.OSPlatform]::Windows)
 $comparison = if ($isWindowsPlatform) { [System.StringComparison]::OrdinalIgnoreCase } else { [System.StringComparison]::Ordinal }
 $results = @()
+$componentIds = @{}
+$targetOwners = @{}
 foreach ($component in @($lock.components)) {
+    $componentId = [string] $component.id
+    if ($componentIds.ContainsKey($componentId)) {
+        throw "The consumer lock contains duplicate component ID '$componentId'."
+    }
+    $componentIds[$componentId] = $true
     foreach ($file in @($component.files)) {
         $relative = [string] $file.target
+        $targetKey = $relative.ToLowerInvariant()
+        if ($targetKey -eq 'azd-components.lock.json' -or
+            $targetKey -eq '.git' -or $targetKey.StartsWith('.git/') -or
+            $targetKey -eq '.azd' -or $targetKey.StartsWith('.azd/') -or
+            $targetKey -eq '.github' -or $targetKey.StartsWith('.github/') -or
+            $targetKey.StartsWith('.azd-reference-staging-')) {
+            throw "The consumer lock contains a reserved target path: '$relative'."
+        }
+        if ($targetOwners.ContainsKey($targetKey)) {
+            throw "The consumer lock assigns '$relative' to more than one component."
+        }
+        $targetOwners[$targetKey] = $componentId
         if ([System.IO.Path]::IsPathRooted($relative) -or ($relative -split '[\\/]' | Where-Object { $_ -eq '..' })) {
             throw "Locked target is not a safe relative path: '$relative'."
         }

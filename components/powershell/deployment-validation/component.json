@@ -2,8 +2,8 @@
   "$schema": "../../../schemas/component-manifest.schema.json",
   "manifestVersion": "1.0",
   "id": "deployment-validation",
-  "version": "0.1.0",
-  "description": "Secret-safe deployment validation engine and report contract.",
+  "version": "0.2.0",
+  "description": "Structured deployment validation with defense-in-depth report redaction.",
   "files": [
     {
       "source": "components/powershell/deployment-validation/Azd.DeploymentValidation.psd1",

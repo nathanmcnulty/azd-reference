@@ -21,6 +21,8 @@ jobs:
         shell: pwsh
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
 
       - name: Validate PowerShell syntax and analysis
         run: |
@@ -39,7 +41,7 @@ jobs:
           if ($parseErrors.Count) { throw ($parseErrors | Format-List | Out-String) }
           $analysis = @(
             foreach ($path in './components', './tooling', './skeleton') {
-              Invoke-ScriptAnalyzer -Path $path -Recurse -Severity Error
+              Invoke-ScriptAnalyzer -Path $path -Recurse -Settings ./PSScriptAnalyzerSettings.psd1
             }
           )
           if ($analysis.Count) { throw ($analysis | Format-Table | Out-String) }
@@ -49,7 +51,26 @@ jobs:
           Install-Module Pester -RequiredVersion 5.7.1 -Force -Scope CurrentUser
           Invoke-Pester ./tests -CI
 
+      - name: Enforce canonical component version changes
+        run: |
+          $baseRevision = if ($env:GITHUB_EVENT_NAME -eq 'pull_request') {
+            "origin/$env:GITHUB_BASE_REF"
+          } else {
+            'HEAD^'
+          }
+          ./tooling/Test-AzdComponentVersion.ps1 -BaseRevision $baseRevision
+
+      - name: Validate the skeleton as a locked consumer
+        run: |
+          Get-Content ./skeleton/azd-components.lock.json -Raw |
+            Test-Json -SchemaFile ./schemas/azd-components-lock.schema.json -ErrorAction Stop | Out-Null
+          ./tooling/Test-AzdComponentDrift.ps1 -TargetPath ./skeleton
+          ./tooling/Sync-AzdComponent.ps1 -Component deployment-validation -TargetPath ./skeleton -WhatIf | Out-Null
+
       - name: Build skeleton Bicep
         run: |
           az bicep install --version v0.42.1
           az bicep build --file ./skeleton/infra/main.bicep --stdout | Out-Null
+
+      - name: Confirm validation left the checkout clean
+        run: git diff --exit-code

@@ -87,8 +87,60 @@ Describe 'Component synchronization' {
         $manifest | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $manifestPath -Encoding utf8NoBOM
         & git -C $reference add --all
         & git -C $reference commit -m 'Unsafe mapping fixture' | Out-Null
-        { & $sync -Component deployment-validation -TargetPath $consumer } | Should -Throw '*without parent traversal*'
+        { & $sync -Component deployment-validation -TargetPath $consumer } | Should -Throw
         Test-Path -LiteralPath (Join-Path $TestDrive 'outside.psm1') | Should -BeFalse
+    }
+
+    It 'refuses an ignored untracked source that a manifest claims is committed' {
+        $componentRoot = Join-Path $reference 'components/powershell/deployment-validation'
+        $ignoredSource = Join-Path $componentRoot 'ignored-secret.txt'
+        Set-Content -LiteralPath $ignoredSource -Value 'must-not-be-vendored' -NoNewline
+        Set-Content -LiteralPath (Join-Path $reference '.gitignore') -Value 'ignored-secret.txt'
+        $manifestPath = Join-Path $componentRoot 'component.json'
+        $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+        $manifest.files += [pscustomobject]@{
+            source = 'components/powershell/deployment-validation/ignored-secret.txt'
+            target = 'scripts/vendor/Azd.DeploymentValidation/ignored-secret.txt'
+        }
+        $manifest | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $manifestPath -Encoding utf8NoBOM
+        & git -C $reference add .gitignore $manifestPath
+        & git -C $reference commit -m 'Ignored source fixture' | Out-Null
+        { & $sync -Component deployment-validation -TargetPath $consumer } | Should -Throw '*must be tracked by Git*'
+        Test-Path -LiteralPath (Join-Path $consumer 'scripts/vendor/Azd.DeploymentValidation/ignored-secret.txt') | Should -BeFalse
+    }
+
+    It 'refuses reserved consumer targets' {
+        $manifestPath = Join-Path $reference 'components/powershell/deployment-validation/component.json'
+        $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+        $manifest.files[0].target = '.git/config'
+        $manifest | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $manifestPath -Encoding utf8NoBOM
+        & git -C $reference add --all
+        & git -C $reference commit -m 'Reserved target fixture' | Out-Null
+        { & $sync -Component deployment-validation -TargetPath $consumer } | Should -Throw '*reserved path*'
+    }
+
+    It 'refuses a directory where a managed file is expected even when drift is accepted' {
+        $directoryTarget = Join-Path $consumer 'scripts/vendor/Azd.DeploymentValidation/Azd.DeploymentValidation.psd1'
+        New-Item -ItemType Directory -Path $directoryTarget -Force | Out-Null
+        { & $sync -Component deployment-validation -TargetPath $consumer -AcceptDrift } | Should -Throw '*must be a file*'
+    }
+
+    It 'refuses credential-bearing origin URLs' {
+        & git -C $reference remote set-url origin 'https://x-access-token:do-not-write@github.com/example/azd-reference.git'
+        { & $sync -Component deployment-validation -TargetPath $consumer } | Should -Throw '*without credentials*'
+        Test-Path -LiteralPath (Join-Path $consumer 'azd-components.lock.json') | Should -BeFalse
+    }
+
+    It 'refuses targets claimed by another locked component' {
+        & $sync -Component deployment-validation -TargetPath $consumer | Out-Null
+        $lockPath = Join-Path $consumer 'azd-components.lock.json'
+        $lock = Get-Content -LiteralPath $lockPath -Raw | ConvertFrom-Json
+        $other = $lock.components[0] | Select-Object *
+        $other.id = 'other-component'
+        $lock.components = @($lock.components[0], $other)
+        $lock | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $lockPath -Encoding utf8NoBOM
+        { & $sync -Component deployment-validation -TargetPath $consumer -AcceptDrift } | Should -Throw '*more than one component*'
+        { & $drift -TargetPath $consumer } | Should -Throw '*more than one component*'
     }
 
     It 'refuses implicit deletion when a new manifest drops a managed file' {

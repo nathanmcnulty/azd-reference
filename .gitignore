@@ -1,5 +1,6 @@
 .azd/
 reports/
 TestResults/
+testResults.xml
 *.tmp
 *.user

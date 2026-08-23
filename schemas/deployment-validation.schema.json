@@ -93,7 +93,10 @@
         "name": { "type": "string" },
         "tenantId": { "type": "string" },
         "subscriptionId": { "type": "string" },
-        "resourceGroup": { "type": "string" }
+        "resourceGroup": { "type": "string" },
+        "azureCloud": { "type": "string" },
+        "graphEnvironment": { "type": "string" },
+        "metadata": { "type": "object" }
       }
     },
     "requirements": {

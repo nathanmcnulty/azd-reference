@@ -2,8 +2,9 @@ Set-StrictMode -Version Latest
 
 $script:StatusOrder = @('pass', 'fail', 'warning', 'info', 'skipped', 'planned')
 $script:PhaseOrder = @('context', 'infrastructure', 'identity', 'configuration', 'security', 'runtime', 'delivery')
-$script:SensitiveNamePattern = '(?i)(^|[-_])(authorization|access.?token|refresh.?token|secret|password|client.?secret|api.?key|callback.?url|webhook.?url|sas|signature|sig)([-_]|$)'
+$script:SensitiveNamePattern = '(?i)(^|[-_])(authorization(?:.?header)?|(?:access|refresh|id|bearer)?.?token|secret|password|credential|cookie|assertion|certificate|client.?secret|(?:private|api|host|function|account)?.?key|connection.?string|shared.?access.?signature|callback(?:.?(?:url|uri))?|trigger.?url|webhook.?(?:url|uri)|sas|signature|sig)([-_]|$)'
 $script:SensitiveUrlPattern = '(?i)[?&](sig|signature|token|code|key|secret|sas)='
+$script:SensitiveTextPattern = '(?i)(AccountKey|SharedAccessSignature|ClientSecret|Password|ConnectionString)='
 
 function ConvertTo-AzdSafeData {
     [CmdletBinding()]
@@ -26,7 +27,12 @@ function ConvertTo-AzdSafeData {
             if ($Value -match $script:SensitiveUrlPattern) {
                 return '[REDACTED URL]'
             }
-            return $Value
+            if ($Value -match $script:SensitiveTextPattern) {
+                return '[REDACTED]'
+            }
+            $safeString = [regex]::Replace($Value, '(?i)\bBearer\s+[A-Za-z0-9._~+/=-]+', '[REDACTED BEARER TOKEN]')
+            $safeString = [regex]::Replace($safeString, '\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b', '[REDACTED JWT]')
+            return $safeString
         }
         if ($Value -is [System.Collections.IDictionary]) {
             $safe = [ordered]@{}
@@ -62,14 +68,14 @@ function ConvertTo-AzdSafeData {
         if ($Value -is [ValueType]) {
             return $Value
         }
-        return [string] $Value
+        return ConvertTo-AzdSafeData -Value ([string] $Value) -Name $Name
     }
 }
 
 function New-AzdCheckOutcome {
     [CmdletBinding()]
     param(
-        [ValidateSet('pass', 'warning', 'info', 'skipped')]
+        [ValidateSet('pass', 'fail', 'warning', 'info', 'skipped')]
         [string] $Status = 'pass',
 
         [Parameter(Mandatory)]
@@ -100,6 +106,84 @@ function New-AzdCheckOutcome {
     }
     $outcome.PSObject.TypeNames.Insert(0, 'Azd.Validation.CheckOutcome')
     return $outcome
+}
+
+function New-AzdValidationCheckDefinition {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [ValidatePattern('^[a-z][a-z0-9.-]+$')]
+        [string] $Id,
+
+        [Parameter(Mandatory)]
+        [ValidateSet('context', 'infrastructure', 'identity', 'configuration', 'security', 'runtime', 'delivery')]
+        [string] $Phase,
+
+        [Parameter(Mandatory)]
+        [string] $Title,
+
+        [Parameter(Mandatory)]
+        [string] $Summary,
+
+        [Parameter(Mandatory)]
+        [scriptblock] $Action,
+
+        [ValidateSet('none', 'readOnly', 'negativeProbe', 'syntheticDelivery')]
+        [string] $SideEffect = 'readOnly',
+
+        [AllowNull()]
+        [object] $Expected,
+
+        [AllowNull()]
+        [string] $Remediation,
+
+        [string] $SkipReason
+    )
+
+    $definition = [pscustomobject] [ordered]@{
+        id = $Id
+        phase = $Phase
+        title = $Title
+        summary = $Summary
+        action = $Action
+        sideEffect = $SideEffect
+        expected = $Expected
+        remediation = $Remediation
+        skipReason = $SkipReason
+    }
+    $definition.PSObject.TypeNames.Insert(0, 'Azd.Validation.CheckDefinition')
+    return $definition
+}
+
+function Invoke-AzdValidationSet {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [AllowEmptyCollection()]
+        [object[]] $Definitions,
+
+        [switch] $Plan,
+
+        [switch] $AllowSyntheticDelivery
+    )
+
+    foreach ($definition in $Definitions) {
+        if ($definition.PSObject.TypeNames -notcontains 'Azd.Validation.CheckDefinition') {
+            throw 'Project adapters must return definitions created by New-AzdValidationCheckDefinition.'
+        }
+        Invoke-AzdValidationCheck `
+            -Id $definition.id `
+            -Phase $definition.phase `
+            -Title $definition.title `
+            -Summary $definition.summary `
+            -Action $definition.action `
+            -SideEffect $definition.sideEffect `
+            -Expected $definition.expected `
+            -Remediation $definition.remediation `
+            -SkipReason $definition.skipReason `
+            -Plan:$Plan `
+            -AllowSyntheticDelivery:$AllowSyntheticDelivery
+    }
 }
 
 function Invoke-AzdValidationCheck {
@@ -228,10 +312,53 @@ function New-AzdValidationReport {
         [string[]] $NextSteps = @()
     )
 
+    $normalizedChecks = [System.Collections.Generic.List[object]]::new()
+    $seenIds = @{}
+    for ($checkIndex = 0; $checkIndex -lt $Checks.Count; $checkIndex++) {
+        $check = $Checks[$checkIndex]
+        try {
+            foreach ($requiredProperty in 'id', 'phase', 'title', 'status', 'summary', 'sideEffect', 'durationMs', 'evidence') {
+                if ($check.PSObject.Properties.Name -notcontains $requiredProperty) {
+                    throw "Validation check is missing '$requiredProperty'."
+                }
+            }
+            if ([string] $check.id -notmatch '^[a-z][a-z0-9.-]+$') { throw 'Validation check ID is invalid.' }
+            if ([string] $check.phase -notin $script:PhaseOrder) { throw 'Validation check phase is invalid.' }
+            if ([string] $check.status -notin $script:StatusOrder) { throw 'Validation check status is invalid.' }
+            if ([string] $check.sideEffect -notin 'none', 'readOnly', 'negativeProbe', 'syntheticDelivery') { throw 'Validation check side effect is invalid.' }
+            if ([int64] $check.durationMs -lt 0) { throw 'Validation check duration is invalid.' }
+            if ($seenIds.ContainsKey([string] $check.id)) { throw 'Validation check ID is duplicated.' }
+            if ($Mode -eq 'plan' -and [string] $check.status -notin 'planned', 'skipped', 'fail') {
+                throw 'Plan reports can contain only planned, skipped, or failed checks.'
+            }
+            if ($Mode -eq 'verify' -and [string] $check.sideEffect -eq 'syntheticDelivery' -and [string] $check.status -notin 'skipped', 'planned') {
+                throw 'Verify mode cannot contain an executed synthetic-delivery check.'
+            }
+            $seenIds[[string] $check.id] = $true
+            $normalizedChecks.Add([pscustomobject] (ConvertTo-AzdSafeData -Value $check))
+        }
+        catch {
+            $normalizedChecks.Add([pscustomobject] [ordered]@{
+                id = "runtime.validation-harness.$checkIndex"
+                phase = 'runtime'
+                title = 'Validation adapter contract'
+                status = 'fail'
+                summary = 'A project adapter returned an invalid validation check.'
+                sideEffect = 'none'
+                durationMs = 0
+                expected = 'A complete, unique check result that follows the validation contract.'
+                actual = [ordered]@{ exceptionType = $_.Exception.GetType().FullName }
+                evidence = [ordered]@{ checkIndex = $checkIndex }
+                remediation = 'Correct the project validation adapter and rerun Test-Deployment.ps1.'
+                metadata = [ordered]@{}
+            })
+        }
+    }
+
     $completedAt = [datetimeoffset]::UtcNow
     $summary = [ordered]@{}
     foreach ($status in $script:StatusOrder) {
-        $summary[$status] = @($Checks | Where-Object status -eq $status).Count
+        $summary[$status] = @($normalizedChecks | Where-Object status -eq $status).Count
     }
 
     $outcome = if ($summary.fail -gt 0) {
@@ -247,7 +374,7 @@ function New-AzdValidationReport {
         'passed'
     }
 
-    $orderedChecks = @($Checks | Sort-Object `
+    $orderedChecks = @($normalizedChecks | Sort-Object `
         @{ Expression = { $script:PhaseOrder.IndexOf($_.phase) } },
         @{ Expression = { $_.id } })
 
@@ -278,7 +405,9 @@ function Write-AzdValidationReport {
         [string] $OutputPath,
 
         [Parameter(Mandatory)]
-        [string] $RepositoryRoot
+        [string] $RepositoryRoot,
+
+        [string] $SchemaPath = (Join-Path $PSScriptRoot 'deployment-validation.schema.json')
     )
 
     if ([System.IO.Path]::IsPathRooted($OutputPath) -or $OutputPath -split '[\\/]' -contains '..') {
@@ -286,6 +415,12 @@ function Write-AzdValidationReport {
     }
 
     $root = [System.IO.Path]::GetFullPath($RepositoryRoot)
+    if (-not (Test-Path -LiteralPath $root -PathType Container)) {
+        throw 'RepositoryRoot must be an existing directory.'
+    }
+    if ((Get-Item -LiteralPath $root).Attributes -band [System.IO.FileAttributes]::ReparsePoint) {
+        throw 'RepositoryRoot cannot be a symbolic link or reparse point.'
+    }
     $target = [System.IO.Path]::GetFullPath((Join-Path $root $OutputPath))
     $rootPrefix = $root.TrimEnd([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar) + [System.IO.Path]::DirectorySeparatorChar
     $isWindowsPlatform = [System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform(
@@ -295,6 +430,15 @@ function Write-AzdValidationReport {
         throw 'OutputPath resolves outside RepositoryRoot.'
     }
 
+    $cursor = $root
+    foreach ($segment in $OutputPath -split '[\\/]') {
+        $cursor = Join-Path $cursor $segment
+        if ((Test-Path -LiteralPath $cursor) -and
+            ((Get-Item -LiteralPath $cursor).Attributes -band [System.IO.FileAttributes]::ReparsePoint)) {
+            throw 'OutputPath cannot traverse a symbolic link or reparse point.'
+        }
+    }
+
     $directory = Split-Path -Parent $target
     if (-not (Test-Path -LiteralPath $directory)) {
         New-Item -ItemType Directory -Path $directory -Force | Out-Null
@@ -302,8 +446,28 @@ function Write-AzdValidationReport {
 
     $temporaryPath = Join-Path $directory ('.{0}.{1}.tmp' -f [System.IO.Path]::GetFileName($target), [guid]::NewGuid().ToString('N'))
     try {
-        $json = $Report | ConvertTo-Json -Depth 30
-        [System.IO.File]::WriteAllText($temporaryPath, $json + [Environment]::NewLine, [System.Text.UTF8Encoding]::new($false))
+        $safeReport = [pscustomobject] (ConvertTo-AzdSafeData -Value $Report)
+        $json = $safeReport | ConvertTo-Json -Depth 30
+        if (-not (Test-Path -LiteralPath $SchemaPath -PathType Leaf)) {
+            throw 'The deployment-validation schema is unavailable.'
+        }
+        try {
+            if (-not ($json | Test-Json -SchemaFile $SchemaPath -ErrorAction Stop)) {
+                throw 'Schema validation returned false.'
+            }
+        }
+        catch {
+            throw 'The deployment validation report does not satisfy its schema.'
+        }
+        [System.IO.File]::WriteAllText($temporaryPath, $json + "`n", [System.Text.UTF8Encoding]::new($false))
+        $cursor = $root
+        foreach ($segment in $OutputPath -split '[\\/]') {
+            $cursor = Join-Path $cursor $segment
+            if ((Test-Path -LiteralPath $cursor) -and
+                ((Get-Item -LiteralPath $cursor).Attributes -band [System.IO.FileAttributes]::ReparsePoint)) {
+                throw 'OutputPath became a symbolic link or reparse point before the report could be committed.'
+            }
+        }
         Move-Item -LiteralPath $temporaryPath -Destination $target -Force
     }
     finally {
@@ -319,19 +483,23 @@ function Write-AzdValidationSummary {
     [CmdletBinding()]
     param([Parameter(Mandatory)][object] $Report)
 
-    foreach ($check in $Report.checks) {
+    $safeReport = [pscustomobject] (ConvertTo-AzdSafeData -Value $Report)
+    foreach ($check in $safeReport.checks) {
         $prefix = '[{0}]' -f $check.status.ToUpperInvariant()
         Write-Host ('{0} {1}: {2}' -f $prefix, $check.id, $check.summary)
     }
     Write-Host ('Outcome: {0}; pass={1}, fail={2}, warning={3}, info={4}, skipped={5}, planned={6}' -f `
-        $Report.outcome, $Report.summary.pass, $Report.summary.fail, $Report.summary.warning,
-        $Report.summary.info, $Report.summary.skipped, $Report.summary.planned)
+        $safeReport.outcome, $safeReport.summary.pass, $safeReport.summary.fail, $safeReport.summary.warning,
+        $safeReport.summary.info, $safeReport.summary.skipped, $safeReport.summary.planned)
 }
 
 function Assert-AzdValidationSucceeded {
     [CmdletBinding()]
     param([Parameter(Mandatory)][object] $Report)
 
+    if ([string] $Report.outcome -notin 'planned', 'passed', 'passedWithWarnings', 'failed') {
+        throw 'Deployment validation report has an invalid outcome.'
+    }
     if ($Report.outcome -eq 'failed') {
         throw "Deployment validation failed with $($Report.summary.fail) failed check(s)."
     }
@@ -340,8 +508,10 @@ function Assert-AzdValidationSucceeded {
 Export-ModuleMember -Function @(
     'Assert-AzdValidationSucceeded',
     'ConvertTo-AzdSafeData',
+    'Invoke-AzdValidationSet',
     'Invoke-AzdValidationCheck',
     'New-AzdCheckOutcome',
+    'New-AzdValidationCheckDefinition',
     'New-AzdValidationReport',
     'Write-AzdValidationReport',
     'Write-AzdValidationSummary'

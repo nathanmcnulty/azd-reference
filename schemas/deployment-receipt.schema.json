@@ -58,7 +58,7 @@
       "type": "array",
       "items": {
         "type": "string",
-        "pattern": "^(?![A-Za-z]:)(?![/\\\\]).+"
+        "pattern": "^(?![A-Za-z]:)(?!/)(?!\\.{1,2}(?:/|$))(?!.*?/\\.{1,2}(?:/|$))[^\\\\\\u0000-\\u001F]+$"
       }
     },
     "operationalActions": {
