@@ -198,11 +198,24 @@ function Invoke-AzdValidationSet {
         [switch] $AllowSyntheticDelivery
     )
 
-    $completedStatuses = @{}
+    $declaredIds = @{}
     foreach ($definition in $Definitions) {
         if ($definition.PSObject.TypeNames -notcontains 'Azd.Validation.CheckDefinition') {
             throw 'Project adapters must return definitions created by New-AzdValidationCheckDefinition.'
         }
+        if ($declaredIds.ContainsKey($definition.id)) {
+            throw "Project validation check ID '$($definition.id)' is duplicated."
+        }
+        foreach ($dependencyId in @($definition.dependsOn)) {
+            if (-not $declaredIds.ContainsKey($dependencyId)) {
+                throw "Project validation check '$($definition.id)' depends on unknown or non-earlier check '$dependencyId'."
+            }
+        }
+        $declaredIds[$definition.id] = $true
+    }
+
+    $completedStatuses = @{}
+    foreach ($definition in $Definitions) {
         $effectiveSkipReason = $definition.skipReason
         if (-not $Plan -and -not $effectiveSkipReason) {
             $blockedDependencies = @(

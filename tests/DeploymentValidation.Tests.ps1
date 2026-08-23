@@ -117,24 +117,39 @@ Describe 'Deployment validation engine' {
         @($results | Where-Object status -eq 'planned').Count | Should -Be 2
     }
 
-    It 'allows warning prerequisites but gates missing or forward dependencies' {
+    It 'allows warning prerequisites' {
         $script:allowedInvoked = $false
-        $script:blockedInvoked = $false
         $definitions = @(
             New-AzdValidationCheckDefinition -Id 'context.warning' -Phase context -Title 'Warning' -Summary 'Warning' `
                 -Action { New-AzdCheckOutcome -Status warning -Summary 'Warning is acceptable.' }
             New-AzdValidationCheckDefinition -Id 'runtime.allowed' -Phase runtime -Title 'Allowed' -Summary 'Allowed' `
                 -DependsOn 'context.warning' -Action { $script:allowedInvoked = $true }
-            New-AzdValidationCheckDefinition -Id 'runtime.blocked' -Phase runtime -Title 'Blocked' -Summary 'Blocked' `
-                -DependsOn 'runtime.later' -Action { $script:blockedInvoked = $true }
-            New-AzdValidationCheckDefinition -Id 'runtime.later' -Phase runtime -Title 'Later' -Summary 'Later' -Action {}
         )
 
         $results = @(Invoke-AzdValidationSet -Definitions $definitions)
 
         $script:allowedInvoked | Should -BeTrue
-        $script:blockedInvoked | Should -BeFalse
-        ($results | Where-Object id -eq 'runtime.blocked').status | Should -Be 'skipped'
+        ($results | Where-Object id -eq 'runtime.allowed').status | Should -Be 'pass'
+    }
+
+    It 'rejects missing, forward, and duplicate dependencies before any action' {
+        $script:invalidGraphInvoked = $false
+        $forward = @(
+            New-AzdValidationCheckDefinition -Id 'runtime.forward' -Phase runtime -Title 'Forward' -Summary 'Forward' `
+                -DependsOn 'runtime.later' -Action { $script:invalidGraphInvoked = $true }
+            New-AzdValidationCheckDefinition -Id 'runtime.later' -Phase runtime -Title 'Later' -Summary 'Later' `
+                -Action { $script:invalidGraphInvoked = $true }
+        )
+        { Invoke-AzdValidationSet -Definitions $forward } | Should -Throw '*unknown or non-earlier*'
+
+        $duplicate = @(
+            New-AzdValidationCheckDefinition -Id 'runtime.same' -Phase runtime -Title 'First' -Summary 'First' `
+                -Action { $script:invalidGraphInvoked = $true }
+            New-AzdValidationCheckDefinition -Id 'runtime.same' -Phase runtime -Title 'Second' -Summary 'Second' `
+                -Action { $script:invalidGraphInvoked = $true }
+        )
+        { Invoke-AzdValidationSet -Definitions $duplicate } | Should -Throw '*duplicated*'
+        $script:invalidGraphInvoked | Should -BeFalse
     }
 
     It 'turns malformed adapter output into a valid failed harness result' {

@@ -55,9 +55,11 @@ exception type by the shared engine.
 ## Prerequisites
 
 Use `-DependsOn` when a check must not run unless an earlier check succeeded.
-The engine centrally skips dependent actions after a failed, skipped, or missing
-prerequisite. `Pass`, `Warning`, and `Info` satisfy a dependency. Plan mode still
-lists every check without executing prerequisites or dependent actions.
+The engine centrally skips dependent actions after a failed or skipped
+prerequisite. Dependencies must name earlier, unique checks; invalid dependency
+graphs fail before any action runs. `Pass`, `Warning`, and `Info` satisfy a
+dependency. Plan mode still lists every check without executing prerequisites or
+dependent actions.
 
 Tenant, subscription, and identity-context checks must gate all cloud requests,
 negative probes, and delivery actions that rely on that context.
