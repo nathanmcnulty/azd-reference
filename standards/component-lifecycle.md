@@ -31,9 +31,17 @@ Do not reuse a component version for different content. The lock records both th
 component version and exact source commit. An optional portfolio baseline may
 record a tested combination without forcing every solution to update together.
 
+Manifest version 1.1 records the lifecycle `status` and a repository-relative
+`changelog`. Reviewed releases use `component/<id>/v<version>` tags. Synchronizers
+resolve the tag once and lock its full commit. Protect the `component/*` tag
+namespace from update and deletion before publishing releases.
+
 ## Drift
 
 Drift means a managed consumer file no longer matches the hash recorded in its
-lock. Synchronization must stop before overwriting drift unless the author uses an
-explicit override after reviewing the difference. Hashes detect drift; they do
-not prove authenticity when an attacker can change both files and lock metadata.
+lock. A CRLF working representation is equivalent only when the consumer's own
+Git attributes explicitly declare the exact target as `text eol=lf`; no other
+normalization is allowed. Synchronization must stop before overwriting substantive
+drift unless the author uses an explicit override after reviewing the difference.
+Hashes detect drift; they do not prove authenticity when an attacker can change
+both files and lock metadata.

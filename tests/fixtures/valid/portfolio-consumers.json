@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "1.0",
+  "referenceRepository": "https://github.com/example/azd-reference",
+  "consumers": [
+    {
+      "id": "consumer-one",
+      "repository": "https://github.com/example/consumer-one",
+      "checkoutDirectory": "consumer-one",
+      "solutionRoot": ".",
+      "defaultBranch": "main",
+      "rolloutRing": "pilot",
+      "adoption": "adopted",
+      "desiredBaseline": "2026.08",
+      "components": [
+        {
+          "id": "deployment-validation",
+          "desiredVersion": "0.3.3"
+        }
+      ],
+      "validation": {
+        "entryPoint": "scripts/Test-Repository.ps1",
+        "timeoutMinutes": 20
+      }
+    }
+  ]
+}

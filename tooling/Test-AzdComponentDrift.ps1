@@ -3,11 +3,77 @@ param(
     [Parameter(Mandatory)]
     [string] $TargetPath,
 
-    [switch] $PassThru
+    [switch] $PassThru,
+
+    [switch] $NoThrow,
+
+    [switch] $Quiet
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+
+function Get-Sha256Hex {
+    param([Parameter(Mandatory)][byte[]] $Bytes)
+
+    [System.Convert]::ToHexString([System.Security.Cryptography.SHA256]::HashData($Bytes)).ToLowerInvariant()
+}
+
+function Get-LfNormalizedContent {
+    param([Parameter(Mandatory)][byte[]] $Bytes)
+
+    $stream = [System.IO.MemoryStream]::new()
+    try {
+        for ($index = 0; $index -lt $Bytes.Length; $index++) {
+            if ($Bytes[$index] -eq 13 -and $index + 1 -lt $Bytes.Length -and $Bytes[$index + 1] -eq 10) {
+                continue
+            }
+            $stream.WriteByte($Bytes[$index])
+        }
+        $stream.ToArray()
+    }
+    finally {
+        $stream.Dispose()
+    }
+}
+
+function Test-ExplicitLfPolicy {
+    param(
+        [Parameter(Mandatory)][string] $TargetRoot,
+        [Parameter(Mandatory)][string] $TargetFullPath
+    )
+
+    if (-not (Get-Command git -ErrorAction SilentlyContinue)) { return $false }
+    $repositoryRoot = @(& git -C $TargetRoot rev-parse --show-toplevel 2>$null)
+    if ($LASTEXITCODE -ne 0 -or $repositoryRoot.Count -ne 1) { return $false }
+    $repositoryRoot = [System.IO.Path]::GetFullPath([string] $repositoryRoot[0])
+    $relative = [System.IO.Path]::GetRelativePath($repositoryRoot, $TargetFullPath).Replace('\', '/')
+    if ($relative -eq '..' -or $relative.StartsWith('../', [System.StringComparison]::Ordinal)) { return $false }
+
+    $attributes = @(& git -C $repositoryRoot check-attr text eol -- $relative 2>$null)
+    if ($LASTEXITCODE -ne 0) { return $false }
+    $textValue = $null
+    $eolValue = $null
+    foreach ($line in $attributes) {
+        if ([string] $line -match ': text: (?<value>.+)$') { $textValue = $Matches.value }
+        if ([string] $line -match ': eol: (?<value>.+)$') { $eolValue = $Matches.value }
+    }
+    $textValue -eq 'set' -and $eolValue -eq 'lf'
+}
+
+function Get-ManagedFileHashMatch {
+    param(
+        [Parameter(Mandatory)][string] $TargetRoot,
+        [Parameter(Mandatory)][string] $TargetFullPath,
+        [Parameter(Mandatory)][string] $ExpectedHash
+    )
+
+    $bytes = [System.IO.File]::ReadAllBytes($TargetFullPath)
+    if ((Get-Sha256Hex -Bytes $bytes) -eq $ExpectedHash) { return 'exact' }
+    if (-not (Test-ExplicitLfPolicy -TargetRoot $TargetRoot -TargetFullPath $TargetFullPath)) { return $null }
+    if ((Get-Sha256Hex -Bytes (Get-LfNormalizedContent -Bytes $bytes)) -eq $ExpectedHash) { return 'lf-normalized' }
+    $null
+}
 
 $targetRoot = [System.IO.Path]::GetFullPath($TargetPath)
 if (-not (Test-Path -LiteralPath $targetRoot -PathType Container)) {
@@ -76,6 +142,7 @@ foreach ($component in @($lock.components)) {
                 break
             }
         }
+        $match = $null
         $state = if ($unsafe) {
             'unsafe'
         }
@@ -83,24 +150,27 @@ foreach ($component in @($lock.components)) {
             'missing'
         }
         else {
-            $actualHash = (Get-FileHash -LiteralPath $fullPath -Algorithm SHA256).Hash.ToLowerInvariant()
-            if ($actualHash -eq [string] $file.sha256) { 'current' } else { 'modified' }
+            $match = Get-ManagedFileHashMatch -TargetRoot $targetRoot -TargetFullPath $fullPath -ExpectedHash ([string] $file.sha256)
+            if ($match) { 'current' } else { 'modified' }
         }
         $results += [pscustomobject] [ordered]@{
             component = [string] $component.id
             version = [string] $component.version
             target = $relative.Replace('\', '/')
             state = $state
+            match = $match
         }
     }
 }
 
-foreach ($result in $results) {
-    Write-Host ('[{0}] {1}@{2}: {3}' -f $result.state.ToUpperInvariant(), $result.component, $result.version, $result.target)
+if (-not $Quiet) {
+    foreach ($result in $results) {
+        Write-Information ('[{0}] {1}@{2}: {3}' -f $result.state.ToUpperInvariant(), $result.component, $result.version, $result.target) -InformationAction Continue
+    }
 }
 if ($PassThru) {
     $results
 }
-if (@($results | Where-Object state -ne 'current').Count -gt 0) {
+if (-not $NoThrow -and @($results | Where-Object state -ne 'current').Count -gt 0) {
     throw 'One or more managed component files are missing, modified, or unsafe.'
 }

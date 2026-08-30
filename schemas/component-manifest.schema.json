@@ -15,7 +15,10 @@
       "type": "string"
     },
     "manifestVersion": {
-      "const": "1.0"
+      "enum": [
+        "1.0",
+        "1.1"
+      ]
     },
     "id": {
       "type": "string",
@@ -28,6 +31,18 @@
     "description": {
       "type": "string",
       "minLength": 1
+    },
+    "status": {
+      "enum": [
+        "candidate",
+        "pilot",
+        "stable",
+        "deprecated",
+        "retired"
+      ]
+    },
+    "changelog": {
+      "$ref": "#/$defs/relativePath"
     },
     "files": {
       "type": "array",
@@ -51,6 +66,23 @@
       }
     }
   },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "manifestVersion": {
+            "const": "1.1"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "status",
+          "changelog"
+        ]
+      }
+    }
+  ],
   "$defs": {
     "relativePath": {
       "type": "string",

@@ -16,6 +16,9 @@ Every component change must:
 4. document migration steps for a breaking change; and
 5. prove synchronization and drift detection in a temporary consumer.
 
+After review, create `component/<id>/v<version>` at the reviewed commit. Never
+move or reuse a component release tag.
+
 Do not edit generated copies in an example. Change the canonical component and
 run the synchronization tooling.
 

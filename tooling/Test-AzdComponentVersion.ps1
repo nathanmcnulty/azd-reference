@@ -221,6 +221,12 @@ foreach ($manifestPathValue in $manifestPaths) {
     }
 
     $sourcePaths = @()
+    foreach ($manifest in @($baseManifest, $currentManifest)) {
+        if ($manifest.PSObject.Properties.Name -contains 'changelog' -and
+            -not [string]::IsNullOrWhiteSpace([string] $manifest.changelog)) {
+            $sourcePaths += ConvertTo-SafeRepositoryPath -Path ([string] $manifest.changelog) -Description "Component changelog in '$manifestPath'"
+        }
+    }
     foreach ($file in @($baseManifest.files) + @($currentManifest.files)) {
         if ($null -eq $file -or [string]::IsNullOrWhiteSpace([string] $file.source)) {
             throw "Component manifest '$manifestPath' contains a file entry without a source path."
@@ -258,9 +264,9 @@ foreach ($manifestPathValue in $manifestPaths) {
 }
 
 foreach ($result in $results) {
-    Write-Host ('[{0}] {1}: {2} -> {3}' -f $result.state.ToUpperInvariant(), $result.component, $result.baseVersion, $result.currentVersion)
+    Write-Information ('[{0}] {1}: {2} -> {3}' -f $result.state.ToUpperInvariant(), $result.component, $result.baseVersion, $result.currentVersion) -InformationAction Continue
     foreach ($changedPath in $result.changedPaths) {
-        Write-Host "  changed: $changedPath"
+        Write-Information "  changed: $changedPath" -InformationAction Continue
     }
 }
 if ($PassThru) {

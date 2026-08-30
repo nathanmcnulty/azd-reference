@@ -1,0 +1,19 @@
+{
+  "$schema": "../../../schemas/component-manifest.schema.json",
+  "manifestVersion": "1.1",
+  "id": "notification-contracts",
+  "version": "1.0.0",
+  "description": "Transport-neutral notification envelope and safe delivery-result contracts.",
+  "status": "pilot",
+  "changelog": "components/contracts/notification-contracts/CHANGELOG.md",
+  "files": [
+    {
+      "source": "schemas/notification-envelope.schema.json",
+      "target": "contracts/notifications/notification-envelope.schema.json"
+    },
+    {
+      "source": "schemas/notification-delivery-result.schema.json",
+      "target": "contracts/notifications/notification-delivery-result.schema.json"
+    }
+  ]
+}

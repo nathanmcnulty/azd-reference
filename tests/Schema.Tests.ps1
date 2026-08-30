@@ -5,6 +5,8 @@ Describe 'Portfolio JSON schemas' {
     $cases = @(
         @{ Name = 'component manifest'; Schema = 'component-manifest.schema.json'; Fixture = 'component-manifest.json' },
         @{ Name = 'component lock'; Schema = 'azd-components-lock.schema.json'; Fixture = 'azd-components.lock.json' },
+        @{ Name = 'portfolio consumers'; Schema = 'portfolio-consumers.schema.json'; Fixture = 'portfolio-consumers.json' },
+        @{ Name = 'repository baseline'; Schema = 'repository-baseline.schema.json'; Fixture = 'repository-baseline.json' },
         @{ Name = 'deployment validation'; Schema = 'deployment-validation.schema.json'; Fixture = 'deployment-validation.json' },
         @{ Name = 'deployment receipt'; Schema = 'deployment-receipt.schema.json'; Fixture = 'deployment-receipt.json' },
         @{ Name = 'notification envelope'; Schema = 'notification-envelope.schema.json'; Fixture = 'notification-envelope.json' },
@@ -29,6 +31,15 @@ Describe 'Portfolio JSON schemas' {
         $manifests.Count | Should -BeGreaterThan 0
         foreach ($manifest in $manifests) {
             (Get-Content -LiteralPath $manifest.FullName -Raw | Test-Json -SchemaFile $schemaPath -ErrorAction Stop) | Should -BeTrue
+            $data = Get-Content -LiteralPath $manifest.FullName -Raw | ConvertFrom-Json
+            if ($data.manifestVersion -eq '1.1') {
+                Test-Path -LiteralPath (Join-Path $script:repoRoot $data.changelog) -PathType Leaf | Should -BeTrue
+            }
+            $moduleManifests = @($data.files | Where-Object { [string] $_.source -like '*.psd1' })
+            foreach ($moduleManifest in $moduleManifests) {
+                $moduleData = Import-PowerShellDataFile -LiteralPath (Join-Path $script:repoRoot $moduleManifest.source)
+                ([string] $moduleData.ModuleVersion) | Should -Be ([string] $data.version)
+            }
         }
     }
 
@@ -44,5 +55,9 @@ Describe 'Portfolio JSON schemas' {
         $receipt = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'fixtures/valid/deployment-receipt.json') -Raw | ConvertFrom-Json
         $receipt.artifacts = @('../../outside.json')
         { $receipt | ConvertTo-Json -Depth 10 | Test-Json -SchemaFile (Join-Path $script:repoRoot 'schemas/deployment-receipt.schema.json') -ErrorAction Stop } | Should -Throw
+
+        $portfolio = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'fixtures/valid/portfolio-consumers.json') -Raw | ConvertFrom-Json
+        $portfolio.consumers[0].checkoutDirectory = '../outside'
+        { $portfolio | ConvertTo-Json -Depth 10 | Test-Json -SchemaFile (Join-Path $script:repoRoot 'schemas/portfolio-consumers.schema.json') -ErrorAction Stop } | Should -Throw
     }
 }

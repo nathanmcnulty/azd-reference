@@ -59,6 +59,22 @@ Describe 'Canonical component version immutability' {
         { & $guard -BaseRevision $baseRevision } | Should -Throw '*without a component version change*'
     }
 
+    It 'fails when a declared changelog changes without a version change' {
+        $changelogPath = Join-Path $componentRoot 'CHANGELOG.md'
+        Set-Content -LiteralPath $changelogPath -Encoding utf8NoBOM -Value '# 1.0.0'
+        $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+        $manifest | Add-Member -NotePropertyName status -NotePropertyValue 'stable'
+        $manifest | Add-Member -NotePropertyName changelog -NotePropertyValue 'components/example/CHANGELOG.md'
+        $manifest.manifestVersion = '1.1'
+        $manifest | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $manifestPath -Encoding utf8NoBOM
+        & git -C $reference add --all
+        & git -C $reference commit -m 'Add changelog baseline' | Out-Null
+        $changelogBase = (& git -C $reference rev-parse HEAD).Trim()
+
+        Add-Content -LiteralPath $changelogPath -Encoding utf8NoBOM -Value "`nChanged notes"
+        { & $guard -BaseRevision $changelogBase } | Should -Throw '*without a component version change*'
+    }
+
     It 'checks the union of base and current managed sources' {
         Set-Content -LiteralPath (Join-Path $componentRoot 'additional.ps1') -Encoding utf8NoBOM -Value 'Write-Output additional'
         $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json

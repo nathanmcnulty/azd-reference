@@ -29,6 +29,7 @@ Requirements:
   resources to delete.
 - Optional features expose deployment outputs and validation state separately.
 - Public templates contain everything required to initialize and deploy them.
-- Managed files use exact-byte hashes. Consumer `.gitattributes` must enforce LF
-  for `**/vendor/**` and `azd-components.lock.json` so Windows and Linux checkouts
-  produce the same bytes.
+- Managed files use hashes of the exact committed source blobs. Consumer
+  `.gitattributes` must enforce LF for `**/vendor/**` and
+  `azd-components.lock.json`. A stale CRLF working representation is accepted
+  only when Git explicitly reports `text eol=lf` for that exact target.
