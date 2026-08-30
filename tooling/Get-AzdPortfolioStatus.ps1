@@ -233,6 +233,11 @@ foreach ($consumer in @($registry.consumers)) {
             $requiredPath = Resolve-SafeDirectory -Root $checkoutRoot -RelativePath ([string] $requiredFile) -Label 'Required repository file'
             if (-not (Test-Path -LiteralPath $requiredPath -PathType Leaf)) { $consumerFindings.Add("repositoryFileMissing:$requiredFile") }
         }
+        $repositoryValidationWorkflow = [string] $consumer.repositoryValidationWorkflow
+        $repositoryValidationWorkflowPath = Resolve-SafeDirectory -Root $checkoutRoot -RelativePath $repositoryValidationWorkflow -Label 'Repository validation workflow'
+        if (-not (Test-Path -LiteralPath $repositoryValidationWorkflowPath -PathType Leaf)) {
+            $consumerFindings.Add("repositoryValidationWorkflowMissing:$repositoryValidationWorkflow")
+        }
         Add-WorkflowPolicyFinding -CheckoutRoot $checkoutRoot -WorkflowPolicy $baseline.workflowPolicy -Findings $consumerFindings
         $solutionRoot = Resolve-SafeDirectory -Root $checkoutRoot -RelativePath ([string] $consumer.solutionRoot) -Label 'Solution root'
         if (-not (Test-Path -LiteralPath $solutionRoot -PathType Container)) {
@@ -248,7 +253,7 @@ foreach ($consumer in @($registry.consumers)) {
                 if (-not (Test-Path -LiteralPath $recommendedPath -PathType Leaf)) { $consumerFindings.Add("solutionFileRecommended:$recommendedFile") }
             }
             if ($consumer.PSObject.Properties.Name -contains 'validation') {
-                $validationPath = Resolve-SafeDirectory -Root $solutionRoot -RelativePath ([string] $consumer.validation.entryPoint) -Label 'Validation entry point'
+                $validationPath = Resolve-SafeDirectory -Root $checkoutRoot -RelativePath ([string] $consumer.validation.entryPoint) -Label 'Validation entry point'
                 if (-not (Test-Path -LiteralPath $validationPath -PathType Leaf)) { $consumerFindings.Add('validationEntryPointMissing') }
             }
             elseif ($consumer.adoption -eq 'adopted') {

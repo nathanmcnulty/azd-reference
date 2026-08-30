@@ -28,6 +28,9 @@ Describe 'Portfolio component status' {
         New-Item -ItemType Directory -Path (Split-Path -Parent $managed) -Force | Out-Null
         Copy-Item -LiteralPath (Join-Path $script:repoRoot 'components/powershell/deployment-validation/Azd.DeploymentValidation.psd1') -Destination $managed
         Set-Content -LiteralPath (Join-Path $checkout '.gitattributes') -Encoding utf8NoBOM -Value 'scripts/vendor/** text eol=lf'
+        $workflowRoot = Join-Path $checkout '.github/workflows'
+        New-Item -ItemType Directory -Path $workflowRoot -Force | Out-Null
+        Set-Content -LiteralPath (Join-Path $workflowRoot 'validate-consumer.yml') -Encoding utf8NoBOM -Value "name: Validate`non: push`npermissions:`n  contents: read`njobs: {}"
         $hash = (Get-FileHash -LiteralPath $managed -Algorithm SHA256).Hash.ToLowerInvariant()
 
         [ordered]@{
@@ -68,6 +71,7 @@ Describe 'Portfolio component status' {
                     checkoutDirectory = 'consumer-one'
                     solutionRoot = '.'
                     defaultBranch = 'main'
+                    repositoryValidationWorkflow = '.github/workflows/validate-consumer.yml'
                     rolloutRing = 'pilot'
                     adoption = 'adopted'
                     components = @(
@@ -96,6 +100,15 @@ Describe 'Portfolio component status' {
         $data.consumers[0].components[0].desiredVersion = '0.4.0'
         $data | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $registryPath -Encoding utf8NoBOM
         (@(& $statusTool -PortfolioRoot $portfolioRoot -RegistryPath $registryPath))[0].state | Should -Be 'outdated'
+    }
+
+    It 'reports a missing consumer-declared repository validation workflow' {
+        $data = Get-Content -LiteralPath $registryPath -Raw | ConvertFrom-Json
+        $data.consumers[0].repositoryValidationWorkflow = '.github/workflows/validate-other.yml'
+        $data | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $registryPath -Encoding utf8NoBOM
+
+        $result = (@(& $statusTool -PortfolioRoot $portfolioRoot -RegistryPath $registryPath))[0]
+        $result.findings | Should -Contain 'repositoryValidationWorkflowMissing:.github/workflows/validate-other.yml'
     }
 
     It 'honors explicit LF policy for a CRLF working representation' {

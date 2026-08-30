@@ -3,15 +3,29 @@
 ## Registry
 
 `portfolio/consumers.json` records machine-neutral checkout directories,
-solution roots, approved component versions, rollout rings, and adoption state.
+solution roots, repository validation workflows, offline validation entry points,
+approved component versions, rollout rings, and adoption state.
 Callers supply the local portfolio root; the registry contains no absolute paths
 or credentials.
+
+`repositoryValidationWorkflow` and `validation.entryPoint` are relative to the
+consumer repository checkout root. This keeps a monorepo solution explicit: for
+example, PIM registers `.github/workflows/validate-azd-pim.yml` and
+`azd-pim/scripts/Test-Repository.ps1`, while validation still runs with the
+solution root as its working directory.
+
+When a consumer declares `desiredBaseline`, both planning and preparation pass
+that exact value to component synchronization. Preparation writes it into
+`azd-components.lock.json` in the same transaction as the component update and
+reports the resulting baseline.
 
 `Get-AzdPortfolioStatus.ps1` is read-only. It does not fetch, clone, checkout,
 execute consumer code, or write reports by default. It validates locks and reports
 unavailable checkouts, unsafe or missing files, substantive drift, unmanaged
 canonical targets, release-tag provenance mismatches, version differences, and
-repository baseline findings. Baseline checks include SHA-pinned external
+repository baseline findings. Each consumer's declared validation workflow must
+exist; the generic baseline does not assume a file named `validate.yml`.
+Baseline checks include SHA-pinned external
 actions, top-level `contents: read` workflow permissions, and grouped, bounded
 Dependabot updates.
 

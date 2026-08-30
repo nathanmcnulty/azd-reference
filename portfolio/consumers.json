@@ -9,6 +9,7 @@
       "checkoutDirectory": "azd-emergency-access",
       "solutionRoot": ".",
       "defaultBranch": "main",
+      "repositoryValidationWorkflow": ".github/workflows/validate.yml",
       "rolloutRing": "pilot",
       "adoption": "adopted",
       "desiredBaseline": "2026.08",
@@ -21,7 +22,11 @@
           "id": "graph-delegated-authentication",
           "desiredVersion": "0.1.1"
         }
-      ]
+      ],
+      "validation": {
+        "entryPoint": "scripts/Test-Repository.ps1",
+        "timeoutMinutes": 30
+      }
     },
     {
       "id": "azd-pim",
@@ -29,6 +34,7 @@
       "checkoutDirectory": "azd-work-in-progress",
       "solutionRoot": "azd-pim",
       "defaultBranch": "main",
+      "repositoryValidationWorkflow": ".github/workflows/validate-azd-pim.yml",
       "rolloutRing": "pilot",
       "adoption": "adopted",
       "desiredBaseline": "2026.08",
@@ -45,7 +51,11 @@
           "id": "notification-contracts",
           "desiredVersion": "1.0.0"
         }
-      ]
+      ],
+      "validation": {
+        "entryPoint": "azd-pim/scripts/Test-Repository.ps1",
+        "timeoutMinutes": 30
+      }
     },
     {
       "id": "azd-device-notifications",
@@ -53,6 +63,7 @@
       "checkoutDirectory": "azd-device-notifications",
       "solutionRoot": ".",
       "defaultBranch": "main",
+      "repositoryValidationWorkflow": ".github/workflows/validate.yml",
       "rolloutRing": "pending",
       "adoption": "pending",
       "components": [
@@ -64,7 +75,11 @@
           "id": "notification-contracts",
           "desiredVersion": "1.0.0"
         }
-      ]
+      ],
+      "validation": {
+        "entryPoint": "scripts/Test-Repository.ps1",
+        "timeoutMinutes": 30
+      }
     }
   ]
 }
