@@ -47,6 +47,8 @@ Describe 'Portfolio update preparation' {
                     checkoutDirectory = 'consumer-one'
                     solutionRoot = '.'
                     defaultBranch = 'main'
+                    repositoryValidationWorkflow = '.github/workflows/validate.yml'
+                    desiredBaseline = '2026.08.2'
                     rolloutRing = 'pilot'
                     adoption = 'adopted'
                     components = @(
@@ -65,6 +67,7 @@ Describe 'Portfolio update preparation' {
         $result = @(& $updater -Component deployment-validation -Version 0.3.3 -PortfolioRoot $portfolioRoot -RegistryPath $registryPath)
         $result.Count | Should -Be 1
         $result[0].state | Should -Be 'planned'
+        $result[0].baseline | Should -Be '2026.08.2'
         (& git -C $consumer rev-parse HEAD).Trim() | Should -Be $beforeHead
         Test-Path -LiteralPath (Join-Path $consumer 'azd-components.lock.json') | Should -BeFalse
         @(Get-ChildItem -LiteralPath $worktrees -Force).Count | Should -Be 0
@@ -94,8 +97,30 @@ Describe 'Portfolio update preparation' {
         (& git -C $consumer rev-parse HEAD).Trim() | Should -Be $beforeHead
         Test-Path -LiteralPath (Join-Path $consumer 'azd-components.lock.json') | Should -BeFalse
         @(& git -C $consumer branch --list $result[0].branch).Count | Should -Be 1
-        (& git -C $consumer show "$($result[0].branch):azd-components.lock.json") | Should -Not -BeNullOrEmpty
+        $preparedLock = (& git -C $consumer show "$($result[0].branch):azd-components.lock.json") | ConvertFrom-Json
+        $preparedLock.baseline | Should -Be '2026.08.2'
+        $result[0].baseline | Should -Be '2026.08.2'
         @(Get-ChildItem -LiteralPath $worktrees -Force).Count | Should -Be 0
+    }
+
+    It 'resolves validation from the repository root and runs it from the solution root' {
+        $solutionRoot = Join-Path $consumer 'nested-solution'
+        New-Item -ItemType Directory -Path $solutionRoot | Out-Null
+        Set-Content -LiteralPath (Join-Path $solutionRoot '.gitkeep') -Encoding utf8NoBOM -Value ''
+        Set-Content -LiteralPath (Join-Path $consumer 'scripts/Test-Repository.ps1') -Encoding utf8NoBOM -Value "`$expected = Join-Path (Split-Path `$PSScriptRoot -Parent) 'nested-solution'`nif ((Get-Location).Path -ne `$expected) { throw 'validation working directory mismatch' }`n'validated' | Write-Output"
+        & git -C $consumer add --all
+        & git -C $consumer commit -m 'Add nested solution fixture' | Out-Null
+        $consumerHead = (& git -C $consumer rev-parse HEAD).Trim()
+        & git -C $consumer update-ref refs/remotes/origin/main $consumerHead
+
+        $registry = Get-Content -LiteralPath $registryPath -Raw | ConvertFrom-Json
+        $registry.consumers[0].solutionRoot = 'nested-solution'
+        $registry | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $registryPath -Encoding utf8NoBOM
+
+        $result = @(& $updater -Component deployment-validation -Version 0.3.3 -PortfolioRoot $portfolioRoot -RegistryPath $registryPath -Operation Prepare -WorktreeRoot $worktrees -Confirm:$false)
+        $result[0].state | Should -Be 'prepared'
+        $result[0].validationOutput | Should -Contain 'validated'
+        (& git -C $consumer show "$($result[0].branch):nested-solution/azd-components.lock.json") | Should -Not -BeNullOrEmpty
     }
 
     It 'removes its temporary branch when the consumer is already current' {

@@ -83,6 +83,7 @@
         "checkoutDirectory",
         "solutionRoot",
         "defaultBranch",
+        "repositoryValidationWorkflow",
         "rolloutRing",
         "adoption",
         "components"
@@ -104,6 +105,9 @@
         "defaultBranch": {
           "type": "string",
           "pattern": "^[A-Za-z0-9][A-Za-z0-9._/-]*$"
+        },
+        "repositoryValidationWorkflow": {
+          "$ref": "#/$defs/relativePath"
         },
         "rolloutRing": {
           "enum": [

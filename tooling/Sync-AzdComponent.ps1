@@ -7,6 +7,9 @@ param(
     [Parameter(Mandatory)]
     [string] $TargetPath,
 
+    [ValidatePattern('^[0-9]{4}\.[0-9]{2}(?:\.[0-9]+)?$')]
+    [string] $Baseline,
+
     [Parameter(ParameterSetName = 'Version')]
     [ValidatePattern('^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z.-]+)?$')]
     [string] $Version,
@@ -446,7 +449,10 @@ $newComponentLock = [pscustomobject] [ordered]@{
 }
 $otherComponents = @($lock.components | Where-Object id -ne $Component)
 $newLockData = [ordered]@{ manifestVersion = '1.0' }
-if ($lock.PSObject.Properties.Name -contains 'baseline') {
+if ($Baseline) {
+    $newLockData.baseline = $Baseline
+}
+elseif ($lock.PSObject.Properties.Name -contains 'baseline') {
     $newLockData.baseline = [string] $lock.baseline
 }
 $newLockData.components = @($otherComponents + $newComponentLock | Sort-Object id)
@@ -462,6 +468,7 @@ if (-not $PSCmdlet.ShouldProcess($targetRoot, $description)) {
         component = $Component
         version = [string] $manifest.version
         sourceRevision = $sourceRevision
+        baseline = if ($newLock.PSObject.Properties.Name -contains 'baseline') { [string] $newLock.baseline } else { $null }
         targets = @($plannedFiles.Target)
         removedTargets = @($removedFiles | ForEach-Object { $_.Target })
         changed = $false
@@ -545,6 +552,7 @@ finally {
     component = $Component
     version = [string] $manifest.version
     sourceRevision = $sourceRevision
+    baseline = if ($newLock.PSObject.Properties.Name -contains 'baseline') { [string] $newLock.baseline } else { $null }
     targets = @($plannedFiles.Target)
     removedTargets = @($removedFiles | ForEach-Object { $_.Target })
     changed = $true

@@ -4,6 +4,9 @@
 the machine-readable minimum for independently supported azd solutions. The
 baseline audits repository and solution roots separately so a solution inside an
 incubation repository does not pretend to own repository-level workflows.
+Each consumer declares its repository-root-relative validation workflow. The
+generic required-file list does not assume `.github/workflows/validate.yml`,
+because a monorepo can own several independently scoped validation workflows.
 
 The baseline is an audit contract, not an overlay. README content, security
 contacts, dependency ecosystems, validation commands, and workflow jobs remain

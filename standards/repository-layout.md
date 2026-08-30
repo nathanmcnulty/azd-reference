@@ -4,7 +4,7 @@ An independently supported solution should use the following baseline where the
 folders apply:
 
 ```text
-.github/workflows/validate.yml
+.github/workflows/<registered-validation-workflow>.yml
 azure.yaml
 infra/
 scripts/
@@ -22,6 +22,9 @@ SECURITY.md
 Requirements:
 
 - `azure.yaml` is at the template root.
+- The portfolio registry names the repository's validation workflow explicitly;
+  independently supported repositories commonly use `validate.yml`, while a
+  monorepo uses a solution-specific workflow name.
 - Generated infrastructure output is either reproducibly committed and checked,
   or consistently excluded; a repository must not alternate between policies.
 - Scripts fail closed on missing required context.

@@ -192,6 +192,9 @@ foreach ($selection in $selectedConsumers) {
         TargetPath = $activeSolutionRoot
         WhatIf = $true
     }
+    if ($consumer.PSObject.Properties.Name -contains 'desiredBaseline') {
+        $syncParameters.Baseline = [string] $consumer.desiredBaseline
+    }
     if ($PruneRemovedFiles) { $syncParameters.PruneRemovedFiles = $true }
     $plan = & (Join-Path $referenceRoot 'tooling/Sync-AzdComponent.ps1') @syncParameters
     if ($Operation -eq 'Plan') {
@@ -201,6 +204,7 @@ foreach ($selection in $selectedConsumers) {
             component = $Component
             version = $Version
             sourceRevision = $tagRevision
+            baseline = $plan.baseline
             branch = $branch
             targets = @($plan.targets)
             removedTargets = @($plan.removedTargets)
@@ -254,13 +258,14 @@ foreach ($selection in $selectedConsumers) {
                 component = $Component
                 version = $Version
                 sourceRevision = $tagRevision
+                baseline = $syncResult.baseline
                 branch = $null
                 state = 'alreadyCurrent'
             }
             continue
         }
 
-        $validationPath = Resolve-SafePath -Root $worktreeSolution -RelativePath ([string] $consumer.validation.entryPoint) -Label 'Validation entry point'
+        $validationPath = Resolve-SafePath -Root $worktreePath -RelativePath ([string] $consumer.validation.entryPoint) -Label 'Validation entry point'
         if (-not (Test-Path -LiteralPath $validationPath -PathType Leaf)) {
             throw "Validation entry point is missing: '$validationPath'."
         }
@@ -278,6 +283,7 @@ foreach ($selection in $selectedConsumers) {
             component = $Component
             version = $Version
             sourceRevision = $tagRevision
+            baseline = $syncResult.baseline
             branch = $branch
             commit = $commit
             validationOutput = @($validationOutput | ForEach-Object { [string] $_ })

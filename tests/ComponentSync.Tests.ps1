@@ -104,6 +104,16 @@ Describe 'Component synchronization' {
         (Get-Content -LiteralPath $lockPath -Raw | ConvertFrom-Json).baseline | Should -Be '2026.08'
     }
 
+    It 'sets an exact requested portfolio baseline transactionally' {
+        $plan = & $sync -Component deployment-validation -TargetPath $consumer -Baseline '2026.08.2' -WhatIf
+        $plan.baseline | Should -Be '2026.08.2'
+        Test-Path -LiteralPath (Join-Path $consumer 'azd-components.lock.json') | Should -BeFalse
+
+        $result = & $sync -Component deployment-validation -TargetPath $consumer -Baseline '2026.08.2'
+        $result.baseline | Should -Be '2026.08.2'
+        (Get-Content -LiteralPath (Join-Path $consumer 'azd-components.lock.json') -Raw | ConvertFrom-Json).baseline | Should -Be '2026.08.2'
+    }
+
     It 'refuses to overwrite managed drift by default' {
         & $sync -Component deployment-validation -TargetPath $consumer | Out-Null
         $managed = Join-Path $consumer 'scripts/vendor/Azd.DeploymentValidation/Azd.DeploymentValidation.psm1'

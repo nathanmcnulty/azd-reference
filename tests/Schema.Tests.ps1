@@ -43,6 +43,14 @@ Describe 'Portfolio JSON schemas' {
         }
     }
 
+    It 'accepts the canonical portfolio registry and repository baseline' {
+        $portfolioRoot = Join-Path $script:repoRoot 'portfolio'
+        (Get-Content -LiteralPath (Join-Path $portfolioRoot 'consumers.json') -Raw |
+            Test-Json -SchemaFile (Join-Path $script:repoRoot 'schemas/portfolio-consumers.schema.json') -ErrorAction Stop) | Should -BeTrue
+        (Get-Content -LiteralPath (Join-Path $portfolioRoot 'repository-baseline.json') -Raw |
+            Test-Json -SchemaFile (Join-Path $script:repoRoot 'schemas/repository-baseline.schema.json') -ErrorAction Stop) | Should -BeTrue
+    }
+
     It 'rejects parent traversal in every repository-relative path contract' {
         $manifest = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'fixtures/valid/component-manifest.json') -Raw | ConvertFrom-Json
         $manifest.files[0].source = '../outside.psm1'
@@ -58,6 +66,14 @@ Describe 'Portfolio JSON schemas' {
 
         $portfolio = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'fixtures/valid/portfolio-consumers.json') -Raw | ConvertFrom-Json
         $portfolio.consumers[0].checkoutDirectory = '../outside'
+        { $portfolio | ConvertTo-Json -Depth 10 | Test-Json -SchemaFile (Join-Path $script:repoRoot 'schemas/portfolio-consumers.schema.json') -ErrorAction Stop } | Should -Throw
+
+        $portfolio = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'fixtures/valid/portfolio-consumers.json') -Raw | ConvertFrom-Json
+        $portfolio.consumers[0].repositoryValidationWorkflow = '../outside.yml'
+        { $portfolio | ConvertTo-Json -Depth 10 | Test-Json -SchemaFile (Join-Path $script:repoRoot 'schemas/portfolio-consumers.schema.json') -ErrorAction Stop } | Should -Throw
+
+        $portfolio = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'fixtures/valid/portfolio-consumers.json') -Raw | ConvertFrom-Json
+        $portfolio.consumers[0].PSObject.Properties.Remove('repositoryValidationWorkflow')
         { $portfolio | ConvertTo-Json -Depth 10 | Test-Json -SchemaFile (Join-Path $script:repoRoot 'schemas/portfolio-consumers.schema.json') -ErrorAction Stop } | Should -Throw
     }
 }

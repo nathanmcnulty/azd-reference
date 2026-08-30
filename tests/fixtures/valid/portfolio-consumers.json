@@ -8,6 +8,7 @@
       "checkoutDirectory": "consumer-one",
       "solutionRoot": ".",
       "defaultBranch": "main",
+      "repositoryValidationWorkflow": ".github/workflows/validate-consumer.yml",
       "rolloutRing": "pilot",
       "adoption": "adopted",
       "desiredBaseline": "2026.08",
