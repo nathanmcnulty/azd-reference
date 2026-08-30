@@ -33,7 +33,7 @@ function Resolve-SafeDirectory {
     if ($candidate -ne $fullRoot -and -not $candidate.StartsWith($rootPrefix, $comparison)) {
         throw "$Label resolves outside its allowed root: '$RelativePath'."
     }
-    if ((Get-Item -LiteralPath $fullRoot).Attributes -band [System.IO.FileAttributes]::ReparsePoint) {
+    if ((Get-Item -LiteralPath $fullRoot -Force).Attributes -band [System.IO.FileAttributes]::ReparsePoint) {
         throw "$Label root cannot be a symbolic link or reparse point: '$fullRoot'."
     }
     $cursor = $fullRoot
@@ -41,7 +41,7 @@ function Resolve-SafeDirectory {
         foreach ($segment in $RelativePath -split '[\\/]') {
             $cursor = Join-Path $cursor $segment
             if ((Test-Path -LiteralPath $cursor) -and
-                ((Get-Item -LiteralPath $cursor).Attributes -band [System.IO.FileAttributes]::ReparsePoint)) {
+                ((Get-Item -LiteralPath $cursor -Force).Attributes -band [System.IO.FileAttributes]::ReparsePoint)) {
                 throw "$Label cannot traverse a symbolic link or reparse point: '$cursor'."
             }
         }
