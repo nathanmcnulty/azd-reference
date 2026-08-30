@@ -1,0 +1,139 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "azd portfolio consumer registry",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "referenceRepository",
+    "consumers"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "schemaVersion": {
+      "const": "1.0"
+    },
+    "referenceRepository": {
+      "$ref": "#/$defs/repository"
+    },
+    "consumers": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/consumer"
+      }
+    }
+  },
+  "$defs": {
+    "repository": {
+      "type": "string",
+      "pattern": "^https://github\\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
+    },
+    "semver": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z.-]+)?$"
+    },
+    "relativePath": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?:\\.|(?![A-Za-z]:)(?!/)(?!\\.{1,2}(?:/|$))(?!.*?/\\.{1,2}(?:/|$))[^\\\\\\u0000-\\u001F]+)$"
+    },
+    "component": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "desiredVersion"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]{1,62}[a-z0-9]$"
+        },
+        "desiredVersion": {
+          "$ref": "#/$defs/semver"
+        }
+      }
+    },
+    "validation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entryPoint",
+        "timeoutMinutes"
+      ],
+      "properties": {
+        "entryPoint": {
+          "$ref": "#/$defs/relativePath"
+        },
+        "timeoutMinutes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 120
+        }
+      }
+    },
+    "consumer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "repository",
+        "checkoutDirectory",
+        "solutionRoot",
+        "defaultBranch",
+        "rolloutRing",
+        "adoption",
+        "components"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]{1,62}[a-z0-9]$"
+        },
+        "repository": {
+          "$ref": "#/$defs/repository"
+        },
+        "checkoutDirectory": {
+          "$ref": "#/$defs/relativePath"
+        },
+        "solutionRoot": {
+          "$ref": "#/$defs/relativePath"
+        },
+        "defaultBranch": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._/-]*$"
+        },
+        "rolloutRing": {
+          "enum": [
+            "pending",
+            "pilot",
+            "early",
+            "broad"
+          ]
+        },
+        "adoption": {
+          "enum": [
+            "adopted",
+            "pending"
+          ]
+        },
+        "desiredBaseline": {
+          "type": "string",
+          "pattern": "^[0-9]{4}\\.[0-9]{2}(?:\\.[0-9]+)?$"
+        },
+        "components": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/component"
+          }
+        },
+        "validation": {
+          "$ref": "#/$defs/validation"
+        }
+      }
+    }
+  }
+}

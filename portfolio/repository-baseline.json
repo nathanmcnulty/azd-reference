@@ -1,0 +1,25 @@
+{
+  "$schema": "../schemas/repository-baseline.schema.json",
+  "schemaVersion": "1.0",
+  "baselineVersion": "2026.08.1",
+  "requiredRepositoryFiles": [
+    ".gitattributes",
+    ".github/dependabot.yml",
+    ".github/workflows/validate.yml",
+    "LICENSE",
+    "README.md",
+    "SECURITY.md"
+  ],
+  "requiredSolutionFiles": [
+    "azure.yaml",
+    "README.md"
+  ],
+  "recommendedSolutionFiles": [
+    ".azd/catalog.json"
+  ],
+  "workflowPolicy": {
+    "externalActions": "full-commit-sha",
+    "defaultPermissions": "contents-read",
+    "dependencyUpdates": "grouped-and-bounded"
+  }
+}

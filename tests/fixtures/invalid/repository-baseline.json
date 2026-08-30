@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "1.0",
+  "baselineVersion": "latest",
+  "requiredRepositoryFiles": [
+    "../outside"
+  ],
+  "requiredSolutionFiles": [],
+  "recommendedSolutionFiles": [],
+  "workflowPolicy": {
+    "externalActions": "tags",
+    "defaultPermissions": "write-all",
+    "dependencyUpdates": "unbounded"
+  }
+}

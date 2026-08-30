@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "1.0",
+  "baselineVersion": "2026.08.1",
+  "requiredRepositoryFiles": [
+    ".gitattributes",
+    "SECURITY.md"
+  ],
+  "requiredSolutionFiles": [
+    "azure.yaml"
+  ],
+  "recommendedSolutionFiles": [
+    ".azd/catalog.json"
+  ],
+  "workflowPolicy": {
+    "externalActions": "full-commit-sha",
+    "defaultPermissions": "contents-read",
+    "dependencyUpdates": "grouped-and-bounded"
+  }
+}

@@ -1,9 +1,11 @@
 {
   "$schema": "../../../schemas/component-manifest.schema.json",
-  "manifestVersion": "1.0",
+  "manifestVersion": "1.1",
   "id": "graph-delegated-authentication",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Coordinates one reusable delegated Microsoft Graph session with exact context and token proof.",
+  "status": "pilot",
+  "changelog": "components/powershell/graph-delegated-authentication/CHANGELOG.md",
   "files": [
     {
       "source": "components/powershell/graph-delegated-authentication/Azd.GraphAuthentication.psd1",

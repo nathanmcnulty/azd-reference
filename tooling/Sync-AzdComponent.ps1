@@ -1,4 +1,4 @@
-[CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'Medium')]
+[CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'Medium', DefaultParameterSetName = 'Head')]
 param(
     [Parameter(Mandatory)]
     [ValidatePattern('^[a-z][a-z0-9-]+$')]
@@ -7,7 +7,19 @@ param(
     [Parameter(Mandatory)]
     [string] $TargetPath,
 
-    [switch] $AcceptDrift
+    [Parameter(ParameterSetName = 'Version')]
+    [ValidatePattern('^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z.-]+)?$')]
+    [string] $Version,
+
+    [Parameter(ParameterSetName = 'Revision')]
+    [ValidatePattern('^[0-9a-f]{40}$')]
+    [string] $Revision,
+
+    [switch] $AcceptDrift,
+
+    [switch] $PruneRemovedFiles,
+
+    [switch] $AllowDowngrade
 )
 
 Set-StrictMode -Version Latest
@@ -119,61 +131,151 @@ function Export-GitBlob {
     }
 }
 
+function Resolve-GitCommit {
+    param(
+        [Parameter(Mandatory)][string] $ReferenceRoot,
+        [Parameter(Mandatory)][string] $Selector
+    )
+
+    $resolved = @(& git -C $ReferenceRoot rev-parse --verify --quiet --end-of-options "${Selector}^{commit}" 2>$null)
+    if ($LASTEXITCODE -ne 0 -or $resolved.Count -ne 1 -or [string] $resolved[0] -notmatch '^[0-9a-f]{40}$') {
+        throw "Source selector does not resolve to exactly one commit: '$Selector'."
+    }
+    [string] $resolved[0]
+}
+
+function Get-Sha256Hex {
+    param([Parameter(Mandatory)][byte[]] $Bytes)
+
+    [System.Convert]::ToHexString([System.Security.Cryptography.SHA256]::HashData($Bytes)).ToLowerInvariant()
+}
+
+function Get-LfNormalizedContent {
+    param([Parameter(Mandatory)][byte[]] $Bytes)
+
+    $stream = [System.IO.MemoryStream]::new()
+    try {
+        for ($index = 0; $index -lt $Bytes.Length; $index++) {
+            if ($Bytes[$index] -eq 13 -and $index + 1 -lt $Bytes.Length -and $Bytes[$index + 1] -eq 10) {
+                continue
+            }
+            $stream.WriteByte($Bytes[$index])
+        }
+        $stream.ToArray()
+    }
+    finally {
+        $stream.Dispose()
+    }
+}
+
+function Test-ExplicitLfPolicy {
+    param(
+        [Parameter(Mandatory)][string] $TargetRoot,
+        [Parameter(Mandatory)][string] $TargetFullPath
+    )
+
+    if (-not (Get-Command git -ErrorAction SilentlyContinue)) { return $false }
+    $repositoryRoot = @(& git -C $TargetRoot rev-parse --show-toplevel 2>$null)
+    if ($LASTEXITCODE -ne 0 -or $repositoryRoot.Count -ne 1) { return $false }
+    $repositoryRoot = [System.IO.Path]::GetFullPath([string] $repositoryRoot[0])
+    $relative = [System.IO.Path]::GetRelativePath($repositoryRoot, $TargetFullPath).Replace('\', '/')
+    if ($relative -eq '..' -or $relative.StartsWith('../', [System.StringComparison]::Ordinal)) { return $false }
+
+    $attributes = @(& git -C $repositoryRoot check-attr text eol -- $relative 2>$null)
+    if ($LASTEXITCODE -ne 0) { return $false }
+    $textValue = $null
+    $eolValue = $null
+    foreach ($line in $attributes) {
+        if ([string] $line -match ': text: (?<value>.+)$') { $textValue = $Matches.value }
+        if ([string] $line -match ': eol: (?<value>.+)$') { $eolValue = $Matches.value }
+    }
+    $textValue -eq 'set' -and $eolValue -eq 'lf'
+}
+
+function Test-ManagedFileHash {
+    param(
+        [Parameter(Mandatory)][string] $TargetRoot,
+        [Parameter(Mandatory)][string] $TargetFullPath,
+        [Parameter(Mandatory)][string] $ExpectedHash
+    )
+
+    $bytes = [System.IO.File]::ReadAllBytes($TargetFullPath)
+    if ((Get-Sha256Hex -Bytes $bytes) -eq $ExpectedHash) { return $true }
+    if (-not (Test-ExplicitLfPolicy -TargetRoot $TargetRoot -TargetFullPath $TargetFullPath)) { return $false }
+    (Get-Sha256Hex -Bytes (Get-LfNormalizedContent -Bytes $bytes)) -eq $ExpectedHash
+}
+
 $referenceRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $targetRoot = [System.IO.Path]::GetFullPath($TargetPath)
 if (-not (Test-Path -LiteralPath $targetRoot -PathType Container)) {
     throw "TargetPath must be an existing directory: '$targetRoot'."
 }
 
+$sourceSelector = if ($Version) { "refs/tags/component/$Component/v$Version" } elseif ($Revision) { $Revision } else { 'HEAD' }
+$sourceRevision = Resolve-GitCommit -ReferenceRoot $referenceRoot -Selector $sourceSelector
+$manifestPaths = @(
+    & git -C $referenceRoot ls-tree -r --name-only $sourceRevision -- components 2>$null |
+        ForEach-Object { ([string] $_).Replace('\', '/') } |
+        Where-Object { $_ -match '^components/(?:.*/)?component\.json$' }
+)
+if ($LASTEXITCODE -ne 0) {
+    throw "Unable to enumerate component manifests at '$sourceRevision'."
+}
 $manifestMatches = @(
-    Get-ChildItem -LiteralPath (Join-Path $referenceRoot 'components') -Filter component.json -File -Recurse |
-        Where-Object {
-            $candidateManifest = Get-Content -LiteralPath $_.FullName -Raw | ConvertFrom-Json
-            $candidateManifest.id -eq $Component
+    foreach ($candidatePath in $manifestPaths) {
+        $candidateTemporary = [System.IO.Path]::GetTempFileName()
+        try {
+            Export-GitBlob -ReferenceRoot $referenceRoot -Revision $sourceRevision -RelativePath $candidatePath -Destination $candidateTemporary
+            $candidateRaw = [System.IO.File]::ReadAllText($candidateTemporary)
+            $candidateManifest = $candidateRaw | ConvertFrom-Json -ErrorAction Stop
+            if ([string] $candidateManifest.id -eq $Component) {
+                [pscustomobject]@{ Path = $candidatePath; Raw = $candidateRaw; Manifest = $candidateManifest }
+            }
         }
+        finally {
+            if (Test-Path -LiteralPath $candidateTemporary) { [System.IO.File]::Delete($candidateTemporary) }
+        }
+    }
 )
 if ($manifestMatches.Count -ne 1) {
     throw "Expected exactly one component manifest for '$Component'; found $($manifestMatches.Count)."
 }
 
-$manifestPath = $manifestMatches[0].FullName
-$manifestRaw = Get-Content -LiteralPath $manifestPath -Raw
+$manifestPath = [string] $manifestMatches[0].Path
+$manifestRaw = [string] $manifestMatches[0].Raw
 $manifestSchema = Join-Path $referenceRoot 'schemas/component-manifest.schema.json'
 if (-not ($manifestRaw | Test-Json -SchemaFile $manifestSchema -ErrorAction Stop)) {
     throw "Component '$Component' does not satisfy the component manifest schema."
 }
-$manifest = $manifestRaw | ConvertFrom-Json
-if ($manifest.manifestVersion -ne '1.0') {
+$manifest = $manifestMatches[0].Manifest
+if ([string] $manifest.manifestVersion -notin '1.0', '1.1') {
     throw "Unsupported component manifest version '$($manifest.manifestVersion)'."
 }
-
-$sourceRevision = (& git -C $referenceRoot rev-parse HEAD 2>$null).Trim()
-if ($LASTEXITCODE -ne 0 -or $sourceRevision -notmatch '^[0-9a-f]{40}$') {
-    throw 'The reference source must be a Git repository at a full commit revision.'
+if ($Version -and [string] $manifest.version -ne $Version) {
+    throw "Component tag '$sourceSelector' contains version '$($manifest.version)', not requested version '$Version'."
 }
 
 $sourceRelativePaths = @(
-    [System.IO.Path]::GetRelativePath($referenceRoot, $manifestPath).Replace('\', '/')
+    $manifestPath
+    if ($manifest.PSObject.Properties.Name -contains 'changelog') { [string] $manifest.changelog }
     @($manifest.files | ForEach-Object { [string] $_.source })
 )
 foreach ($sourceRelativePath in $sourceRelativePaths) {
-    & git -C $referenceRoot ls-files --error-unmatch -- $sourceRelativePath *> $null
-    if ($LASTEXITCODE -ne 0) {
-        throw "Component source must be tracked by Git at HEAD: '$sourceRelativePath'."
-    }
     & git -C $referenceRoot cat-file -e "${sourceRevision}:$sourceRelativePath" 2>$null
     if ($LASTEXITCODE -ne 0) {
-        throw "Component source is not present at HEAD: '$sourceRelativePath'."
+        throw "Component source must be tracked by Git and present at '$sourceRevision': '$sourceRelativePath'."
     }
 }
-$sourceStatus = @(& git -C $referenceRoot status --porcelain -- @sourceRelativePaths)
-if ($LASTEXITCODE -ne 0 -or $sourceStatus.Count -gt 0) {
-    throw "Component '$Component' must be synchronized from clean, committed source."
+if (-not $Version -and -not $Revision) {
+    $sourceStatus = @(& git -C $referenceRoot status --porcelain -- @sourceRelativePaths)
+    if ($LASTEXITCODE -ne 0 -or $sourceStatus.Count -gt 0) {
+        throw "Component '$Component' must be synchronized from clean, committed source."
+    }
 }
 
 $plannedFiles = @()
 $targetKeys = @{}
-$componentSourceRoot = [System.IO.Path]::GetRelativePath($referenceRoot, (Split-Path -Parent $manifestPath)).Replace('\', '/') + '/'
+$componentSourceRoot = ([System.IO.Path]::GetDirectoryName($manifestPath).Replace('\', '/').TrimEnd('/') + '/')
 foreach ($file in @($manifest.files)) {
     $sourceRelativePath = ([string] $file.source).Replace('\', '/')
     $targetRelativePath = ([string] $file.target).Replace('\', '/')
@@ -189,11 +291,7 @@ foreach ($file in @($manifest.files)) {
         $targetLower.StartsWith('.azd-reference-staging-')) {
         throw "Component target uses a reserved path: '$targetRelativePath'."
     }
-    $sourceFullPath = Resolve-SafeFilePath -Root $referenceRoot -RelativePath $sourceRelativePath -Label 'Component source'
     $targetFullPath = Resolve-SafeFilePath -Root $targetRoot -RelativePath $targetRelativePath -Label 'Component target'
-    if (-not (Test-Path -LiteralPath $sourceFullPath -PathType Leaf)) {
-        throw "Component source file does not exist: '$($file.source)'."
-    }
     if (Test-Path -LiteralPath $targetFullPath -PathType Container) {
         throw "Component target must be a file, not a directory: '$targetRelativePath'."
     }
@@ -212,7 +310,6 @@ foreach ($file in @($manifest.files)) {
     }
     $plannedFiles += [pscustomobject]@{
         Source = $sourceRelativePath
-        SourceFullPath = $sourceFullPath
         Target = $targetRelativePath
         TargetFullPath = $targetFullPath
         Sha256 = $blobHash
@@ -271,24 +368,49 @@ if ($existingComponent.Count -gt 1) {
     throw "The consumer lock contains duplicate '$Component' entries."
 }
 $existingComponent = $existingComponent | Select-Object -First 1
+$removedFiles = @()
 
 if ($existingComponent) {
+    $installedVersion = [System.Management.Automation.SemanticVersion]::Parse([string] $existingComponent.version)
+    $selectedVersion = [System.Management.Automation.SemanticVersion]::Parse([string] $manifest.version)
+    if ($selectedVersion -lt $installedVersion -and -not $AllowDowngrade) {
+        throw "Component downgrade from '$installedVersion' to '$selectedVersion' requires -AllowDowngrade."
+    }
     $newTargets = @($plannedFiles.Target)
     foreach ($existingFile in @($existingComponent.files)) {
         if ([string] $existingFile.target -notin $newTargets) {
-            throw "The new manifest no longer manages '$($existingFile.target)'. Handle component file removal explicitly before synchronizing."
+            if (-not $PruneRemovedFiles) {
+                throw "The new manifest no longer manages '$($existingFile.target)'. Rerun with -PruneRemovedFiles after reviewing the removal."
+            }
+            $removedTarget = Resolve-SafeFilePath -Root $targetRoot -RelativePath ([string] $existingFile.target) -Label 'Removed target'
+            if (Test-Path -LiteralPath $removedTarget -PathType Container) {
+                throw "Removed component target must be a file, not a directory: '$($existingFile.target)'."
+            }
+            if ((Test-Path -LiteralPath $removedTarget -PathType Leaf) -and
+                -not (Test-ManagedFileHash -TargetRoot $targetRoot -TargetFullPath $removedTarget -ExpectedHash ([string] $existingFile.sha256))) {
+                throw "Removed managed file is modified at '$($existingFile.target)'. Preserve or remove it manually before pruning."
+            }
+            $removedFiles += [pscustomobject]@{
+                Target = ([string] $existingFile.target).Replace('\', '/')
+                TargetFullPath = $removedTarget
+            }
+            continue
         }
         $existingTarget = Resolve-SafeFilePath -Root $targetRoot -RelativePath ([string] $existingFile.target) -Label 'Locked target'
         $drifted = -not (Test-Path -LiteralPath $existingTarget -PathType Leaf)
         if (-not $drifted) {
-            $actualHash = (Get-FileHash -LiteralPath $existingTarget -Algorithm SHA256).Hash.ToLowerInvariant()
-            $drifted = $actualHash -ne [string] $existingFile.sha256
+            $drifted = -not (Test-ManagedFileHash -TargetRoot $targetRoot -TargetFullPath $existingTarget -ExpectedHash ([string] $existingFile.sha256))
         }
         if ($drifted -and -not $AcceptDrift) {
             throw "Managed file drift detected at '$($existingFile.target)'. Review the difference and rerun with -AcceptDrift only if replacement is intended."
         }
     }
     if ([string] $existingComponent.version -eq [string] $manifest.version) {
+        $existingTargets = @($existingComponent.files | ForEach-Object { [string] $_.target })
+        if ($existingTargets.Count -ne $plannedFiles.Count -or
+            @($existingTargets | Where-Object { $_ -notin @($plannedFiles.Target) }).Count -gt 0) {
+            throw "Component '$Component@$($manifest.version)' has a different managed file set. Publish a new component version."
+        }
         $existingHashes = @{}
         foreach ($existingFile in @($existingComponent.files)) {
             $existingHashes[[string] $existingFile.target] = [string] $existingFile.sha256
@@ -309,17 +431,11 @@ else {
 }
 
 $sourceRepository = Get-NormalizedRepositoryUrl -ReferenceRoot $referenceRoot
-$lockRevision = if ($existingComponent -and [string] $existingComponent.version -eq [string] $manifest.version) {
-    [string] $existingComponent.sourceRevision
-}
-else {
-    $sourceRevision
-}
 $newComponentLock = [pscustomobject] [ordered]@{
     id = [string] $manifest.id
     version = [string] $manifest.version
     sourceRepository = $sourceRepository
-    sourceRevision = $lockRevision
+    sourceRevision = $sourceRevision
     files = @($plannedFiles | ForEach-Object {
         [pscustomobject] [ordered]@{
             source = $_.Source
@@ -347,6 +463,7 @@ if (-not $PSCmdlet.ShouldProcess($targetRoot, $description)) {
         version = [string] $manifest.version
         sourceRevision = $sourceRevision
         targets = @($plannedFiles.Target)
+        removedTargets = @($removedFiles | ForEach-Object { $_.Target })
         changed = $false
     }
 }
@@ -370,6 +487,14 @@ try {
         }
         $planned | Add-Member -NotePropertyName StagedPath -NotePropertyValue $staged
         $index++
+    }
+
+    foreach ($removed in $removedFiles) {
+        if (-not (Test-Path -LiteralPath $removed.TargetFullPath -PathType Leaf)) { continue }
+        $backup = Join-Path $stagingRoot ("backup-$($applied.Count)")
+        Copy-Item -LiteralPath $removed.TargetFullPath -Destination $backup
+        Remove-Item -LiteralPath $removed.TargetFullPath -Force
+        $applied.Add([pscustomobject]@{ Target = $removed.TargetFullPath; Backup = $backup })
     }
 
     foreach ($planned in $plannedFiles) {
@@ -421,5 +546,6 @@ finally {
     version = [string] $manifest.version
     sourceRevision = $sourceRevision
     targets = @($plannedFiles.Target)
+    removedTargets = @($removedFiles | ForEach-Object { $_.Target })
     changed = $true
 }

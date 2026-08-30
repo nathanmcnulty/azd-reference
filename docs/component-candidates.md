@@ -1,6 +1,6 @@
 # Component candidate inventory
 
-The initial portfolio review found useful duplication, but the runtime patterns
+The initial portfolio review found useful duplication, but most runtime patterns
 do not yet share one safe abstraction. This inventory records the intended
 boundaries without promoting them prematurely.
 
@@ -26,9 +26,10 @@ automation rules, and incident-triggered playbooks. `azd-emergency-access` is th
 current reference for that pattern, and it remains local until a second consumer
 proves a stable boundary.
 
-## Candidate order after the validation pilot
+## Promotion order after the validation pilot
 
-1. Notification envelope and delivery-result schemas.
+1. Notification envelope and delivery-result schemas: promoted as the
+   `notification-contracts@1.0.0` pilot component.
 2. Azure Monitor scheduled-query alert and action-group receiver modules.
 3. Teams managed-connector authorization and delivery proof.
 4. Identity-only storage, observability, and Flex Consumption Function baseline.

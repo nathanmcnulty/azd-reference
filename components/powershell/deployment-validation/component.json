@@ -1,9 +1,11 @@
 {
   "$schema": "../../../schemas/component-manifest.schema.json",
-  "manifestVersion": "1.0",
+  "manifestVersion": "1.1",
   "id": "deployment-validation",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "Structured deployment validation with dependency gating and defense-in-depth report redaction.",
+  "status": "pilot",
+  "changelog": "components/powershell/deployment-validation/CHANGELOG.md",
   "files": [
     {
       "source": "components/powershell/deployment-validation/Azd.DeploymentValidation.psd1",

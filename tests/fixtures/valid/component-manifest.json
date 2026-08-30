@@ -1,8 +1,10 @@
 {
-  "manifestVersion": "1.0",
+  "manifestVersion": "1.1",
   "id": "deployment-validation",
   "version": "0.1.0",
   "description": "Validation engine",
+  "status": "pilot",
+  "changelog": "components/CHANGELOG.md",
   "files": [
     {
       "source": "components/engine.psm1",

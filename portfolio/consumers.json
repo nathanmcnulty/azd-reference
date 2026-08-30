@@ -1,0 +1,70 @@
+{
+  "$schema": "../schemas/portfolio-consumers.schema.json",
+  "schemaVersion": "1.0",
+  "referenceRepository": "https://github.com/nathanmcnulty/azd-reference",
+  "consumers": [
+    {
+      "id": "azd-emergency-access",
+      "repository": "https://github.com/nathanmcnulty/azd-emergency-access",
+      "checkoutDirectory": "azd-emergency-access",
+      "solutionRoot": ".",
+      "defaultBranch": "main",
+      "rolloutRing": "pilot",
+      "adoption": "adopted",
+      "desiredBaseline": "2026.08",
+      "components": [
+        {
+          "id": "deployment-validation",
+          "desiredVersion": "0.3.3"
+        },
+        {
+          "id": "graph-delegated-authentication",
+          "desiredVersion": "0.1.1"
+        }
+      ]
+    },
+    {
+      "id": "azd-pim",
+      "repository": "https://github.com/nathanmcnulty/azd-work-in-progress",
+      "checkoutDirectory": "azd-work-in-progress",
+      "solutionRoot": "azd-pim",
+      "defaultBranch": "main",
+      "rolloutRing": "pilot",
+      "adoption": "adopted",
+      "desiredBaseline": "2026.08",
+      "components": [
+        {
+          "id": "deployment-validation",
+          "desiredVersion": "0.3.3"
+        },
+        {
+          "id": "graph-delegated-authentication",
+          "desiredVersion": "0.1.1"
+        },
+        {
+          "id": "notification-contracts",
+          "desiredVersion": "1.0.0"
+        }
+      ]
+    },
+    {
+      "id": "azd-device-notifications",
+      "repository": "https://github.com/nathanmcnulty/azd-device-notifications",
+      "checkoutDirectory": "azd-device-notifications",
+      "solutionRoot": ".",
+      "defaultBranch": "main",
+      "rolloutRing": "pending",
+      "adoption": "pending",
+      "components": [
+        {
+          "id": "deployment-validation",
+          "desiredVersion": "0.3.3"
+        },
+        {
+          "id": "notification-contracts",
+          "desiredVersion": "1.0.0"
+        }
+      ]
+    }
+  ]
+}

@@ -43,17 +43,21 @@ actual checks and required permissions are solution-specific.
 ## Release sequence
 
 1. Change and test a component in this repository.
-2. Assign a semantic version in `component.json`.
-3. Pilot synchronization into selected consumer branches.
-4. Validate the consumer locally and in its normal CI.
-5. Commit the copied files and lock update together.
-6. Roll the same version to other consumers through reviewable pull requests.
+2. Assign a semantic version, lifecycle status, and changelog in `component.json`.
+3. After review, create the immutable `component/<id>/v<version>` tag.
+4. Pilot exact-version synchronization into selected consumer branches.
+5. Validate the consumer locally and in its normal CI.
+6. Commit the copied files and lock update together.
+7. Roll the same version to other consumers through reviewable pull requests.
 
 Repository tags identify reviewed source snapshots. Component versions describe
 compatibility independently and the lock always records a full source commit.
 
-## Deferred control plane
+## Portfolio control plane
 
-Cross-repository update pull requests will eventually use a narrowly scoped
-GitHub App. The MVP performs local, explicit synchronization only. It does not
-copy workflows, approve changes, or merge updates.
+The checked-in consumer registry drives a read-only local status audit. The
+updater defaults to Plan and can prepare validated local branches only in isolated
+worktrees. It never modifies an active checkout. Publishing update branches and
+pull requests remains deferred until this preparation path is proven across the
+pilot consumers; a later publisher should use a narrowly scoped GitHub App and
+must never approve or merge its own changes.

@@ -29,18 +29,23 @@ The first foundation release establishes:
 - a delegated Microsoft Graph session coordinator that proves context and token
   usability before reuse;
 - safe component synchronization and drift-validation tooling;
+- a machine-readable consumer registry, repository baseline, and read-only
+  portfolio status audit;
+- isolated-worktree preparation of reviewed component updates;
 - a template skeleton that demonstrates the portfolio contract; and
 - automated validation for the reference repository itself.
 
-Teams bots, Sentinel analytics/automation, Logic Apps, and polling Functions are
-tracked as extraction candidates. They will be promoted only after pilot adoption
-proves the correct boundaries across multiple solutions.
+Notification envelope and delivery-result schemas are now a versioned pilot
+component. Teams bots, Sentinel analytics/automation, Logic Apps, and polling
+Functions remain extraction candidates until pilot adoption proves the correct
+boundaries across multiple solutions.
 
 ## Layout
 
 ```text
 components/   Versioned component source and component manifests
 docs/         Architecture and extraction decisions
+portfolio/    Consumer registry and repository baseline
 schemas/      Machine-readable portfolio contracts
 skeleton/     Starting point for a new independently supported solution
 standards/    Normative portfolio conventions
@@ -55,6 +60,7 @@ From a trusted local clone of this repository:
 ```powershell
 ./tooling/Sync-AzdComponent.ps1 `
   -Component deployment-validation `
+  -Version 0.3.3 `
   -TargetPath C:\GitHub\my-azd-solution `
   -WhatIf
 ```
@@ -68,4 +74,24 @@ the source repository.
 See [`docs/architecture.md`](docs/architecture.md) and
 [`standards/component-lifecycle.md`](standards/component-lifecycle.md) before
 adding a component.
-Canonical standards, reusable components, and synchronization tooling for Nathan McNulty azd solutions.
+
+## Portfolio status and updates
+
+Audit the registered local checkouts without fetching or executing consumer code:
+
+```powershell
+./tooling/Get-AzdPortfolioStatus.ps1 -PortfolioRoot C:\GitHub
+```
+
+Plan a tagged component rollout without changing any checkout:
+
+```powershell
+./tooling/Update-AzdPortfolio.ps1 `
+  -Component deployment-validation `
+  -Version 0.3.3 `
+  -PortfolioRoot C:\GitHub
+```
+
+`Prepare` creates and validates isolated local worktree branches. The updater has
+no publish, approval, merge, force-push, or active-checkout mutation capability.
+See [`docs/portfolio-updates.md`](docs/portfolio-updates.md).
