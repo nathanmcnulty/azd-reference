@@ -98,16 +98,21 @@ path:
 The publisher first verifies that the exact component tag exists on the
 `azd-reference` origin and resolves to the same commit as the local tag. For each
 consumer, it binds fetch and push operations to the registry's exact repository
-URL, refreshes and verifies the live default branch immediately before isolated
-preparation, and refuses to adopt an existing deterministic update branch. It
-then validates and pushes the prepared branch with an ordinary non-force Git
-push, verifies that the live remote head is the exact prepared commit, and opens
+URL, rejects Git URL rewrite configuration from every visible scope, refreshes
+and verifies the live default branch immediately before isolated preparation,
+and refuses to adopt an existing deterministic update branch. It then validates
+and atomically creates the prepared branch with an expected-absent Git lease,
+which cannot overwrite an existing ref, verifies
+that the live remote head is the exact prepared commit, and opens
 one draft pull request containing the source revision, prepared commit,
 managed-file hashes, validation entry point, and rollback command. `-WhatIf`
 stops before branch preparation or remote mutation and returns the intended
 consumers and branch names.
 
-The publisher requires an authenticated GitHub CLI session. It cannot force-push,
+The publisher requires an authenticated GitHub CLI session. The create-only
+`--force-with-lease=<ref>:` form is used solely to require that the remote ref
+does not exist; it cannot overwrite or adopt an existing remote branch. The
+publisher cannot perform an unconditional force-push,
 approve, merge, or alter repository settings. A partial failure may leave a local
 or remote update branch for diagnosis; inspect that exact branch and its draft PR
 before retrying or cleaning it up.

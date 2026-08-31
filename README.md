@@ -95,7 +95,9 @@ Plan a tagged component rollout without changing any checkout:
 ```
 
 `Prepare` creates and validates isolated local worktree branches. The separate
-publisher verifies origin tag provenance, pushes without force, and opens draft
+publisher verifies origin tag provenance, atomically creates remote branches
+with expected-absent leases,
+and opens draft
 pull requests containing validation and rollback evidence. Neither tool can
 approve or merge a pull request, force-push, or mutate an active checkout. See
 [`docs/portfolio-updates.md`](docs/portfolio-updates.md).

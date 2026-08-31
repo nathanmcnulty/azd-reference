@@ -19,15 +19,12 @@ Describe 'Guarded portfolio publication' {
         & git -C $consumer config user.name 'publisher tests'
         & git -C $consumer config user.email 'publisher-tests@example.invalid'
         & git -C $consumer remote add origin "$repository.git"
-        $remoteUri = ([uri] $remote).AbsoluteUri
-        & git -C $consumer config "url.$remoteUri.insteadOf" $repository
-        & git -C $consumer remote set-url --push origin 'https://github.com/example/divergent-push-target.git'
         New-Item -ItemType Directory -Path (Join-Path $consumer 'scripts') | Out-Null
         Set-Content -LiteralPath (Join-Path $consumer 'scripts/Test-Repository.ps1') -Encoding utf8NoBOM -Value "'validated' | Write-Output"
         Set-Content -LiteralPath (Join-Path $consumer 'README.md') -Encoding utf8NoBOM -Value '# Consumer fixture'
         & git -C $consumer add --all
         & git -C $consumer commit -m 'Consumer fixture' | Out-Null
-        & git -C $consumer push $repository main | Out-Null
+        & git -C $consumer push $remote main | Out-Null
         $consumerHead = (& git -C $consumer rev-parse HEAD).Trim()
         & git -C $consumer update-ref refs/remotes/origin/main $consumerHead
 
@@ -53,27 +50,45 @@ Describe 'Guarded portfolio publication' {
             )
         } | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $registryPath -Encoding utf8NoBOM
 
-        $fakeBin = Join-Path $caseRoot 'fake-bin'
-        New-Item -ItemType Directory -Path $fakeBin | Out-Null
-        if ([System.OperatingSystem]::IsWindows()) {
-            $fakeGh = Join-Path $fakeBin 'gh.cmd'
-            @'
-@echo off
-if "%1"=="auth" exit /b 0
-if "%1"=="pr" echo https://github.com/example/consumer-one/pull/1& exit /b 0
-exit /b 1
-'@ | Set-Content -LiteralPath $fakeGh -Encoding ascii
+        $global:PublisherTestGitApplication = (Get-Command git -CommandType Application | Select-Object -First 1).Source
+        $global:PublisherTestRegisteredRepository = $repository
+        $global:PublisherTestBareRepository = $remote
+        $global:PublisherTestCreateRace = $false
+        function global:git {
+            $mappedArguments = @(
+                foreach ($argument in $args) {
+                    if ([string] $argument -eq $global:PublisherTestRegisteredRepository) {
+                        $global:PublisherTestBareRepository
+                    }
+                    else {
+                        $argument
+                    }
+                }
+            )
+            $lease = [string] ($mappedArguments | Where-Object { [string] $_ -like '--force-with-lease=refs/heads/*:' } | Select-Object -First 1)
+            if ($global:PublisherTestCreateRace -and $lease) {
+                $reference = ($lease -replace '^--force-with-lease=', '').TrimEnd(':')
+                $existingRevision = (& $global:PublisherTestGitApplication --git-dir=$global:PublisherTestBareRepository rev-parse refs/heads/main).Trim()
+                & $global:PublisherTestGitApplication --git-dir=$global:PublisherTestBareRepository update-ref $reference $existingRevision
+            }
+            & $global:PublisherTestGitApplication @mappedArguments
         }
-        else {
-            $fakeGh = Join-Path $fakeBin 'gh'
-            @'
-#!/bin/sh
-if [ "$1" = "auth" ]; then exit 0; fi
-if [ "$1" = "pr" ]; then echo https://github.com/example/consumer-one/pull/1; exit 0; fi
-exit 1
-'@ | Set-Content -LiteralPath $fakeGh -Encoding utf8NoBOM
-            & chmod +x $fakeGh
+        function global:gh {
+            param([Parameter(ValueFromRemainingArguments)][string[]] $ArgumentList)
+
+            $global:LASTEXITCODE = 0
+            if ($ArgumentList[0] -eq 'auth') { return }
+            if ($ArgumentList[0] -eq 'pr') {
+                'https://github.com/example/consumer-one/pull/1'
+                return
+            }
+            $global:LASTEXITCODE = 1
         }
+    }
+
+    AfterEach {
+        Remove-Item Function:\git, Function:\gh -ErrorAction SilentlyContinue
+        Remove-Variable PublisherTestGitApplication, PublisherTestRegisteredRepository, PublisherTestBareRepository, PublisherTestCreateRace -Scope Global -ErrorAction SilentlyContinue
     }
 
     It 'plans publication without creating a branch, worktree, or remote state' {
@@ -108,28 +123,32 @@ exit 1
                 -WhatIf } | Should -Throw '*origin does not match*'
     }
 
-    It 'ignores a divergent pushurl and publishes only to the registered repository' {
-        $previousPath = $env:PATH
-        try {
-            $env:PATH = $fakeBin + [System.IO.Path]::PathSeparator + $previousPath
-            $result = @(& $publisher `
-                    -Component deployment-validation `
-                    -Version 0.3.3 `
-                    -PortfolioRoot $portfolioRoot `
-                    -WorktreeRoot $worktrees `
-                    -RegistryPath $registryPath `
-                    -Confirm:$false)
+    It 'publishes an atomically created ref through the exact registered URL' {
+        $result = @(& $publisher `
+                -Component deployment-validation `
+                -Version 0.3.3 `
+                -PortfolioRoot $portfolioRoot `
+                -WorktreeRoot $worktrees `
+                -RegistryPath $registryPath `
+                -Confirm:$false)
 
-            $result[0].state | Should -Be 'published'
-            $result[0].pullRequest | Should -Be 'https://github.com/example/consumer-one/pull/1'
-            (& git -C $consumer remote get-url --push origin).Trim() | Should -Be 'https://github.com/example/divergent-push-target.git'
-            $published = @(& git ls-remote --heads $remote "refs/heads/$($result[0].branch)")
-            $published.Count | Should -Be 1
-            ($published[0] -split '\s+')[0] | Should -Be $result[0].commit
-        }
-        finally {
-            $env:PATH = $previousPath
-        }
+        $result[0].state | Should -Be 'published'
+        $result[0].pullRequest | Should -Be 'https://github.com/example/consumer-one/pull/1'
+        $published = @(& git ls-remote --heads $remote "refs/heads/$($result[0].branch)")
+        $published.Count | Should -Be 1
+        ($published[0] -split '\s+')[0] | Should -Be $result[0].commit
+    }
+
+    It 'fails closed when Git URL rewrite configuration is visible' {
+        & git -C $consumer config "url.$remote.insteadOf" $repository
+        { & $publisher `
+                -Component deployment-validation `
+                -Version 0.3.3 `
+                -PortfolioRoot $portfolioRoot `
+                -WorktreeRoot $worktrees `
+                -RegistryPath $registryPath `
+                -Confirm:$false } | Should -Throw '*URL rewrite configuration is not allowed*'
+        @(& git ls-remote --heads $remote 'refs/heads/codex/update-*').Count | Should -Be 0
     }
 
     It 'refreshes a stale default-branch tracking ref before preparation' {
@@ -144,50 +163,47 @@ exit 1
         $liveMain = (& git -C $remoteClone rev-parse HEAD).Trim()
         (& git -C $consumer rev-parse refs/remotes/origin/main).Trim() | Should -Not -Be $liveMain
 
-        $previousPath = $env:PATH
-        try {
-            $env:PATH = $fakeBin + [System.IO.Path]::PathSeparator + $previousPath
-            $result = @(& $publisher `
-                    -Component deployment-validation `
-                    -Version 0.3.3 `
-                    -PortfolioRoot $portfolioRoot `
-                    -WorktreeRoot $worktrees `
-                    -RegistryPath $registryPath `
-                    -Confirm:$false)
+        $result = @(& $publisher `
+                -Component deployment-validation `
+                -Version 0.3.3 `
+                -PortfolioRoot $portfolioRoot `
+                -WorktreeRoot $worktrees `
+                -RegistryPath $registryPath `
+                -Confirm:$false)
 
-            (& git -C $consumer rev-parse "$($result[0].branch)^").Trim() | Should -Be $liveMain
-        }
-        finally {
-            $env:PATH = $previousPath
-        }
+        (& git -C $consumer rev-parse "$($result[0].branch)^").Trim() | Should -Be $liveMain
     }
 
     It 'rejects an existing live deterministic update branch before preparation' {
         $branch = 'codex/update-consumer-one-deployment-validation-v0.3.3'
-        & git -C $consumer push $repository "HEAD:refs/heads/$branch" | Out-Null
+        & git -C $consumer push $remote "HEAD:refs/heads/$branch" | Out-Null
 
-        $previousPath = $env:PATH
-        try {
-            $env:PATH = $fakeBin + [System.IO.Path]::PathSeparator + $previousPath
-            { & $publisher `
-                    -Component deployment-validation `
-                    -Version 0.3.3 `
-                    -PortfolioRoot $portfolioRoot `
-                    -WorktreeRoot $worktrees `
-                    -RegistryPath $registryPath `
-                    -Confirm:$false } | Should -Throw '*Remote update branch already exists*'
-            @(& git -C $consumer branch --list $branch).Count | Should -Be 0
-        }
-        finally {
-            $env:PATH = $previousPath
-        }
+        { & $publisher `
+                -Component deployment-validation `
+                -Version 0.3.3 `
+                -PortfolioRoot $portfolioRoot `
+                -WorktreeRoot $worktrees `
+                -RegistryPath $registryPath `
+                -Confirm:$false } | Should -Throw '*Remote update branch already exists*'
+        @(& git -C $consumer branch --list $branch).Count | Should -Be 0
     }
 
-    It 'contains only non-force push and draft pull-request publication commands' {
+    It 'fails atomic creation when the branch appears during validation' {
+        $global:PublisherTestCreateRace = $true
+        { & $publisher `
+                -Component deployment-validation `
+                -Version 0.3.3 `
+                -PortfolioRoot $portfolioRoot `
+                -WorktreeRoot $worktrees `
+                -RegistryPath $registryPath `
+                -Confirm:$false } | Should -Throw '*Git failed*'
+    }
+
+    It 'contains only expected-absent branch creation and draft pull-request publication commands' {
         $source = Get-Content -LiteralPath $publisher -Raw
-        $source | Should -Match "'push', '--porcelain'"
+        $source | Should -Match "--force-with-lease=refs/heads/"
         $source | Should -Match "'pr', 'create', '--draft'"
-        $source | Should -Not -Match "'push'[^\r\n]*(?:--force|-f(?:'|\s))"
+        $source | Should -Not -Match "'--force'"
         $source | Should -Not -Match "'pr',\s*'(?:merge|review)'"
     }
 }

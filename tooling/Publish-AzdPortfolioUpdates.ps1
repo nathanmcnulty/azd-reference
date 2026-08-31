@@ -35,6 +35,18 @@ function Invoke-GitChecked {
     @($output)
 }
 
+function Assert-NoGitUrlRewrite {
+    param([Parameter(Mandatory)][string] $RepositoryRoot)
+
+    $output = @(& git -C $RepositoryRoot config --show-origin --get-regexp '^url\..*\.(insteadOf|pushInsteadOf)$' 2>&1)
+    if ($LASTEXITCODE -notin 0, 1) {
+        throw "Unable to inspect Git URL rewrite configuration in '$RepositoryRoot'.`n$($output -join "`n")"
+    }
+    if ($output.Count -gt 0) {
+        throw "Git URL rewrite configuration is not allowed during portfolio publication.`n$($output -join "`n")"
+    }
+}
+
 function Get-RemoteTagRevision {
     param(
         [Parameter(Mandatory)][string] $RepositoryRoot,
@@ -127,6 +139,7 @@ if (-not ($registryRaw | Test-Json -SchemaFile (Join-Path $referenceRoot 'schema
 }
 $registry = $registryRaw | ConvertFrom-Json
 
+Assert-NoGitUrlRewrite -RepositoryRoot $referenceRoot
 $referenceOrigin = [string] (Invoke-GitChecked -RepositoryRoot $referenceRoot -Arguments @('config', '--get', 'remote.origin.url') | Select-Object -First 1)
 $normalizedReferenceOrigin = Get-NormalizedRepositoryUrl -Repository $referenceOrigin
 if ($normalizedReferenceOrigin -ne [string] $registry.referenceRepository) {
@@ -150,7 +163,7 @@ $updateParameters = @{
 }
 if ($PruneRemovedFiles) { $updateParameters.PruneRemovedFiles = $true }
 
-if (-not $PSCmdlet.ShouldProcess("$Component@$Version", 'prepare validated branches, push them without force, and open draft pull requests')) {
+if (-not $PSCmdlet.ShouldProcess("$Component@$Version", 'prepare validated branches, create remote branches with expected-absent leases, and open draft pull requests')) {
     $plans = @(& (Join-Path $referenceRoot 'tooling/Update-AzdPortfolio.ps1') @updateParameters)
     foreach ($plan in $plans) {
         [pscustomobject] [ordered]@{
@@ -182,6 +195,7 @@ $selectedConsumers = @(
 $publishedResults = @()
 foreach ($consumer in $selectedConsumers) {
     $checkoutRoot = Resolve-ConsumerCheckout -Root $PortfolioRoot -RelativePath ([string] $consumer.checkoutDirectory)
+    Assert-NoGitUrlRewrite -RepositoryRoot $checkoutRoot
     $declaredOrigin = [string] (Invoke-GitChecked -RepositoryRoot $checkoutRoot -Arguments @(
             'config', '--get', 'remote.origin.url'
         ) | Select-Object -First 1)
@@ -255,10 +269,13 @@ foreach ($consumer in $selectedConsumers) {
     }
     $hashEvidence = @($lockedComponent[0].files | ForEach-Object { "- ``$($_.target)``: ``$($_.sha256)``" }) -join "`n"
 
+    Assert-NoGitUrlRewrite -RepositoryRoot $checkoutRoot
     Invoke-GitChecked -RepositoryRoot $checkoutRoot -Arguments @(
-        'push', '--porcelain', ([string] $consumer.repository), "refs/heads/$($prepared.branch):refs/heads/$($prepared.branch)"
+        'push', '--porcelain', "--force-with-lease=refs/heads/$($prepared.branch):",
+        ([string] $consumer.repository), "refs/heads/$($prepared.branch):refs/heads/$($prepared.branch)"
     ) | Out-Null
 
+    Assert-NoGitUrlRewrite -RepositoryRoot $checkoutRoot
     $publishedRevision = Get-RemoteBranchRevision -RepositoryRoot $checkoutRoot -Repository ([string] $consumer.repository) -Branch ([string] $prepared.branch)
     if ($publishedRevision -ne [string] $prepared.commit) {
         throw "Published branch does not match the prepared commit: '$($prepared.branch)'."
