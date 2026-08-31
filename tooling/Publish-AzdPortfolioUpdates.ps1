@@ -16,6 +16,9 @@ param(
 
     [string] $RegistryPath,
 
+    [ValidatePattern('^[a-z][a-z0-9-]+$')]
+    [string] $ConsumerId,
+
     [switch] $PruneRemovedFiles
 )
 
@@ -139,6 +142,13 @@ if (-not ($registryRaw | Test-Json -SchemaFile (Join-Path $referenceRoot 'schema
 }
 $registry = $registryRaw | ConvertFrom-Json
 
+if ($ConsumerId) {
+    $registeredMatches = @($registry.consumers | Where-Object { [string] $_.id -ceq $ConsumerId })
+    if ($registeredMatches.Count -ne 1) {
+        throw "ConsumerId must identify exactly one registered consumer: '$ConsumerId'."
+    }
+}
+
 Assert-NoGitUrlRewrite -RepositoryRoot $referenceRoot
 $referenceOrigin = [string] (Invoke-GitChecked -RepositoryRoot $referenceRoot -Arguments @('config', '--get', 'remote.origin.url') | Select-Object -First 1)
 $normalizedReferenceOrigin = Get-NormalizedRepositoryUrl -Repository $referenceOrigin
@@ -162,6 +172,7 @@ $updateParameters = @{
     RegistryPath = $RegistryPath
 }
 if ($PruneRemovedFiles) { $updateParameters.PruneRemovedFiles = $true }
+if ($ConsumerId) { $updateParameters.ConsumerId = $ConsumerId }
 
 if (-not $PSCmdlet.ShouldProcess("$Component@$Version", 'prepare validated branches, create remote branches with expected-absent leases, and open draft pull requests')) {
     $plans = @(& (Join-Path $referenceRoot 'tooling/Update-AzdPortfolio.ps1') @updateParameters)
@@ -186,12 +197,14 @@ Invoke-GhChecked -Arguments @('auth', 'status') | Out-Null
 
 $selectedConsumers = @(
     foreach ($consumer in @($registry.consumers)) {
+        if ($ConsumerId -and [string] $consumer.id -cne $ConsumerId) { continue }
         $desired = @($consumer.components | Where-Object {
                 [string] $_.id -eq $Component -and [string] $_.desiredVersion -eq $Version
             })
         if ($desired.Count -gt 0) { $consumer }
     }
 )
+if ($selectedConsumers.Count -eq 0) { throw "No registered consumer approves '$Component@$Version'." }
 $publishedResults = @()
 foreach ($consumer in $selectedConsumers) {
     $checkoutRoot = Resolve-ConsumerCheckout -Root $PortfolioRoot -RelativePath ([string] $consumer.checkoutDirectory)

@@ -50,6 +50,25 @@ Describe 'Guarded portfolio publication' {
             )
         } | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $registryPath -Encoding utf8NoBOM
 
+        $addUnmaterializedSecondConsumer = {
+            $registry = Get-Content -LiteralPath $registryPath -Raw | ConvertFrom-Json
+            $registry.consumers += [pscustomobject] [ordered]@{
+                id = 'consumer-two'
+                repository = 'https://github.com/example/consumer-two'
+                checkoutDirectory = 'consumer-two'
+                solutionRoot = '.'
+                defaultBranch = 'main'
+                repositoryValidationWorkflow = '.github/workflows/validate.yml'
+                rolloutRing = 'pilot'
+                adoption = 'adopted'
+                components = @(
+                    [pscustomobject] [ordered]@{ id = 'deployment-validation'; desiredVersion = '0.3.3' }
+                )
+                validation = [pscustomobject] [ordered]@{ entryPoint = 'scripts/Test-Repository.ps1'; timeoutMinutes = 10 }
+            }
+            $registry | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $registryPath -Encoding utf8NoBOM
+        }
+
         $global:PublisherTestGitApplication = (Get-Command git -CommandType Application | Select-Object -First 1).Source
         $global:PublisherTestRegisteredRepository = $repository
         $global:PublisherTestBareRepository = $remote
@@ -106,6 +125,68 @@ Describe 'Guarded portfolio publication' {
         $result[0].branch | Should -Be 'codex/update-consumer-one-deployment-validation-v0.3.3'
         (& git -C $consumer rev-parse HEAD).Trim() | Should -Be $beforeHead
         @(& git -C $consumer branch --list 'codex/update-*').Count | Should -Be 0
+        @(Get-ChildItem -LiteralPath $worktrees -Force).Count | Should -Be 0
+    }
+
+    It 'rejects an unknown single-consumer selector without mutation' {
+        $beforeHead = (& git -C $consumer rev-parse HEAD).Trim()
+
+        { & $publisher `
+                -Component deployment-validation `
+                -Version 0.3.3 `
+                -ConsumerId consumer-missing `
+                -PortfolioRoot $portfolioRoot `
+                -WorktreeRoot $worktrees `
+                -RegistryPath $registryPath `
+                -WhatIf } | Should -Throw '*identify exactly one registered consumer*'
+
+        (& git -C $consumer rev-parse HEAD).Trim() | Should -Be $beforeHead
+        @(& git -C $consumer branch --list 'codex/update-*').Count | Should -Be 0
+        @(& git ls-remote --heads $remote 'refs/heads/codex/update-*').Count | Should -Be 0
+        @(Get-ChildItem -LiteralPath $worktrees -Force).Count | Should -Be 0
+    }
+
+    It 'plans only the exact selected consumer and leaves other consumers untouched' {
+        & $addUnmaterializedSecondConsumer
+        $beforeHead = (& git -C $consumer rev-parse HEAD).Trim()
+        $unselectedCheckout = Join-Path $portfolioRoot 'consumer-two'
+
+        $result = @(& $publisher `
+                -Component deployment-validation `
+                -Version 0.3.3 `
+                -ConsumerId consumer-one `
+                -PortfolioRoot $portfolioRoot `
+                -WorktreeRoot $worktrees `
+                -RegistryPath $registryPath `
+                -WhatIf)
+
+        $result.Count | Should -Be 1
+        $result[0].consumer | Should -Be 'consumer-one'
+        $result[0].state | Should -Be 'whatIf'
+        (& git -C $consumer rev-parse HEAD).Trim() | Should -Be $beforeHead
+        Test-Path -LiteralPath $unselectedCheckout | Should -BeFalse
+        @(& git -C $consumer branch --list 'codex/update-*').Count | Should -Be 0
+        @(Get-ChildItem -LiteralPath $worktrees -Force).Count | Should -Be 0
+    }
+
+    It 'publishes only the exact selected consumer and does not inspect another checkout' {
+        & $addUnmaterializedSecondConsumer
+        $unselectedCheckout = Join-Path $portfolioRoot 'consumer-two'
+
+        $result = @(& $publisher `
+                -Component deployment-validation `
+                -Version 0.3.3 `
+                -ConsumerId consumer-one `
+                -PortfolioRoot $portfolioRoot `
+                -WorktreeRoot $worktrees `
+                -RegistryPath $registryPath `
+                -Confirm:$false)
+
+        $result.Count | Should -Be 1
+        $result[0].consumer | Should -Be 'consumer-one'
+        $result[0].state | Should -Be 'published'
+        Test-Path -LiteralPath $unselectedCheckout | Should -BeFalse
+        @(& git ls-remote --heads $remote 'refs/heads/codex/update-*').Count | Should -Be 1
         @(Get-ChildItem -LiteralPath $worktrees -Force).Count | Should -Be 0
     }
 
