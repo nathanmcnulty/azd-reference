@@ -66,6 +66,51 @@ function Get-RepositorySlug {
     $Matches.slug
 }
 
+function Get-NormalizedRepositoryUrl {
+    param([Parameter(Mandatory)][string] $Repository)
+
+    $value = $Repository.Trim()
+    if ($value -match '^git@github\.com:(?<path>.+?)(?:\.git)?$') {
+        return "https://github.com/$($Matches.path -replace '\.git$', '')"
+    }
+    if ($value -match '^https://github\.com/(?<path>[^?#]+?)(?:\.git)?$') {
+        return "https://github.com/$($Matches.path -replace '\.git$', '')"
+    }
+    $value
+}
+
+function Get-RemoteBranchRevision {
+    param(
+        [Parameter(Mandatory)][string] $RepositoryRoot,
+        [Parameter(Mandatory)][string] $Repository,
+        [Parameter(Mandatory)][string] $Branch
+    )
+
+    $reference = "refs/heads/$Branch"
+    $lines = @(Invoke-GitChecked -RepositoryRoot $RepositoryRoot -Arguments @('ls-remote', '--heads', $Repository, $reference))
+    if ($lines.Count -eq 0) { return $null }
+    if ($lines.Count -ne 1 -or [string] $lines[0] -notmatch "^(?<revision>[0-9a-f]{40})\s+$([regex]::Escape($reference))$") {
+        throw "Unexpected remote branch response for '$reference'."
+    }
+    [string] $Matches.revision
+}
+
+function Resolve-ConsumerCheckout {
+    param(
+        [Parameter(Mandatory)][string] $Root,
+        [Parameter(Mandatory)][string] $RelativePath
+    )
+
+    $fullRoot = [System.IO.Path]::GetFullPath($Root)
+    $candidate = [System.IO.Path]::GetFullPath((Join-Path $fullRoot $RelativePath))
+    $rootPrefix = $fullRoot.TrimEnd([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar) + [System.IO.Path]::DirectorySeparatorChar
+    $comparison = if ([System.OperatingSystem]::IsWindows()) { [System.StringComparison]::OrdinalIgnoreCase } else { [System.StringComparison]::Ordinal }
+    if (-not $candidate.StartsWith($rootPrefix, $comparison)) {
+        throw "Consumer checkout resolves outside the portfolio root: '$RelativePath'."
+    }
+    $candidate
+}
+
 function Invoke-GhChecked {
     param([Parameter(Mandatory)][string[]] $Arguments)
 
@@ -82,8 +127,8 @@ if (-not ($registryRaw | Test-Json -SchemaFile (Join-Path $referenceRoot 'schema
 }
 $registry = $registryRaw | ConvertFrom-Json
 
-$referenceOrigin = [string] (Invoke-GitChecked -RepositoryRoot $referenceRoot -Arguments @('remote', 'get-url', 'origin') | Select-Object -First 1)
-$normalizedReferenceOrigin = $referenceOrigin.Trim() -replace '^git@github\.com:', 'https://github.com/' -replace '\.git$', ''
+$referenceOrigin = [string] (Invoke-GitChecked -RepositoryRoot $referenceRoot -Arguments @('config', '--get', 'remote.origin.url') | Select-Object -First 1)
+$normalizedReferenceOrigin = Get-NormalizedRepositoryUrl -Repository $referenceOrigin
 if ($normalizedReferenceOrigin -ne [string] $registry.referenceRepository) {
     throw 'The reference repository origin does not match the consumer registry.'
 }
@@ -126,11 +171,52 @@ if (-not (Get-Command gh -CommandType Application -ErrorAction SilentlyContinue)
 }
 Invoke-GhChecked -Arguments @('auth', 'status') | Out-Null
 
-$updateParameters.Operation = 'Prepare'
-$updateParameters.WorktreeRoot = $WorktreeRoot
-$preparedResults = @(& (Join-Path $referenceRoot 'tooling/Update-AzdPortfolio.ps1') @updateParameters -Confirm:$false)
+$selectedConsumers = @(
+    foreach ($consumer in @($registry.consumers)) {
+        $desired = @($consumer.components | Where-Object {
+                [string] $_.id -eq $Component -and [string] $_.desiredVersion -eq $Version
+            })
+        if ($desired.Count -gt 0) { $consumer }
+    }
+)
 $publishedResults = @()
-foreach ($prepared in $preparedResults) {
+foreach ($consumer in $selectedConsumers) {
+    $checkoutRoot = Resolve-ConsumerCheckout -Root $PortfolioRoot -RelativePath ([string] $consumer.checkoutDirectory)
+    $declaredOrigin = [string] (Invoke-GitChecked -RepositoryRoot $checkoutRoot -Arguments @(
+            'config', '--get', 'remote.origin.url'
+        ) | Select-Object -First 1)
+    if ((Get-NormalizedRepositoryUrl -Repository $declaredOrigin) -ne [string] $consumer.repository) {
+        throw "Consumer origin does not match the registry: '$($consumer.id)'."
+    }
+
+    $defaultReference = "refs/heads/$($consumer.defaultBranch)"
+    $trackingReference = "refs/remotes/origin/$($consumer.defaultBranch)"
+    Invoke-GitChecked -RepositoryRoot $checkoutRoot -Arguments @(
+        'fetch', '--no-tags', ([string] $consumer.repository), "+${defaultReference}:${trackingReference}"
+    ) | Out-Null
+    $liveDefaultRevision = Get-RemoteBranchRevision -RepositoryRoot $checkoutRoot -Repository ([string] $consumer.repository) -Branch ([string] $consumer.defaultBranch)
+    if (-not $liveDefaultRevision) { throw "Consumer default branch is unavailable: '$($consumer.id)'." }
+    $fetchedDefaultRevision = [string] (Invoke-GitChecked -RepositoryRoot $checkoutRoot -Arguments @(
+            'rev-parse', '--verify', '--end-of-options', $trackingReference
+        ) | Select-Object -First 1)
+    if ($fetchedDefaultRevision -ne $liveDefaultRevision) {
+        throw "Fetched default branch does not match the live remote: '$($consumer.id)'."
+    }
+
+    $branch = "codex/update-$($consumer.id)-$Component-v$Version"
+    if (Get-RemoteBranchRevision -RepositoryRoot $checkoutRoot -Repository ([string] $consumer.repository) -Branch $branch) {
+        throw "Remote update branch already exists: '$branch'."
+    }
+
+    $consumerUpdateParameters = $updateParameters.Clone()
+    $consumerUpdateParameters.Operation = 'Prepare'
+    $consumerUpdateParameters.WorktreeRoot = $WorktreeRoot
+    $consumerUpdateParameters.ConsumerId = [string] $consumer.id
+    $preparedResults = @(& (Join-Path $referenceRoot 'tooling/Update-AzdPortfolio.ps1') @consumerUpdateParameters -Confirm:$false)
+    if ($preparedResults.Count -ne 1) {
+        throw "Consumer '$($consumer.id)' did not produce exactly one preparation result."
+    }
+    $prepared = $preparedResults[0]
     if ($prepared.state -eq 'alreadyCurrent') {
         $publishedResults += [pscustomobject] [ordered]@{
             consumer = $prepared.consumer
@@ -147,10 +233,6 @@ foreach ($prepared in $preparedResults) {
         throw "Consumer '$($prepared.consumer)' did not produce a publishable branch."
     }
 
-    $consumer = @($registry.consumers | Where-Object { [string] $_.id -eq [string] $prepared.consumer })
-    if ($consumer.Count -ne 1) { throw "Prepared consumer is not unique in the registry: '$($prepared.consumer)'." }
-    $consumer = $consumer[0]
-    $checkoutRoot = [System.IO.Path]::GetFullPath((Join-Path ([System.IO.Path]::GetFullPath($PortfolioRoot)) ([string] $consumer.checkoutDirectory)))
     $repositorySlug = Get-RepositorySlug -Repository ([string] $consumer.repository)
     $branchRevision = [string] (Invoke-GitChecked -RepositoryRoot $checkoutRoot -Arguments @(
             'rev-parse', '--verify', '--end-of-options', "refs/heads/$($prepared.branch)"
@@ -174,8 +256,13 @@ foreach ($prepared in $preparedResults) {
     $hashEvidence = @($lockedComponent[0].files | ForEach-Object { "- ``$($_.target)``: ``$($_.sha256)``" }) -join "`n"
 
     Invoke-GitChecked -RepositoryRoot $checkoutRoot -Arguments @(
-        'push', '--porcelain', 'origin', "refs/heads/$($prepared.branch):refs/heads/$($prepared.branch)"
+        'push', '--porcelain', ([string] $consumer.repository), "refs/heads/$($prepared.branch):refs/heads/$($prepared.branch)"
     ) | Out-Null
+
+    $publishedRevision = Get-RemoteBranchRevision -RepositoryRoot $checkoutRoot -Repository ([string] $consumer.repository) -Branch ([string] $prepared.branch)
+    if ($publishedRevision -ne [string] $prepared.commit) {
+        throw "Published branch does not match the prepared commit: '$($prepared.branch)'."
+    }
 
     $body = @"
 ## Component update

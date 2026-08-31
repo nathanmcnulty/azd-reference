@@ -96,12 +96,16 @@ path:
 ```
 
 The publisher first verifies that the exact component tag exists on the
-`azd-reference` origin and resolves to the same commit as the local tag. It then
-prepares and validates deterministic consumer branches, pushes each branch with
-an ordinary non-force Git push, and opens one draft pull request containing the
-source revision, prepared commit, managed-file hashes, validation entry point,
-and rollback command. `-WhatIf` stops before branch preparation or remote
-mutation and returns the intended consumers and branch names.
+`azd-reference` origin and resolves to the same commit as the local tag. For each
+consumer, it binds fetch and push operations to the registry's exact repository
+URL, refreshes and verifies the live default branch immediately before isolated
+preparation, and refuses to adopt an existing deterministic update branch. It
+then validates and pushes the prepared branch with an ordinary non-force Git
+push, verifies that the live remote head is the exact prepared commit, and opens
+one draft pull request containing the source revision, prepared commit,
+managed-file hashes, validation entry point, and rollback command. `-WhatIf`
+stops before branch preparation or remote mutation and returns the intended
+consumers and branch names.
 
 The publisher requires an authenticated GitHub CLI session. It cannot force-push,
 approve, merge, or alter repository settings. A partial failure may leave a local
