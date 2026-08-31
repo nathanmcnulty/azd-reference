@@ -1,0 +1,19 @@
+{
+  "$schema": "../../../schemas/component-manifest.schema.json",
+  "manifestVersion": "1.1",
+  "id": "azure-monitor-scheduled-query-notifications",
+  "version": "0.1.0",
+  "description": "Azure Monitor scheduled-query alerts routed through a solution-owned Logic App by an action group using the common alert schema.",
+  "status": "pilot",
+  "changelog": "components/bicep/azure-monitor-scheduled-query-notifications/CHANGELOG.md",
+  "files": [
+    {
+      "source": "components/bicep/azure-monitor-scheduled-query-notifications/logic-app-action-group.bicep",
+      "target": "infra/vendor/Azd.AzureMonitorNotifications/logic-app-action-group.bicep"
+    },
+    {
+      "source": "components/bicep/azure-monitor-scheduled-query-notifications/scheduled-query-alert.bicep",
+      "target": "infra/vendor/Azd.AzureMonitorNotifications/scheduled-query-alert.bicep"
+    }
+  ]
+}

@@ -38,7 +38,9 @@ Remaining promotion order:
 
 1. Notification envelope and delivery-result schemas: available as the
    `notification-contracts@1.0.0` pilot component.
-2. Azure Monitor scheduled-query alert and action-group receiver modules.
+2. Azure Monitor scheduled-query alert and action-group receiver modules:
+   available as the `azure-monitor-scheduled-query-notifications@0.1.0` pilot
+   component.
 3. Teams managed-connector authorization and delivery proof.
 4. Identity-only storage, observability, and Flex Consumption Function baseline.
 5. Application-role planning beyond the delegated Graph authentication component.

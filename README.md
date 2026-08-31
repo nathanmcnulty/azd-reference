@@ -26,6 +26,8 @@ The first foundation release establishes:
   receipts, deployment-validation reports, notification envelopes, and delivery
   results;
 - a stable PowerShell deployment-validation component;
+- a pilot Azure Monitor scheduled-query notification component that preserves
+  solution-owned KQL and Logic App behavior;
 - a delegated Microsoft Graph session coordinator that proves context and token
   usability before reuse;
 - safe component synchronization and drift-validation tooling;
@@ -37,8 +39,9 @@ The first foundation release establishes:
 - a template skeleton that demonstrates the portfolio contract; and
 - automated validation for the reference repository itself.
 
-Notification envelope and delivery-result schemas are now a versioned pilot
-component. Teams bots, Sentinel analytics/automation, Logic Apps, and polling
+Notification envelope and delivery-result schemas and the shared Azure Monitor
+scheduled-query/action-group boundary are now versioned pilot components. Teams
+bots, Sentinel analytics/automation, Logic App workflow behavior, and polling
 Functions remain extraction candidates until pilot adoption proves the correct
 boundaries across multiple solutions.
 

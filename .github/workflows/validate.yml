@@ -69,10 +69,21 @@ jobs:
           ./tooling/Test-AzdComponentDrift.ps1 -TargetPath ./skeleton
           ./tooling/Sync-AzdComponent.ps1 -Component deployment-validation -TargetPath ./skeleton -WhatIf | Out-Null
 
-      - name: Build skeleton Bicep
+      - name: Build Bicep
         run: |
           az bicep install --version v0.42.1
           az bicep build --file ./skeleton/infra/main.bicep --stdout | Out-Null
+          az bicep build --file ./components/bicep/azure-monitor-scheduled-query-notifications/logic-app-action-group.bicep --stdout | Out-Null
+          az bicep build --file ./components/bicep/azure-monitor-scheduled-query-notifications/scheduled-query-alert.bicep --stdout | Out-Null
+          $compiledRoot = Join-Path $env:RUNNER_TEMP 'azure-monitor-notification-fixtures'
+          New-Item -ItemType Directory -Path $compiledRoot -Force | Out-Null
+          $pimTemplate = Join-Path $compiledRoot 'pim-wrapper.json'
+          $riskTemplate = Join-Path $compiledRoot 'risk-wrapper.json'
+          az bicep build --file ./tests/fixtures/bicep/azure-monitor-scheduled-query-notifications/pim-wrapper.bicep --outfile $pimTemplate
+          az bicep build --file ./tests/fixtures/bicep/azure-monitor-scheduled-query-notifications/risk-wrapper.bicep --outfile $riskTemplate
+          ./tests/Assert-AzureMonitorCompiledTemplate.ps1 -Shape Pim -TemplatePath $pimTemplate
+          ./tests/Assert-AzureMonitorCompiledTemplate.ps1 -Shape Risk -TemplatePath $riskTemplate
+          ./tests/Test-AzureMonitorCompiledAssertionNegative.ps1 -PimTemplatePath $pimTemplate -RiskTemplatePath $riskTemplate
 
       - name: Confirm validation left the checkout clean
         run: git diff --exit-code
