@@ -16,6 +16,9 @@ param(
 
     [string] $RegistryPath,
 
+    [ValidatePattern('^[a-z][a-z0-9-]+$')]
+    [string] $ConsumerId,
+
     [string] $WorktreeRoot,
 
     [switch] $PruneRemovedFiles
@@ -61,7 +64,10 @@ function Resolve-SafePath {
 function Get-NormalizedOrigin {
     param([Parameter(Mandatory)][string] $RepositoryRoot)
 
-    $origin = @(& git -C $RepositoryRoot remote get-url origin 2>$null)
+    # Read the declared fetch URL rather than a rewritten transport URL or
+    # pushurl. Publication separately binds its network operations to the exact
+    # registry URL.
+    $origin = @(& git -C $RepositoryRoot config --get remote.origin.url 2>$null)
     if ($LASTEXITCODE -ne 0 -or $origin.Count -ne 1) { throw "Repository has no unambiguous origin: '$RepositoryRoot'." }
     $value = ([string] $origin[0]).Trim()
     if ($value -match '^git@github\.com:(?<path>.+?)(?:\.git)?$') {
@@ -149,6 +155,7 @@ $tagRevision = [string] $tagRevision[0]
 
 $selectedConsumers = @(
     foreach ($consumer in @($registry.consumers)) {
+        if ($ConsumerId -and [string] $consumer.id -ne $ConsumerId) { continue }
         $desired = @($consumer.components | Where-Object { [string] $_.id -eq $Component })
         if ($desired.Count -gt 1) { throw "Consumer '$($consumer.id)' declares '$Component' more than once." }
         if ($desired.Count -eq 1) {

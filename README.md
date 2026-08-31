@@ -31,7 +31,9 @@ The first foundation release establishes:
 - safe component synchronization and drift-validation tooling;
 - a machine-readable consumer registry, repository baseline, and read-only
   portfolio status audit;
-- isolated-worktree preparation of reviewed component updates;
+- isolated-worktree preparation and guarded draft-PR publication of reviewed
+  component updates;
+- scheduled read-only drift surveillance across public consumers;
 - a template skeleton that demonstrates the portfolio contract; and
 - automated validation for the reference repository itself.
 
@@ -92,6 +94,10 @@ Plan a tagged component rollout without changing any checkout:
   -PortfolioRoot C:\GitHub
 ```
 
-`Prepare` creates and validates isolated local worktree branches. The updater has
-no publish, approval, merge, force-push, or active-checkout mutation capability.
-See [`docs/portfolio-updates.md`](docs/portfolio-updates.md).
+`Prepare` creates and validates isolated local worktree branches. The separate
+publisher verifies origin tag provenance, atomically creates remote branches
+with expected-absent leases,
+and opens draft
+pull requests containing validation and rollback evidence. Neither tool can
+approve or merge a pull request, force-push, or mutate an active checkout. See
+[`docs/portfolio-updates.md`](docs/portfolio-updates.md).
