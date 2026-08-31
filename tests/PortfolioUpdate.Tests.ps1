@@ -136,3 +136,208 @@ Describe 'Portfolio update preparation' {
         @(Get-ChildItem -LiteralPath $worktrees -Force).Count | Should -Be 0
     }
 }
+
+Describe 'Windows worktree cleanup recovery' {
+    BeforeAll {
+        $script:repoRoot = Split-Path $PSScriptRoot -Parent
+        $updaterSource = Join-Path $script:repoRoot 'tooling/Update-AzdPortfolio.ps1'
+        $tokens = $null
+        $parseErrors = $null
+        $ast = [System.Management.Automation.Language.Parser]::ParseFile($updaterSource, [ref] $tokens, [ref] $parseErrors)
+        $parseErrors.Count | Should -Be 0
+        foreach ($functionName in 'Invoke-GitChecked', 'Get-SafeEmptyWorktreeResidue', 'Remove-EmptyWorktreeResidueWithRetry', 'Remove-PreparedWorktree') {
+            $functionAst = $ast.Find({
+                    param($node)
+                    $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq $functionName
+                }, $true)
+            $functionAst | Should -Not -BeNullOrEmpty
+            Invoke-Expression $functionAst.Extent.Text
+        }
+    }
+
+    BeforeEach {
+        $caseRoot = Join-Path $TestDrive ([guid]::NewGuid().ToString('N'))
+        $repository = Join-Path $caseRoot 'repository'
+        $worktreeRoot = Join-Path $caseRoot 'worktrees'
+        $residue = Join-Path $worktreeRoot 'consumer-component-v1-0-0'
+        New-Item -ItemType Directory -Path $repository, $worktreeRoot, $residue | Out-Null
+        & git -C $repository init --initial-branch main | Out-Null
+    }
+
+    AfterEach {
+        Remove-Item Function:\git -ErrorAction SilentlyContinue
+        Remove-Variable CleanupTestGitApplication, CleanupTestResidue -Scope Global -ErrorAction SilentlyContinue
+        Remove-Variable CleanupTestState -Scope Script -ErrorAction SilentlyContinue
+    }
+
+    It 'retries a transient native deletion failure with bounded backoff' {
+        $script:CleanupTestState = [pscustomobject]@{ Attempts = 0; Delays = @() }
+        $delete = {
+            param($Path)
+            $script:CleanupTestState.Attempts++
+            if ($script:CleanupTestState.Attempts -lt 3) { throw 'simulated transient directory lock' }
+            [System.IO.Directory]::Delete($Path, $false)
+        }
+        $delay = { param($Milliseconds) $script:CleanupTestState.Delays += $Milliseconds }
+
+        $result = Remove-EmptyWorktreeResidueWithRetry `
+            -RepositoryRoot $repository `
+            -WorktreeRoot $worktreeRoot `
+            -WorktreePath $residue `
+            -WindowsPlatform $true `
+            -DeleteDirectory $delete `
+            -Delay $delay
+
+        $result | Should -BeTrue
+        $script:CleanupTestState.Attempts | Should -Be 3
+        $script:CleanupTestState.Delays | Should -Be @(100, 200)
+        Test-Path -LiteralPath $residue | Should -BeFalse
+    }
+
+    It 'accepts an already-absent unregistered target without invoking deletion' {
+        Remove-Item -LiteralPath $residue
+        $script:CleanupTestState = [pscustomobject]@{ Attempts = 0 }
+        $delete = {
+            param($Path)
+            $script:CleanupTestState.Attempts++
+            throw "Deletion must not run for an already-absent target: '$Path'."
+        }
+
+        $result = Remove-EmptyWorktreeResidueWithRetry `
+            -RepositoryRoot $repository `
+            -WorktreeRoot $worktreeRoot `
+            -WorktreePath $residue `
+            -WindowsPlatform $true `
+            -DeleteDirectory $delete
+
+        $result | Should -BeTrue
+        $script:CleanupTestState.Attempts | Should -Be 0
+        Test-Path -LiteralPath $residue | Should -BeFalse
+    }
+
+    It 'refuses an already-absent target that is still registered' {
+        Remove-Item -LiteralPath $residue
+        $global:CleanupTestGitApplication = (Get-Command git -CommandType Application | Select-Object -First 1).Source
+        $global:CleanupTestResidue = $residue
+        function global:git {
+            if (@($args) -join ' ' -like '*worktree list --porcelain*') {
+                $global:LASTEXITCODE = 0
+                "worktree $($global:CleanupTestResidue.Replace('\', '/'))"
+                return
+            }
+            & $global:CleanupTestGitApplication @args
+        }
+
+        (Remove-EmptyWorktreeResidueWithRetry -RepositoryRoot $repository -WorktreeRoot $worktreeRoot -WorktreePath $residue -WindowsPlatform $true) | Should -BeFalse
+        Test-Path -LiteralPath $residue | Should -BeFalse
+    }
+
+    It 'never retries outside the dedicated worktree root' {
+        $outside = Join-Path $caseRoot 'outside-residue'
+        New-Item -ItemType Directory -Path $outside | Out-Null
+        (Remove-EmptyWorktreeResidueWithRetry -RepositoryRoot $repository -WorktreeRoot $worktreeRoot -WorktreePath $outside -WindowsPlatform $true) | Should -BeFalse
+        Test-Path -LiteralPath $outside | Should -BeTrue
+    }
+
+    It 'never retries a non-empty residue' {
+        Set-Content -LiteralPath (Join-Path $residue 'retained.txt') -Value 'must remain'
+        (Remove-EmptyWorktreeResidueWithRetry -RepositoryRoot $repository -WorktreeRoot $worktreeRoot -WorktreePath $residue -WindowsPlatform $true) | Should -BeFalse
+        Test-Path -LiteralPath (Join-Path $residue 'retained.txt') | Should -BeTrue
+    }
+
+    It 'never retries a reparse-point residue' {
+        Remove-Item -LiteralPath $residue
+        $junctionTarget = Join-Path $caseRoot 'junction-target'
+        New-Item -ItemType Directory -Path $junctionTarget | Out-Null
+        $linkType = if ([System.OperatingSystem]::IsWindows()) { 'Junction' } else { 'SymbolicLink' }
+        New-Item -ItemType $linkType -Path $residue -Target $junctionTarget | Out-Null
+
+        (Remove-EmptyWorktreeResidueWithRetry -RepositoryRoot $repository -WorktreeRoot $worktreeRoot -WorktreePath $residue -WindowsPlatform $true) | Should -BeFalse
+        Test-Path -LiteralPath $residue | Should -BeTrue
+        Test-Path -LiteralPath $junctionTarget | Should -BeTrue
+    }
+
+    It 'never retries an exact path that is still registered' {
+        $global:CleanupTestGitApplication = (Get-Command git -CommandType Application | Select-Object -First 1).Source
+        $global:CleanupTestResidue = $residue
+        function global:git {
+            if (@($args) -join ' ' -like '*worktree list --porcelain*') {
+                $global:LASTEXITCODE = 0
+                "worktree $($global:CleanupTestResidue.Replace('\', '/'))"
+                return
+            }
+            & $global:CleanupTestGitApplication @args
+        }
+
+        (Remove-EmptyWorktreeResidueWithRetry -RepositoryRoot $repository -WorktreeRoot $worktreeRoot -WorktreePath $residue -WindowsPlatform $true) | Should -BeFalse
+        Test-Path -LiteralPath $residue | Should -BeTrue
+    }
+
+    It 'never retries when the supplied path differs from its full resolution' {
+        $nonCanonical = Join-Path $worktreeRoot 'nested/../consumer-component-v1-0-0'
+        (Remove-EmptyWorktreeResidueWithRetry -RepositoryRoot $repository -WorktreeRoot $worktreeRoot -WorktreePath $nonCanonical -WindowsPlatform $true) | Should -BeFalse
+        Test-Path -LiteralPath $residue | Should -BeTrue
+    }
+
+    It 'never retries on a non-Windows platform decision' {
+        (Remove-EmptyWorktreeResidueWithRetry -RepositoryRoot $repository -WorktreeRoot $worktreeRoot -WorktreePath $residue -WindowsPlatform $false) | Should -BeFalse
+        Test-Path -LiteralPath $residue | Should -BeTrue
+    }
+
+    It 'recovers through the wrapper only after Git leaves safe empty residue' {
+        function global:git {
+            if (@($args) -join ' ' -like '*worktree remove*') {
+                $global:LASTEXITCODE = 1
+                'simulated transient Windows removal failure'
+                return
+            }
+            if (@($args) -join ' ' -like '*worktree list --porcelain*') {
+                $global:LASTEXITCODE = 0
+                return
+            }
+            $global:LASTEXITCODE = 1
+        }
+
+        { Remove-PreparedWorktree -RepositoryRoot $repository -WorktreeRoot $worktreeRoot -WorktreePath $residue -WindowsPlatform $true } |
+            Should -Not -Throw
+        Test-Path -LiteralPath $residue | Should -BeFalse
+    }
+
+    It 'preserves the original Git diagnostic when recovery is refused' {
+        function global:git {
+            $global:LASTEXITCODE = 1
+            'original worktree removal diagnostic'
+        }
+
+        { Remove-PreparedWorktree -RepositoryRoot $repository -WorktreeRoot $worktreeRoot -WorktreePath $residue -WindowsPlatform $true } |
+            Should -Throw '*original worktree removal diagnostic*'
+        Test-Path -LiteralPath $residue | Should -BeTrue
+    }
+
+    It 'preserves the original Git diagnostic when safety revalidation throws' {
+        function global:git {
+            if (@($args) -join ' ' -like '*worktree remove*') {
+                $global:LASTEXITCODE = 1
+                'original worktree removal diagnostic'
+                return
+            }
+            if (@($args) -join ' ' -like '*worktree list --porcelain*') {
+                throw 'secondary revalidation exception'
+            }
+            $global:LASTEXITCODE = 1
+        }
+
+        $caught = $null
+        try {
+            Remove-PreparedWorktree -RepositoryRoot $repository -WorktreeRoot $worktreeRoot -WorktreePath $residue -WindowsPlatform $true
+        }
+        catch {
+            $caught = $_.Exception.Message
+        }
+
+        $caught | Should -Match 'original worktree removal diagnostic'
+        $caught | Should -Match 'Windows worktree cleanup retry was refused or exhausted'
+        $caught | Should -Not -Match 'secondary revalidation exception'
+        Test-Path -LiteralPath $residue | Should -BeTrue
+    }
+}
