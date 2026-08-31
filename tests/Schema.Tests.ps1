@@ -51,6 +51,20 @@ Describe 'Portfolio JSON schemas' {
             Test-Json -SchemaFile (Join-Path $script:repoRoot 'schemas/repository-baseline.schema.json') -ErrorAction Stop) | Should -BeTrue
     }
 
+    It 'requires every stable component to have at least two adopted consumer shapes' {
+        $registry = Get-Content -LiteralPath (Join-Path $script:repoRoot 'portfolio/consumers.json') -Raw | ConvertFrom-Json
+        $stableManifests = @(Get-ChildItem -LiteralPath (Join-Path $script:repoRoot 'components') -Filter component.json -File -Recurse | ForEach-Object {
+                Get-Content -LiteralPath $_.FullName -Raw | ConvertFrom-Json
+            } | Where-Object status -eq 'stable')
+        $stableManifests.Count | Should -BeGreaterThan 0
+        foreach ($manifest in $stableManifests) {
+            $consumerShapes = @($registry.consumers | Where-Object {
+                    $_.adoption -eq 'adopted' -and [string] $manifest.id -in @($_.components.id)
+                })
+            $consumerShapes.Count | Should -BeGreaterOrEqual 2
+        }
+    }
+
     It 'rejects parent traversal in every repository-relative path contract' {
         $manifest = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'fixtures/valid/component-manifest.json') -Raw | ConvertFrom-Json
         $manifest.files[0].source = '../outside.psm1'

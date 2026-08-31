@@ -18,7 +18,7 @@ Describe 'Portfolio component status' {
         & git -C $reference config user.email 'reference-tests@example.invalid'
         & git -C $reference add --all
         & git -C $reference commit -m 'Reference fixture' | Out-Null
-        & git -C $reference tag 'component/deployment-validation/v0.3.3'
+        & git -C $reference tag 'component/deployment-validation/v1.0.0'
         $releaseRevision = (& git -C $reference rev-parse HEAD).Trim()
         $statusTool = Join-Path $reference 'tooling/Get-AzdPortfolioStatus.ps1'
 
@@ -38,7 +38,7 @@ Describe 'Portfolio component status' {
             components = @(
                 [ordered]@{
                     id = 'deployment-validation'
-                    version = '0.3.3'
+                    version = '1.0.0'
                     sourceRepository = 'https://github.com/nathanmcnulty/azd-reference'
                     sourceRevision = $releaseRevision
                     files = @(
@@ -77,7 +77,7 @@ Describe 'Portfolio component status' {
                     components = @(
                         [ordered]@{
                             id = 'deployment-validation'
-                            desiredVersion = '0.3.3'
+                            desiredVersion = '1.0.0'
                         }
                     )
                 }
@@ -91,13 +91,13 @@ Describe 'Portfolio component status' {
         $result = @(& $statusTool -PortfolioRoot $portfolioRoot -RegistryPath $registryPath)
         $result.Count | Should -Be 1
         $result[0].state | Should -Be 'current'
-        $result[0].installedVersion | Should -Be '0.3.3'
+        $result[0].installedVersion | Should -Be '1.0.0'
         @(& git -C $checkout status --porcelain) | Should -Be $before
     }
 
     It 'reports an outdated component' {
         $data = Get-Content -LiteralPath $registryPath -Raw | ConvertFrom-Json
-        $data.consumers[0].components[0].desiredVersion = '0.4.0'
+        $data.consumers[0].components[0].desiredVersion = '1.1.0'
         $data | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $registryPath -Encoding utf8NoBOM
         (@(& $statusTool -PortfolioRoot $portfolioRoot -RegistryPath $registryPath))[0].state | Should -Be 'outdated'
     }
@@ -149,19 +149,19 @@ Describe 'Portfolio component status' {
     }
 
     It 'rejects a release tag whose committed manifest has another version' {
-        & git -C $reference tag 'component/deployment-validation/v0.4.0'
+        & git -C $reference tag 'component/deployment-validation/v1.1.0'
         $lockPath = Join-Path $checkout 'azd-components.lock.json'
         $data = Get-Content -LiteralPath $lockPath -Raw | ConvertFrom-Json
-        $data.components[0].version = '0.4.0'
+        $data.components[0].version = '1.1.0'
         $data.components[0].sourceRevision = $releaseRevision
         $data | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $lockPath -Encoding utf8NoBOM
         $registry = Get-Content -LiteralPath $registryPath -Raw | ConvertFrom-Json
-        $registry.consumers[0].components[0].desiredVersion = '0.4.0'
+        $registry.consumers[0].components[0].desiredVersion = '1.1.0'
         $registry | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $registryPath -Encoding utf8NoBOM
 
         $result = (@(& $statusTool -PortfolioRoot $portfolioRoot -RegistryPath $registryPath))[0]
         $result.state | Should -Be 'installedReleaseTagInvalid'
-        $result.findings | Should -Contain 'desiredReleaseTagInvalid:deployment-validation@0.4.0'
+        $result.findings | Should -Contain 'desiredReleaseTagInvalid:deployment-validation@1.1.0'
     }
 
     It 'audits action pinning, workflow permissions, and bounded dependency updates' {

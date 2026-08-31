@@ -28,7 +28,15 @@ proves a stable boundary.
 
 ## Promotion order after the validation pilot
 
-1. Notification envelope and delivery-result schemas: promoted as the
+`deployment-validation@1.0.0` is the first stable component. Its three adopted
+consumer shapes proved managed-file ownership, drift detection, isolated update
+preparation, repository-owned validation, and commit-only rollback. The stable
+promotion changes release metadata only; its runtime implementation and report
+schema are byte-identical to 0.3.3.
+
+Remaining promotion order:
+
+1. Notification envelope and delivery-result schemas: available as the
    `notification-contracts@1.0.0` pilot component.
 2. Azure Monitor scheduled-query alert and action-group receiver modules.
 3. Teams managed-connector authorization and delivery proof.

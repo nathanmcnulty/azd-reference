@@ -25,7 +25,7 @@ The first foundation release establishes:
 - versioned JSON contracts for component manifests, consumer locks, deployment
   receipts, deployment-validation reports, notification envelopes, and delivery
   results;
-- a small PowerShell deployment-validation component;
+- a stable PowerShell deployment-validation component;
 - a delegated Microsoft Graph session coordinator that proves context and token
   usability before reuse;
 - safe component synchronization and drift-validation tooling;
@@ -62,7 +62,7 @@ From a trusted local clone of this repository:
 ```powershell
 ./tooling/Sync-AzdComponent.ps1 `
   -Component deployment-validation `
-  -Version 0.3.3 `
+  -Version 1.0.0 `
   -TargetPath C:\GitHub\my-azd-solution `
   -WhatIf
 ```
@@ -90,7 +90,7 @@ Plan a tagged component rollout without changing any checkout:
 ```powershell
 ./tooling/Update-AzdPortfolio.ps1 `
   -Component deployment-validation `
-  -Version 0.3.3 `
+  -Version 1.0.0 `
   -PortfolioRoot C:\GitHub
 ```
 
