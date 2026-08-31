@@ -16,6 +16,9 @@ param(
 
     [string] $RegistryPath,
 
+    [ValidatePattern('^[a-z][a-z0-9-]+$')]
+    [string] $ConsumerId,
+
     [switch] $PruneRemovedFiles
 )
 
@@ -139,6 +142,39 @@ if (-not ($registryRaw | Test-Json -SchemaFile (Join-Path $referenceRoot 'schema
 }
 $registry = $registryRaw | ConvertFrom-Json
 
+$consumerIds = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
+foreach ($consumer in @($registry.consumers)) {
+    $registeredConsumerId = [string] $consumer.id
+    if (-not $consumerIds.Add($registeredConsumerId)) {
+        throw "Portfolio registry contains a duplicate consumer ID: '$registeredConsumerId'."
+    }
+    $componentIds = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
+    foreach ($declaredComponent in @($consumer.components)) {
+        $componentId = [string] $declaredComponent.id
+        if (-not $componentIds.Add($componentId)) {
+            throw "Consumer '$registeredConsumerId' contains a duplicate component ID: '$componentId'."
+        }
+    }
+}
+
+if ($ConsumerId) {
+    $registeredMatches = @($registry.consumers | Where-Object { [string] $_.id -ceq $ConsumerId })
+    if ($registeredMatches.Count -ne 1) {
+        throw "ConsumerId must identify exactly one registered consumer: '$ConsumerId'."
+    }
+}
+
+$selectedConsumers = @(
+    foreach ($consumer in @($registry.consumers)) {
+        if ($ConsumerId -and [string] $consumer.id -cne $ConsumerId) { continue }
+        $desired = @($consumer.components | Where-Object {
+                [string] $_.id -ceq $Component -and [string] $_.desiredVersion -ceq $Version
+            })
+        if ($desired.Count -eq 1) { $consumer }
+    }
+)
+if ($selectedConsumers.Count -eq 0) { throw "No registered consumer approves '$Component@$Version'." }
+
 Assert-NoGitUrlRewrite -RepositoryRoot $referenceRoot
 $referenceOrigin = [string] (Invoke-GitChecked -RepositoryRoot $referenceRoot -Arguments @('config', '--get', 'remote.origin.url') | Select-Object -First 1)
 $normalizedReferenceOrigin = Get-NormalizedRepositoryUrl -Repository $referenceOrigin
@@ -162,6 +198,7 @@ $updateParameters = @{
     RegistryPath = $RegistryPath
 }
 if ($PruneRemovedFiles) { $updateParameters.PruneRemovedFiles = $true }
+if ($ConsumerId) { $updateParameters.ConsumerId = $ConsumerId }
 
 if (-not $PSCmdlet.ShouldProcess("$Component@$Version", 'prepare validated branches, create remote branches with expected-absent leases, and open draft pull requests')) {
     $plans = @(& (Join-Path $referenceRoot 'tooling/Update-AzdPortfolio.ps1') @updateParameters)
@@ -184,14 +221,6 @@ if (-not (Get-Command gh -CommandType Application -ErrorAction SilentlyContinue)
 }
 Invoke-GhChecked -Arguments @('auth', 'status') | Out-Null
 
-$selectedConsumers = @(
-    foreach ($consumer in @($registry.consumers)) {
-        $desired = @($consumer.components | Where-Object {
-                [string] $_.id -eq $Component -and [string] $_.desiredVersion -eq $Version
-            })
-        if ($desired.Count -gt 0) { $consumer }
-    }
-)
 $publishedResults = @()
 foreach ($consumer in $selectedConsumers) {
     $checkoutRoot = Resolve-ConsumerCheckout -Root $PortfolioRoot -RelativePath ([string] $consumer.checkoutDirectory)
