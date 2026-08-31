@@ -64,8 +64,8 @@
       "solutionRoot": ".",
       "defaultBranch": "main",
       "repositoryValidationWorkflow": ".github/workflows/validate.yml",
-      "rolloutRing": "pending",
-      "adoption": "pending",
+      "rolloutRing": "pilot",
+      "adoption": "adopted",
       "components": [
         {
           "id": "deployment-validation",
