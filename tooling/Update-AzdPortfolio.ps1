@@ -98,32 +98,44 @@ function Get-SafeEmptyWorktreeResidue {
         [Parameter(Mandatory)][bool] $WindowsPlatform
     )
 
-    $comparison = if ($WindowsPlatform) { [System.StringComparison]::OrdinalIgnoreCase } else { [System.StringComparison]::Ordinal }
-    $rootFull = [System.IO.Path]::GetFullPath($WorktreeRoot)
-    $targetFull = [System.IO.Path]::GetFullPath($WorktreePath)
-    if (-not $WorktreePath.Equals($targetFull, $comparison)) { return $null }
-    $rootPrefix = $rootFull.TrimEnd([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar) + [System.IO.Path]::DirectorySeparatorChar
-    if (-not $targetFull.StartsWith($rootPrefix, $comparison)) { return $null }
-    if (-not (Test-Path -LiteralPath $rootFull -PathType Container) -or
-        -not (Test-Path -LiteralPath $targetFull -PathType Container)) { return $null }
+    try {
+        $comparison = if ($WindowsPlatform) { [System.StringComparison]::OrdinalIgnoreCase } else { [System.StringComparison]::Ordinal }
+        $rootFull = [System.IO.Path]::GetFullPath($WorktreeRoot)
+        $targetFull = [System.IO.Path]::GetFullPath($WorktreePath)
+        if (-not $WorktreePath.Equals($targetFull, $comparison)) { return $null }
+        $rootPrefix = $rootFull.TrimEnd([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar) + [System.IO.Path]::DirectorySeparatorChar
+        if (-not $targetFull.StartsWith($rootPrefix, $comparison)) { return $null }
+        if (-not (Test-Path -LiteralPath $rootFull -PathType Container -ErrorAction Stop)) { return $null }
 
-    $resolvedRoot = (Resolve-Path -LiteralPath $rootFull).Path
-    $resolvedTarget = (Resolve-Path -LiteralPath $targetFull).Path
-    if (-not $resolvedRoot.Equals($rootFull, $comparison) -or
-        -not $resolvedTarget.Equals($targetFull, $comparison)) { return $null }
-    if (((Get-Item -Force -LiteralPath $resolvedRoot).Attributes -band [System.IO.FileAttributes]::ReparsePoint) -or
-        ((Get-Item -Force -LiteralPath $resolvedTarget).Attributes -band [System.IO.FileAttributes]::ReparsePoint)) { return $null }
-    if (@(Get-ChildItem -Force -LiteralPath $resolvedTarget).Count -ne 0) { return $null }
+        $resolvedRoot = (Resolve-Path -LiteralPath $rootFull -ErrorAction Stop).Path
+        if (-not $resolvedRoot.Equals($rootFull, $comparison)) { return $null }
+        if ((Get-Item -Force -LiteralPath $resolvedRoot -ErrorAction Stop).Attributes -band [System.IO.FileAttributes]::ReparsePoint) { return $null }
 
-    $worktreeList = @(& git -C $RepositoryRoot worktree list --porcelain 2>&1)
-    if ($LASTEXITCODE -ne 0) { return $null }
-    foreach ($line in $worktreeList) {
-        if ([string] $line -notmatch '^worktree (?<path>.+)$') { continue }
-        try { $registeredPath = [System.IO.Path]::GetFullPath($Matches.path) }
-        catch { return $null }
-        if ($registeredPath.Equals($targetFull, $comparison)) { return $null }
+        # Registration must be checked freshly even when the target is already absent.
+        $worktreeList = @(& git -C $RepositoryRoot worktree list --porcelain 2>&1)
+        if ($LASTEXITCODE -ne 0) { return $null }
+        foreach ($line in $worktreeList) {
+            if ([string] $line -notmatch '^worktree (?<path>.+)$') {
+                if ([string] $line -match '^worktree(?:\s|$)') { return $null }
+                continue
+            }
+            $registeredPath = [System.IO.Path]::GetFullPath($Matches.path)
+            if ($registeredPath.Equals($targetFull, $comparison)) { return $null }
+        }
+
+        if (-not (Test-Path -LiteralPath $targetFull -ErrorAction Stop)) {
+            return [pscustomobject]@{ Path = $targetFull; IsAbsent = $true }
+        }
+        if (-not (Test-Path -LiteralPath $targetFull -PathType Container -ErrorAction Stop)) { return $null }
+        $resolvedTarget = (Resolve-Path -LiteralPath $targetFull -ErrorAction Stop).Path
+        if (-not $resolvedTarget.Equals($targetFull, $comparison)) { return $null }
+        if ((Get-Item -Force -LiteralPath $resolvedTarget -ErrorAction Stop).Attributes -band [System.IO.FileAttributes]::ReparsePoint) { return $null }
+        if (@(Get-ChildItem -Force -LiteralPath $resolvedTarget -ErrorAction Stop).Count -ne 0) { return $null }
+        [pscustomobject]@{ Path = $resolvedTarget; IsAbsent = $false }
     }
-    $resolvedTarget
+    catch {
+        $null
+    }
 }
 
 function Remove-EmptyWorktreeResidueWithRetry {
@@ -139,14 +151,20 @@ function Remove-EmptyWorktreeResidueWithRetry {
 
     if (-not $WindowsPlatform) { return $false }
     for ($attempt = 1; $attempt -le $MaximumAttempts; $attempt++) {
-        $safeResidue = Get-SafeEmptyWorktreeResidue -RepositoryRoot $RepositoryRoot -WorktreeRoot $WorktreeRoot -WorktreePath $WorktreePath -WindowsPlatform $WindowsPlatform
-        if (-not $safeResidue) { return $false }
-        try { & $DeleteDirectory $safeResidue }
-        catch {
-            if ($attempt -eq $MaximumAttempts) { return $false }
+        try {
+            $safeResidue = Get-SafeEmptyWorktreeResidue -RepositoryRoot $RepositoryRoot -WorktreeRoot $WorktreeRoot -WorktreePath $WorktreePath -WindowsPlatform $WindowsPlatform
+            if (-not $safeResidue) { return $false }
+            if ($safeResidue.IsAbsent) { return $true }
+            try { & $DeleteDirectory $safeResidue.Path }
+            catch {
+                if ($attempt -eq $MaximumAttempts) { return $false }
+            }
+            if (-not (Test-Path -LiteralPath $safeResidue.Path -ErrorAction Stop)) { return $true }
+            if ($attempt -lt $MaximumAttempts) { & $Delay (100 * $attempt) }
         }
-        if (-not (Test-Path -LiteralPath $safeResidue)) { return $true }
-        if ($attempt -lt $MaximumAttempts) { & $Delay (100 * $attempt) }
+        catch {
+            return $false
+        }
     }
     $false
 }
@@ -164,11 +182,17 @@ function Remove-PreparedWorktree {
     }
     catch {
         $originalDiagnostic = $_.Exception.Message
-        $recovered = Remove-EmptyWorktreeResidueWithRetry `
-            -RepositoryRoot $RepositoryRoot `
-            -WorktreeRoot $WorktreeRoot `
-            -WorktreePath $WorktreePath `
-            -WindowsPlatform $WindowsPlatform
+        $recovered = $false
+        try {
+            $recovered = Remove-EmptyWorktreeResidueWithRetry `
+                -RepositoryRoot $RepositoryRoot `
+                -WorktreeRoot $WorktreeRoot `
+                -WorktreePath $WorktreePath `
+                -WindowsPlatform $WindowsPlatform
+        }
+        catch {
+            $recovered = $false
+        }
         if ($recovered) { return }
         throw "$originalDiagnostic`nWindows worktree cleanup retry was refused or exhausted."
     }

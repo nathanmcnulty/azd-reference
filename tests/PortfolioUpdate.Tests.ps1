@@ -194,6 +194,44 @@ Describe 'Windows worktree cleanup recovery' {
         Test-Path -LiteralPath $residue | Should -BeFalse
     }
 
+    It 'accepts an already-absent unregistered target without invoking deletion' {
+        Remove-Item -LiteralPath $residue
+        $script:CleanupTestState = [pscustomobject]@{ Attempts = 0 }
+        $delete = {
+            param($Path)
+            $script:CleanupTestState.Attempts++
+            throw "Deletion must not run for an already-absent target: '$Path'."
+        }
+
+        $result = Remove-EmptyWorktreeResidueWithRetry `
+            -RepositoryRoot $repository `
+            -WorktreeRoot $worktreeRoot `
+            -WorktreePath $residue `
+            -WindowsPlatform $true `
+            -DeleteDirectory $delete
+
+        $result | Should -BeTrue
+        $script:CleanupTestState.Attempts | Should -Be 0
+        Test-Path -LiteralPath $residue | Should -BeFalse
+    }
+
+    It 'refuses an already-absent target that is still registered' {
+        Remove-Item -LiteralPath $residue
+        $global:CleanupTestGitApplication = (Get-Command git -CommandType Application | Select-Object -First 1).Source
+        $global:CleanupTestResidue = $residue
+        function global:git {
+            if (@($args) -join ' ' -like '*worktree list --porcelain*') {
+                $global:LASTEXITCODE = 0
+                "worktree $($global:CleanupTestResidue.Replace('\', '/'))"
+                return
+            }
+            & $global:CleanupTestGitApplication @args
+        }
+
+        (Remove-EmptyWorktreeResidueWithRetry -RepositoryRoot $repository -WorktreeRoot $worktreeRoot -WorktreePath $residue -WindowsPlatform $true) | Should -BeFalse
+        Test-Path -LiteralPath $residue | Should -BeFalse
+    }
+
     It 'never retries outside the dedicated worktree root' {
         $outside = Join-Path $caseRoot 'outside-residue'
         New-Item -ItemType Directory -Path $outside | Out-Null
@@ -273,6 +311,33 @@ Describe 'Windows worktree cleanup recovery' {
 
         { Remove-PreparedWorktree -RepositoryRoot $repository -WorktreeRoot $worktreeRoot -WorktreePath $residue -WindowsPlatform $true } |
             Should -Throw '*original worktree removal diagnostic*'
+        Test-Path -LiteralPath $residue | Should -BeTrue
+    }
+
+    It 'preserves the original Git diagnostic when safety revalidation throws' {
+        function global:git {
+            if (@($args) -join ' ' -like '*worktree remove*') {
+                $global:LASTEXITCODE = 1
+                'original worktree removal diagnostic'
+                return
+            }
+            if (@($args) -join ' ' -like '*worktree list --porcelain*') {
+                throw 'secondary revalidation exception'
+            }
+            $global:LASTEXITCODE = 1
+        }
+
+        $caught = $null
+        try {
+            Remove-PreparedWorktree -RepositoryRoot $repository -WorktreeRoot $worktreeRoot -WorktreePath $residue -WindowsPlatform $true
+        }
+        catch {
+            $caught = $_.Exception.Message
+        }
+
+        $caught | Should -Match 'original worktree removal diagnostic'
+        $caught | Should -Match 'Windows worktree cleanup retry was refused or exhausted'
+        $caught | Should -Not -Match 'secondary revalidation exception'
         Test-Path -LiteralPath $residue | Should -BeTrue
     }
 }
