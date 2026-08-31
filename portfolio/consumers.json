@@ -16,7 +16,7 @@
       "components": [
         {
           "id": "deployment-validation",
-          "desiredVersion": "0.3.3"
+          "desiredVersion": "1.0.0"
         },
         {
           "id": "graph-delegated-authentication",
@@ -41,7 +41,7 @@
       "components": [
         {
           "id": "deployment-validation",
-          "desiredVersion": "0.3.3"
+          "desiredVersion": "1.0.0"
         },
         {
           "id": "graph-delegated-authentication",
@@ -69,7 +69,7 @@
       "components": [
         {
           "id": "deployment-validation",
-          "desiredVersion": "0.3.3"
+          "desiredVersion": "1.0.0"
         },
         {
           "id": "notification-contracts",
