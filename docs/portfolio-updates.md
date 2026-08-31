@@ -117,6 +117,25 @@ approve, merge, or alter repository settings. A partial failure may leave a loca
 or remote update branch for diagnosis; inspect that exact branch and its draft PR
 before retrying or cleaning it up.
 
+If a portfolio-wide publication stops after earlier consumers have already
+received draft pull requests, resume one remaining registered consumer at a
+time without revisiting those remote branches:
+
+```powershell
+./tooling/Publish-AzdPortfolioUpdates.ps1 `
+  -Component deployment-validation `
+  -Version 1.0.0 `
+  -ConsumerId azd-pim `
+  -PortfolioRoot C:\GitHub `
+  -WorktreeRoot C:\GitHub\azd-component-update-worktrees `
+  -WhatIf
+```
+
+Review the exact single-consumer plan, then rerun without `-WhatIf`. The
+selector must identify exactly one registry entry that approves the requested
+component version. Omitting `-ConsumerId` preserves the default all-consumer
+publication behavior.
+
 ## Scheduled drift surveillance
 
 `.github/workflows/portfolio-drift.yml` runs weekly and on manual dispatch. It
