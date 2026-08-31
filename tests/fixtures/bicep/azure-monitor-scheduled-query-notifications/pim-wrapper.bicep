@@ -38,6 +38,7 @@ module actionGroup '../../../../components/bicep/azure-monitor-scheduled-query-n
     groupShortName: 'PIM Entra'
     logicAppResourceId: workflow.id
     receiverName: 'PIM activation Teams workflow'
+    logicAppTriggerName: 'manual'
   }
 }
 

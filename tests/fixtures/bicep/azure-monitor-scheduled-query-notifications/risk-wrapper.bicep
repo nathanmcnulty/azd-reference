@@ -38,6 +38,7 @@ module actionGroup '../../../../components/bicep/azure-monitor-scheduled-query-n
     groupShortName: 'Entra risk'
     logicAppResourceId: workflow.id
     receiverName: 'Risk notification workflow'
+    logicAppTriggerName: 'manual'
   }
 }
 

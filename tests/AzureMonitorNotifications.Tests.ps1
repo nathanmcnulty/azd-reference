@@ -9,6 +9,7 @@ Describe 'Azure Monitor scheduled-query notifications component' {
         $script:pimWrapperSource = Get-Content -LiteralPath (Join-Path $fixtureRoot 'pim-wrapper.bicep') -Raw
         $script:riskWrapperSource = Get-Content -LiteralPath (Join-Path $fixtureRoot 'risk-wrapper.bicep') -Raw
         $script:compiledAssertionSource = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'Assert-AzureMonitorCompiledTemplate.ps1') -Raw
+        $script:negativeAssertionSource = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'Test-AzureMonitorCompiledAssertionNegative.ps1') -Raw
     }
 
     It 'publishes the two Bicep modules as a versioned pilot' {
@@ -78,6 +79,7 @@ Describe 'Azure Monitor scheduled-query notifications component' {
 
     It 'provides representative PIM and risk wrappers using symbolic resource IDs' {
         $script:pimWrapperSource | Should -Match 'logicAppResourceId: workflow\.id'
+        $script:pimWrapperSource | Should -Match "logicAppTriggerName: 'manual'"
         $script:pimWrapperSource | Should -Match 'workspaceResourceId: workspace\.id'
         $script:pimWrapperSource | Should -Match 'actionGroupResourceId: actionGroup\.outputs\.actionGroupResourceId'
         $script:pimWrapperSource | Should -Match "evaluationFrequency: 'PT5M'"
@@ -86,6 +88,7 @@ Describe 'Azure Monitor scheduled-query notifications component' {
         $script:pimWrapperSource | Should -Match "(?s)name: 'ActivationEventId'.*name: 'CorrelationId'.*name: 'Actor'.*name: 'Role'"
 
         $script:riskWrapperSource | Should -Match 'logicAppResourceId: workflow\.id'
+        $script:riskWrapperSource | Should -Match "logicAppTriggerName: 'manual'"
         $script:riskWrapperSource | Should -Match 'workspaceResourceId: workspace\.id'
         $script:riskWrapperSource | Should -Match 'actionGroupResourceId: actionGroup\.outputs\.actionGroupResourceId'
         $script:riskWrapperSource | Should -Match "evaluationFrequency: 'PT5M'"
@@ -94,14 +97,32 @@ Describe 'Azure Monitor scheduled-query notifications component' {
         $script:riskWrapperSource | Should -Match "name: 'Envelope'"
     }
 
-    It 'asserts compiled property flow, dependencies, and every output object' {
+    It 'asserts exact compiled property flow, dependencies, and output contracts' {
+        $script:compiledAssertionSource | Should -Match 'actionResource\.name -ceq'
+        $script:compiledAssertionSource | Should -Match 'properties\.groupShortName -ceq'
+        $script:compiledAssertionSource | Should -Match 'logicAppReceivers\[0\]\.name -ceq'
+        $script:compiledAssertionSource | Should -Match 'logicAppReceivers\[0\]\.resourceId -ceq'
+        $script:compiledAssertionSource | Should -Match 'expectedCallbackExpression'
+        $script:compiledAssertionSource | Should -Match "parameters\('logicAppTriggerName'\)"
         $script:compiledAssertionSource | Should -Match 'properties\.criteria\.allOf\[0\]\.dimensions'
         $script:compiledAssertionSource | Should -Match 'properties\.actions\.actionGroups\[0\]'
         $script:compiledAssertionSource | Should -Match 'actionGroup\.dependsOn'
         $script:compiledAssertionSource | Should -Match 'alert\.dependsOn'
-        $script:compiledAssertionSource | Should -Match 'function Assert-NoCallbackOutput'
-        $script:compiledAssertionSource | Should -Match "property\.Name -eq 'outputs'"
-        $script:compiledAssertionSource | Should -Match 'listCallbackUrl\|callbackUrl\|/triggers/'
+        $script:compiledAssertionSource | Should -Match 'function Assert-ExactOutputContract'
+        $script:compiledAssertionSource | Should -Match 'ExpectedOutputs\.Count'
+        $script:compiledAssertionSource | Should -Match 'definition\.type -eq'
+        $script:compiledAssertionSource | Should -Match 'definition\.value -ceq'
+        $script:compiledAssertionSource | Should -Match 'actionGroupResourceId'
+        $script:compiledAssertionSource | Should -Match 'alertRuleResourceId'
+        $script:compiledAssertionSource | Should -Not -Match 'notmatch.*listCallbackUrl'
+    }
+
+    It 'contains executable negative cases for indirect and whole-resource leakage' {
+        $script:negativeAssertionSource | Should -Match "Name 'alias-variable-indirection'"
+        $script:negativeAssertionSource | Should -Match "variables\('callbackAlias'\)"
+        $script:negativeAssertionSource | Should -Match "Name 'whole-resource-reference'"
+        $script:negativeAssertionSource | Should -Match "reference\(resourceId\('Microsoft\.Insights/actionGroups'"
+        $script:negativeAssertionSource | Should -Match 'unexpectedly passed'
     }
 
     It 'does not expose the callback URL as an output' {

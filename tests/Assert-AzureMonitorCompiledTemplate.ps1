@@ -42,45 +42,35 @@ function Get-NestedDeployment {
     return $deploymentMatches[0]
 }
 
-function Assert-NoCallbackOutput {
+function Assert-ExactOutputContract {
     param(
-        [AllowNull()]
-        [object] $Node,
+        [Parameter(Mandatory)]
+        [pscustomobject] $Template,
 
-        [string] $Path = '$'
+        [Parameter(Mandatory)]
+        [System.Collections.IDictionary] $ExpectedOutputs,
+
+        [Parameter(Mandatory)]
+        [string] $Context
     )
 
-    if ($null -eq $Node -or $Node -is [string] -or $Node -is [ValueType]) {
-        return
-    }
-
-    if ($Node -is [System.Collections.IDictionary]) {
-        foreach ($key in $Node.Keys) {
-            $value = $Node[$key]
-            if ([string] $key -eq 'outputs') {
-                $serialized = $value | ConvertTo-Json -Depth 100 -Compress
-                Assert-Condition ($serialized -notmatch '(?i)listCallbackUrl|callbackUrl|/triggers/') "Callback material was exposed under $Path.outputs."
-            }
-            Assert-NoCallbackOutput -Node $value -Path "$Path.$key"
+    $outputsProperty = $Template.PSObject.Properties['outputs']
+    $actualOutputs = @(
+        if ($null -ne $outputsProperty) {
+            $outputsProperty.Value.PSObject.Properties
         }
-        return
-    }
+    )
+    Assert-Condition ($actualOutputs.Count -eq $ExpectedOutputs.Count) "$Context must expose exactly $($ExpectedOutputs.Count) output(s); found $($actualOutputs.Count)."
 
-    if ($Node -is [System.Collections.IEnumerable]) {
-        $index = 0
-        foreach ($item in $Node) {
-            Assert-NoCallbackOutput -Node $item -Path "$Path[$index]"
-            $index++
-        }
-        return
-    }
-
-    foreach ($property in $Node.PSObject.Properties) {
-        if ($property.Name -eq 'outputs') {
-            $serialized = $property.Value | ConvertTo-Json -Depth 100 -Compress
-            Assert-Condition ($serialized -notmatch '(?i)listCallbackUrl|callbackUrl|/triggers/') "Callback material was exposed under $Path.outputs."
-        }
-        Assert-NoCallbackOutput -Node $property.Value -Path "$Path.$($property.Name)"
+    foreach ($outputName in $ExpectedOutputs.Keys) {
+        $matchingOutputs = @($actualOutputs | Where-Object Name -eq $outputName)
+        Assert-Condition ($matchingOutputs.Count -eq 1) "$Context must expose only the '$outputName' output."
+        $definition = $matchingOutputs[0].Value
+        $definitionProperties = @($definition.PSObject.Properties)
+        Assert-Condition ($definitionProperties.Count -eq 2) "$Context output '$outputName' may contain only type and value."
+        Assert-Condition (@($definitionProperties.Name | Where-Object { $_ -notin @('type', 'value') }).Count -eq 0) "$Context output '$outputName' contains an unexpected property."
+        Assert-Condition ([string] $definition.type -eq [string] $ExpectedOutputs[$outputName].type) "$Context output '$outputName' type must be '$($ExpectedOutputs[$outputName].type)'."
+        Assert-Condition ([string] $definition.value -ceq [string] $ExpectedOutputs[$outputName].value) "$Context output '$outputName' value expression must be exactly '$($ExpectedOutputs[$outputName].value)'."
     }
 }
 
@@ -89,6 +79,9 @@ $expected = if ($Shape -eq 'Pim') {
         prefix = 'pim'
         workflowName = 'pim-fixture-workflow'
         actionGroupName = 'pim-fixture-action-group'
+        groupShortName = 'PIM Entra'
+        receiverName = 'PIM activation Teams workflow'
+        triggerName = 'manual'
         alertRuleName = 'pim-fixture-alert'
         displayName = 'Microsoft Entra PIM activation completed'
         queryMarker = 'AuditLogs'
@@ -103,6 +96,9 @@ else {
         prefix = 'risk'
         workflowName = 'risk-fixture-workflow'
         actionGroupName = 'risk-fixture-action-group'
+        groupShortName = 'Entra risk'
+        receiverName = 'Risk notification workflow'
+        triggerName = 'manual'
         alertRuleName = 'risk-fixture-alert'
         displayName = 'Microsoft Entra risk detection'
         queryMarker = 'AADRiskyUsers'
@@ -121,7 +117,10 @@ $actionParameters = $actionGroup.properties.parameters
 $alertParameters = $alert.properties.parameters
 
 Assert-Condition ([string] $actionParameters.actionGroupName.value -eq $expected.actionGroupName) 'Action-group name was not passed exactly.'
+Assert-Condition ([string] $actionParameters.groupShortName.value -eq $expected.groupShortName) 'Action-group short name was not passed exactly.'
 Assert-Condition ([string] $actionParameters.logicAppResourceId.value -match "Microsoft\.Logic/workflows.*$([regex]::Escape($expected.workflowName))") 'Logic App resource ID was not derived from the wrapper resource.'
+Assert-Condition ([string] $actionParameters.receiverName.value -eq $expected.receiverName) 'Logic App receiver name was not passed exactly.'
+Assert-Condition ([string] $actionParameters.logicAppTriggerName.value -eq $expected.triggerName) 'Logic App trigger name was not passed exactly.'
 Assert-Condition ((@($actionGroup.dependsOn) -join ' ') -match "Microsoft\.Logic/workflows.*$([regex]::Escape($expected.workflowName))") 'Action-group module does not depend on its Logic App resource.'
 
 Assert-Condition ([string] $alertParameters.alertRuleName.value -eq $expected.alertRuleName) 'Alert-rule name was not passed exactly.'
@@ -148,7 +147,12 @@ $actionResource = @($actionGroup.properties.template.resources | Where-Object ty
 $alertResource = @($alert.properties.template.resources | Where-Object type -eq 'Microsoft.Insights/scheduledQueryRules')[0]
 Assert-Condition ($null -ne $actionResource) 'Compiled action-group module does not contain the expected resource.'
 Assert-Condition ($null -ne $alertResource) 'Compiled alert module does not contain the expected resource.'
-Assert-Condition ([string] $actionResource.properties.logicAppReceivers[0].callbackUrl -match 'listCallbackUrl') 'Logic App callback is not consumed by the receiver property.'
+Assert-Condition ([string] $actionResource.name -ceq "[parameters('actionGroupName')]") 'actionGroupName is not consumed by the action-group resource name.'
+Assert-Condition ([string] $actionResource.properties.groupShortName -ceq "[parameters('groupShortName')]") 'groupShortName is not consumed by the action-group property.'
+Assert-Condition ([string] $actionResource.properties.logicAppReceivers[0].name -ceq "[parameters('receiverName')]") 'receiverName is not consumed by the Logic App receiver.'
+Assert-Condition ([string] $actionResource.properties.logicAppReceivers[0].resourceId -ceq "[parameters('logicAppResourceId')]") 'logicAppResourceId is not consumed by the Logic App receiver.'
+$expectedCallbackExpression = "[listCallbackUrl(format('{0}/triggers/{1}', parameters('logicAppResourceId'), parameters('logicAppTriggerName')), '2019-05-01').value]"
+Assert-Condition ([string] $actionResource.properties.logicAppReceivers[0].callbackUrl -ceq $expectedCallbackExpression) 'logicAppResourceId and logicAppTriggerName are not consumed by the exact callback expression.'
 Assert-Condition ([bool] $actionResource.properties.logicAppReceivers[0].useCommonAlertSchema) 'Common alert schema is not enabled.'
 Assert-Condition ([string] $alertResource.properties.displayName -eq "[parameters('displayName')]") 'displayName is not consumed by the alert property.'
 Assert-Condition ([string] $alertResource.properties.description -eq "[parameters('alertDescription')]") 'alertDescription is not consumed by the alert property.'
@@ -160,5 +164,17 @@ Assert-Condition ([string] $alertResource.properties.criteria.allOf[0].query -eq
 Assert-Condition ([string] $alertResource.properties.criteria.allOf[0].dimensions -eq "[parameters('dimensions')]") 'dimensions are not consumed by the alert criteria.'
 Assert-Condition ([string] $alertResource.properties.actions.actionGroups[0] -eq "[parameters('actionGroupResourceId')]") 'actionGroupResourceId is not consumed by the alert action.'
 
-Assert-NoCallbackOutput -Node $template
+Assert-ExactOutputContract -Template $template -ExpectedOutputs @{} -Context "$Shape wrapper"
+Assert-ExactOutputContract -Template $actionGroup.properties.template -ExpectedOutputs @{
+    actionGroupResourceId = @{
+        type = 'string'
+        value = "[resourceId('Microsoft.Insights/actionGroups', parameters('actionGroupName'))]"
+    }
+} -Context 'Canonical action-group module'
+Assert-ExactOutputContract -Template $alert.properties.template -ExpectedOutputs @{
+    alertRuleResourceId = @{
+        type = 'string'
+        value = "[resourceId('Microsoft.Insights/scheduledQueryRules', parameters('alertRuleName'))]"
+    }
+} -Context 'Canonical scheduled-query module'
 Write-Output "$Shape compiled wrapper assertions passed."

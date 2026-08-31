@@ -83,6 +83,7 @@ jobs:
           az bicep build --file ./tests/fixtures/bicep/azure-monitor-scheduled-query-notifications/risk-wrapper.bicep --outfile $riskTemplate
           ./tests/Assert-AzureMonitorCompiledTemplate.ps1 -Shape Pim -TemplatePath $pimTemplate
           ./tests/Assert-AzureMonitorCompiledTemplate.ps1 -Shape Risk -TemplatePath $riskTemplate
+          ./tests/Test-AzureMonitorCompiledAssertionNegative.ps1 -PimTemplatePath $pimTemplate -RiskTemplatePath $riskTemplate
 
       - name: Confirm validation left the checkout clean
         run: git diff --exit-code
