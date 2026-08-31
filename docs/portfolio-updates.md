@@ -82,6 +82,36 @@ If a reviewed component version intentionally stops managing a file, add
 `-PruneRemovedFiles`. Pruning remains fail-closed: it requires a new component
 version and refuses to delete a locally modified managed file.
 
-Publishing is deliberately absent until preparation is proven across the pilot
-consumers. A future publisher may push and open one pull request per consumer but
-must not force-push, approve, or merge.
+## Publishing draft pull requests
+
+Publishing is an explicitly confirmed operation layered on the same preparation
+path:
+
+```powershell
+./tooling/Publish-AzdPortfolioUpdates.ps1 `
+  -Component notification-contracts `
+  -Version 1.0.0 `
+  -PortfolioRoot C:\GitHub `
+  -WorktreeRoot C:\GitHub\azd-component-update-worktrees
+```
+
+The publisher first verifies that the exact component tag exists on the
+`azd-reference` origin and resolves to the same commit as the local tag. It then
+prepares and validates deterministic consumer branches, pushes each branch with
+an ordinary non-force Git push, and opens one draft pull request containing the
+source revision, prepared commit, managed-file hashes, validation entry point,
+and rollback command. `-WhatIf` stops before branch preparation or remote
+mutation and returns the intended consumers and branch names.
+
+The publisher requires an authenticated GitHub CLI session. It cannot force-push,
+approve, merge, or alter repository settings. A partial failure may leave a local
+or remote update branch for diagnosis; inspect that exact branch and its draft PR
+before retrying or cleaning it up.
+
+## Scheduled drift surveillance
+
+`.github/workflows/portfolio-drift.yml` runs weekly and on manual dispatch. It
+checks out fresh copies of the public registered consumers, runs the read-only
+portfolio audit, fails on findings, and retains the JSON report for 30 days. The
+workflow does not execute consumer validation scripts, authenticate to Azure or
+Microsoft Graph, or mutate a consumer repository.

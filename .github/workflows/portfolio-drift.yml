@@ -1,0 +1,57 @@
+name: Audit public consumer drift
+
+on:
+  schedule:
+    - cron: '17 13 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out reference repository and component tags
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: portfolio/azd-reference
+          fetch-depth: 0
+
+      - name: Check out registered public consumers
+        shell: pwsh
+        run: |
+          $referenceRoot = Resolve-Path ./portfolio/azd-reference
+          $registryPath = Join-Path $referenceRoot 'portfolio/consumers.json'
+          $schemaPath = Join-Path $referenceRoot 'schemas/portfolio-consumers.schema.json'
+          $registryRaw = Get-Content -LiteralPath $registryPath -Raw
+          $registryRaw | Test-Json -SchemaFile $schemaPath -ErrorAction Stop | Out-Null
+          $registry = $registryRaw | ConvertFrom-Json
+          foreach ($consumer in $registry.consumers) {
+            if ([string] $consumer.repository -notmatch '^https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$') {
+              throw "Only public GitHub consumers may be audited: '$($consumer.repository)'."
+            }
+            $target = Join-Path ./portfolio ([string] $consumer.checkoutDirectory)
+            & git clone --depth 1 --single-branch --branch ([string] $consumer.defaultBranch) -- ([string] $consumer.repository) $target
+            if ($LASTEXITCODE -ne 0) { throw "Unable to clone '$($consumer.id)'." }
+          }
+
+      - name: Audit locks, provenance, drift, and repository baseline
+        shell: pwsh
+        run: |
+          ./portfolio/azd-reference/tooling/Get-AzdPortfolioStatus.ps1 `
+            -PortfolioRoot ./portfolio `
+            -AsJson | Set-Content -LiteralPath ./portfolio-status.json -Encoding utf8NoBOM
+          ./portfolio/azd-reference/tooling/Get-AzdPortfolioStatus.ps1 `
+            -PortfolioRoot ./portfolio `
+            -FailOnFindings | Format-Table -AutoSize
+
+      - name: Upload portfolio report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: portfolio-status
+          path: portfolio-status.json
+          if-no-files-found: error
+          retention-days: 30
