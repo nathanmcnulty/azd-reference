@@ -80,6 +80,27 @@
         "entryPoint": "scripts/Test-Repository.ps1",
         "timeoutMinutes": 30
       }
+    },
+    {
+      "id": "azd-risk-based-ca",
+      "repository": "https://github.com/nathanmcnulty/azd-risk-based-ca",
+      "checkoutDirectory": "azd-risk-based-ca",
+      "solutionRoot": ".",
+      "defaultBranch": "main",
+      "repositoryValidationWorkflow": ".github/workflows/validate.yml",
+      "rolloutRing": "pilot",
+      "adoption": "adopted",
+      "desiredBaseline": "2026.08",
+      "components": [
+        {
+          "id": "azure-monitor-scheduled-query-notifications",
+          "desiredVersion": "0.1.0"
+        }
+      ],
+      "validation": {
+        "entryPoint": "scripts/Test-Repository.ps1",
+        "timeoutMinutes": 30
+      }
     }
   ]
 }
