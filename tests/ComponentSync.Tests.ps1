@@ -50,6 +50,19 @@ Describe 'Component synchronization' {
         { & $drift -TargetPath $consumer } | Should -Not -Throw
     }
 
+    It 'synchronizes Azure Monitor notification modules as a first-class component' {
+        & $sync -Component azure-monitor-scheduled-query-notifications -TargetPath $consumer | Out-Null
+        $lock = Get-Content -LiteralPath (Join-Path $consumer 'azd-components.lock.json') -Raw | ConvertFrom-Json
+        $lock.components[0].id | Should -Be 'azure-monitor-scheduled-query-notifications'
+        $lock.components[0].version | Should -Be '0.1.0'
+        $lock.components[0].files.Count | Should -Be 2
+        @($lock.components[0].files.target) | Should -Be @(
+            'infra/vendor/Azd.AzureMonitorNotifications/logic-app-action-group.bicep',
+            'infra/vendor/Azd.AzureMonitorNotifications/scheduled-query-alert.bicep'
+        )
+        { & $drift -TargetPath $consumer } | Should -Not -Throw
+    }
+
     It 'is deterministic for the same component revision' {
         & $sync -Component deployment-validation -TargetPath $consumer | Out-Null
         $firstHash = (Get-FileHash -LiteralPath (Join-Path $consumer 'azd-components.lock.json') -Algorithm SHA256).Hash

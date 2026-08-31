@@ -69,10 +69,12 @@ jobs:
           ./tooling/Test-AzdComponentDrift.ps1 -TargetPath ./skeleton
           ./tooling/Sync-AzdComponent.ps1 -Component deployment-validation -TargetPath ./skeleton -WhatIf | Out-Null
 
-      - name: Build skeleton Bicep
+      - name: Build Bicep
         run: |
           az bicep install --version v0.42.1
           az bicep build --file ./skeleton/infra/main.bicep --stdout | Out-Null
+          az bicep build --file ./components/bicep/azure-monitor-scheduled-query-notifications/logic-app-action-group.bicep --stdout | Out-Null
+          az bicep build --file ./components/bicep/azure-monitor-scheduled-query-notifications/scheduled-query-alert.bicep --stdout | Out-Null
 
       - name: Confirm validation left the checkout clean
         run: git diff --exit-code
