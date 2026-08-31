@@ -90,6 +90,90 @@ function Invoke-GitChecked {
     $output
 }
 
+function Get-SafeEmptyWorktreeResidue {
+    param(
+        [Parameter(Mandatory)][string] $RepositoryRoot,
+        [Parameter(Mandatory)][string] $WorktreeRoot,
+        [Parameter(Mandatory)][string] $WorktreePath,
+        [Parameter(Mandatory)][bool] $WindowsPlatform
+    )
+
+    $comparison = if ($WindowsPlatform) { [System.StringComparison]::OrdinalIgnoreCase } else { [System.StringComparison]::Ordinal }
+    $rootFull = [System.IO.Path]::GetFullPath($WorktreeRoot)
+    $targetFull = [System.IO.Path]::GetFullPath($WorktreePath)
+    if (-not $WorktreePath.Equals($targetFull, $comparison)) { return $null }
+    $rootPrefix = $rootFull.TrimEnd([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar) + [System.IO.Path]::DirectorySeparatorChar
+    if (-not $targetFull.StartsWith($rootPrefix, $comparison)) { return $null }
+    if (-not (Test-Path -LiteralPath $rootFull -PathType Container) -or
+        -not (Test-Path -LiteralPath $targetFull -PathType Container)) { return $null }
+
+    $resolvedRoot = (Resolve-Path -LiteralPath $rootFull).Path
+    $resolvedTarget = (Resolve-Path -LiteralPath $targetFull).Path
+    if (-not $resolvedRoot.Equals($rootFull, $comparison) -or
+        -not $resolvedTarget.Equals($targetFull, $comparison)) { return $null }
+    if (((Get-Item -Force -LiteralPath $resolvedRoot).Attributes -band [System.IO.FileAttributes]::ReparsePoint) -or
+        ((Get-Item -Force -LiteralPath $resolvedTarget).Attributes -band [System.IO.FileAttributes]::ReparsePoint)) { return $null }
+    if (@(Get-ChildItem -Force -LiteralPath $resolvedTarget).Count -ne 0) { return $null }
+
+    $worktreeList = @(& git -C $RepositoryRoot worktree list --porcelain 2>&1)
+    if ($LASTEXITCODE -ne 0) { return $null }
+    foreach ($line in $worktreeList) {
+        if ([string] $line -notmatch '^worktree (?<path>.+)$') { continue }
+        try { $registeredPath = [System.IO.Path]::GetFullPath($Matches.path) }
+        catch { return $null }
+        if ($registeredPath.Equals($targetFull, $comparison)) { return $null }
+    }
+    $resolvedTarget
+}
+
+function Remove-EmptyWorktreeResidueWithRetry {
+    param(
+        [Parameter(Mandatory)][string] $RepositoryRoot,
+        [Parameter(Mandatory)][string] $WorktreeRoot,
+        [Parameter(Mandatory)][string] $WorktreePath,
+        [Parameter(Mandatory)][bool] $WindowsPlatform,
+        [ValidateRange(1, 10)][int] $MaximumAttempts = 4,
+        [scriptblock] $DeleteDirectory = { param($Path) [System.IO.Directory]::Delete($Path, $false) },
+        [scriptblock] $Delay = { param($Milliseconds) Start-Sleep -Milliseconds $Milliseconds }
+    )
+
+    if (-not $WindowsPlatform) { return $false }
+    for ($attempt = 1; $attempt -le $MaximumAttempts; $attempt++) {
+        $safeResidue = Get-SafeEmptyWorktreeResidue -RepositoryRoot $RepositoryRoot -WorktreeRoot $WorktreeRoot -WorktreePath $WorktreePath -WindowsPlatform $WindowsPlatform
+        if (-not $safeResidue) { return $false }
+        try { & $DeleteDirectory $safeResidue }
+        catch {
+            if ($attempt -eq $MaximumAttempts) { return $false }
+        }
+        if (-not (Test-Path -LiteralPath $safeResidue)) { return $true }
+        if ($attempt -lt $MaximumAttempts) { & $Delay (100 * $attempt) }
+    }
+    $false
+}
+
+function Remove-PreparedWorktree {
+    param(
+        [Parameter(Mandatory)][string] $RepositoryRoot,
+        [Parameter(Mandatory)][string] $WorktreeRoot,
+        [Parameter(Mandatory)][string] $WorktreePath,
+        [bool] $WindowsPlatform = [System.OperatingSystem]::IsWindows()
+    )
+
+    try {
+        Invoke-GitChecked -RepositoryRoot $RepositoryRoot -Arguments @('worktree', 'remove', $WorktreePath) | Out-Null
+    }
+    catch {
+        $originalDiagnostic = $_.Exception.Message
+        $recovered = Remove-EmptyWorktreeResidueWithRetry `
+            -RepositoryRoot $RepositoryRoot `
+            -WorktreeRoot $WorktreeRoot `
+            -WorktreePath $WorktreePath `
+            -WindowsPlatform $WindowsPlatform
+        if ($recovered) { return }
+        throw "$originalDiagnostic`nWindows worktree cleanup retry was refused or exhausted."
+    }
+}
+
 function Invoke-BoundedValidation {
     param(
         [Parameter(Mandatory)][string] $ValidationPath,
@@ -299,7 +383,7 @@ foreach ($selection in $selectedConsumers) {
     }
     finally {
         if ($prepared -and (Test-Path -LiteralPath $worktreePath)) {
-            Invoke-GitChecked -RepositoryRoot $checkoutRoot -Arguments @('worktree', 'remove', $worktreePath) | Out-Null
+            Remove-PreparedWorktree -RepositoryRoot $checkoutRoot -WorktreeRoot $worktreeRootFull -WorktreePath $worktreePath
         }
         if ($removePreparedBranch) {
             Invoke-GitChecked -RepositoryRoot $checkoutRoot -Arguments @('branch', '-D', '--', $branch) | Out-Null

@@ -78,6 +78,11 @@ and removes the temporary worktree after success. A no-op also removes its
 temporary branch. A failure preserves the worktree for diagnosis and creates no
 remote state.
 
+On Windows, a successful preparation tolerates a short-lived directory handle
+only when Git has already unregistered the exact worktree and the residual path
+is an empty, non-reparse directory under the dedicated worktree root. Cleanup
+uses bounded non-recursive retries; every other residue remains a hard failure.
+
 If a reviewed component version intentionally stops managing a file, add
 `-PruneRemovedFiles`. Pruning remains fail-closed: it requires a new component
 version and refuses to delete a locally modified managed file.
