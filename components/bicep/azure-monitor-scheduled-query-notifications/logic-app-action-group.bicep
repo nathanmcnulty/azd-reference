@@ -1,4 +1,5 @@
 @description('Name of the Azure Monitor action group.')
+@minLength(1)
 param actionGroupName string
 
 @description('Action group short name. Azure Monitor limits this value to 12 characters.')
@@ -7,9 +8,11 @@ param actionGroupName string
 param groupShortName string
 
 @description('Resource ID of the solution-owned Logic App workflow.')
+@minLength(1)
 param logicAppResourceId string
 
 @description('Display name of the Logic App receiver in the action group.')
+@minLength(1)
 param receiverName string
 
 @description('Name of the HTTP request trigger in the solution-owned Logic App workflow.')

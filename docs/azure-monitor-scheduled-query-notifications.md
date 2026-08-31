@@ -35,6 +35,18 @@ policy:
 Resource names, KQL, and dimension definitions are inputs so the component does
 not determine security policy or notification content.
 
+All required identifier, display, description, query, location, and resource-ID
+strings reject empty values. The pilot permits only the intervals proven by its
+two consumers: `PT5M` evaluation frequency and `PT5M` or `PT10M` window size.
+
+The Bicep 0.42.1-compatible contract does not claim that a non-empty string is a
+structurally valid Azure resource ID. Consumer wrappers must pass resource IDs
+from symbolic resources or module outputs, as the checked PIM and risk fixtures
+do. Compiled-template assertions verify those expressions and dependencies, and
+Azure what-if plus resource-provider validation remain required before adoption.
+This limitation is preferable to accepting a hand-written ID as proven merely
+because it passes an incomplete string pattern.
+
 ## Pilot adoption
 
 Vendor the component using the normal synchronization tooling after a reviewed

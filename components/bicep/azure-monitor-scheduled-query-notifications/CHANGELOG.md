@@ -8,3 +8,7 @@
   and runtime solution-owned.
 - Parameterize the proven PIM and risk-alert differences: automatic mitigation,
   evaluation frequency, window size, and alert dimensions.
+- Reject empty required strings and limit evaluation/window intervals to the two
+  reviewed consumer shapes.
+- Add representative PIM and risk wrappers with compiled-template assertions for
+  property flow, resource dependencies, and callback-output safety.
