@@ -56,8 +56,8 @@ compatibility independently and the lock always records a full source commit.
 ## Portfolio control plane
 
 The checked-in consumer registry drives a read-only local status audit. The
-updater defaults to Plan and can prepare validated local branches only in isolated
-worktrees. It never modifies an active checkout. Publishing update branches and
-pull requests remains deferred until this preparation path is proven across the
-pilot consumers; a later publisher should use a narrowly scoped GitHub App and
-must never approve or merge its own changes.
+updater defaults to Plan and prepares validated local branches only in isolated
+worktrees. It never modifies an active checkout. The separate publisher verifies
+exact tag and repository provenance, creates only expected-absent remote refs,
+and opens draft pull requests with validation and rollback evidence. It cannot
+approve or merge its own changes.

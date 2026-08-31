@@ -22,7 +22,7 @@ Describe 'Portfolio update preparation' {
         & git -C $reference remote add origin 'https://github.com/example/azd-reference.git'
         & git -C $reference add --all
         & git -C $reference commit -m 'Reference fixture' | Out-Null
-        & git -C $reference tag 'component/deployment-validation/v0.3.3'
+        & git -C $reference tag 'component/deployment-validation/v1.0.0'
 
         & git -C $consumer init --initial-branch main | Out-Null
         & git -C $consumer config core.autocrlf false
@@ -52,7 +52,7 @@ Describe 'Portfolio update preparation' {
                     rolloutRing = 'pilot'
                     adoption = 'adopted'
                     components = @(
-                        [ordered]@{ id = 'deployment-validation'; desiredVersion = '0.3.3' }
+                        [ordered]@{ id = 'deployment-validation'; desiredVersion = '1.0.0' }
                     )
                     validation = [ordered]@{ entryPoint = 'scripts/Test-Repository.ps1'; timeoutMinutes = 10 }
                 }
@@ -64,7 +64,7 @@ Describe 'Portfolio update preparation' {
 
     It 'plans without changing a consumer, branch, or worktree' {
         $beforeHead = (& git -C $consumer rev-parse HEAD).Trim()
-        $result = @(& $updater -Component deployment-validation -Version 0.3.3 -PortfolioRoot $portfolioRoot -RegistryPath $registryPath)
+        $result = @(& $updater -Component deployment-validation -Version 1.0.0 -PortfolioRoot $portfolioRoot -RegistryPath $registryPath)
         $result.Count | Should -Be 1
         $result[0].state | Should -Be 'planned'
         $result[0].baseline | Should -Be '2026.08.2'
@@ -80,18 +80,18 @@ Describe 'Portfolio update preparation' {
         $heldConsumer.id = 'consumer-held'
         $heldConsumer.repository = 'https://github.com/example/consumer-held'
         $heldConsumer.checkoutDirectory = 'consumer-held'
-        $heldConsumer.components = @([pscustomobject]@{ id = 'deployment-validation'; desiredVersion = '0.3.2' })
+        $heldConsumer.components = @([pscustomobject]@{ id = 'deployment-validation'; desiredVersion = '0.9.0' })
         $registry.consumers = @($registry.consumers[0], $heldConsumer)
         $registry | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $registryPath -Encoding utf8NoBOM
 
-        $result = @(& $updater -Component deployment-validation -Version 0.3.3 -PortfolioRoot $portfolioRoot -RegistryPath $registryPath)
+        $result = @(& $updater -Component deployment-validation -Version 1.0.0 -PortfolioRoot $portfolioRoot -RegistryPath $registryPath)
         $result.Count | Should -Be 1
         $result[0].consumer | Should -Be 'consumer-one'
     }
 
     It 'prepares one isolated local branch and leaves the active checkout unchanged' {
         $beforeHead = (& git -C $consumer rev-parse HEAD).Trim()
-        $result = @(& $updater -Component deployment-validation -Version 0.3.3 -PortfolioRoot $portfolioRoot -RegistryPath $registryPath -Operation Prepare -WorktreeRoot $worktrees -Confirm:$false)
+        $result = @(& $updater -Component deployment-validation -Version 1.0.0 -PortfolioRoot $portfolioRoot -RegistryPath $registryPath -Operation Prepare -WorktreeRoot $worktrees -Confirm:$false)
         $result.Count | Should -Be 1
         $result[0].state | Should -Be 'prepared'
         (& git -C $consumer rev-parse HEAD).Trim() | Should -Be $beforeHead
@@ -117,19 +117,19 @@ Describe 'Portfolio update preparation' {
         $registry.consumers[0].solutionRoot = 'nested-solution'
         $registry | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $registryPath -Encoding utf8NoBOM
 
-        $result = @(& $updater -Component deployment-validation -Version 0.3.3 -PortfolioRoot $portfolioRoot -RegistryPath $registryPath -Operation Prepare -WorktreeRoot $worktrees -Confirm:$false)
+        $result = @(& $updater -Component deployment-validation -Version 1.0.0 -PortfolioRoot $portfolioRoot -RegistryPath $registryPath -Operation Prepare -WorktreeRoot $worktrees -Confirm:$false)
         $result[0].state | Should -Be 'prepared'
         $result[0].validationOutput | Should -Contain 'validated'
         (& git -C $consumer show "$($result[0].branch):nested-solution/azd-components.lock.json") | Should -Not -BeNullOrEmpty
     }
 
     It 'removes its temporary branch when the consumer is already current' {
-        & $updater -Component deployment-validation -Version 0.3.3 -PortfolioRoot $portfolioRoot -RegistryPath $registryPath -Operation Prepare -WorktreeRoot $worktrees -Confirm:$false | Out-Null
+        & $updater -Component deployment-validation -Version 1.0.0 -PortfolioRoot $portfolioRoot -RegistryPath $registryPath -Operation Prepare -WorktreeRoot $worktrees -Confirm:$false | Out-Null
         $preparedBranch = @(& git -C $consumer branch --list 'codex/update-*')[0].Trim()
         & git -C $consumer update-ref refs/remotes/origin/main $preparedBranch
         & git -C $consumer branch -D -- $preparedBranch | Out-Null
 
-        $result = @(& $updater -Component deployment-validation -Version 0.3.3 -PortfolioRoot $portfolioRoot -RegistryPath $registryPath -Operation Prepare -WorktreeRoot $worktrees -Confirm:$false)
+        $result = @(& $updater -Component deployment-validation -Version 1.0.0 -PortfolioRoot $portfolioRoot -RegistryPath $registryPath -Operation Prepare -WorktreeRoot $worktrees -Confirm:$false)
         $result[0].state | Should -Be 'alreadyCurrent'
         $result[0].branch | Should -BeNullOrEmpty
         @(& git -C $consumer branch --list 'codex/update-*').Count | Should -Be 0

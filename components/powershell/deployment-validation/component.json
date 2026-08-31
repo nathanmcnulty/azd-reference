@@ -2,9 +2,9 @@
   "$schema": "../../../schemas/component-manifest.schema.json",
   "manifestVersion": "1.1",
   "id": "deployment-validation",
-  "version": "0.3.3",
+  "version": "1.0.0",
   "description": "Structured deployment validation with dependency gating and defense-in-depth report redaction.",
-  "status": "pilot",
+  "status": "stable",
   "changelog": "components/powershell/deployment-validation/CHANGELOG.md",
   "files": [
     {

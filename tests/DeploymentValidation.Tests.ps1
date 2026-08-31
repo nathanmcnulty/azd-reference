@@ -4,6 +4,20 @@ Describe 'Deployment validation engine' {
         $modulePath = Join-Path $script:repoRoot 'components/powershell/deployment-validation/Azd.DeploymentValidation.psd1'
         Import-Module $modulePath -Force
     }
+    It 'is a stable 1.0.0 metadata-only promotion from 0.3.3' {
+        $manifest = Get-Content -LiteralPath (Join-Path $script:repoRoot 'components/powershell/deployment-validation/component.json') -Raw | ConvertFrom-Json
+        $manifest.version | Should -Be '1.0.0'
+        $manifest.status | Should -Be 'stable'
+
+        foreach ($unchangedPath in @(
+                'components/powershell/deployment-validation/Azd.DeploymentValidation.psm1',
+                'schemas/deployment-validation.schema.json'
+            )) {
+            $currentBlob = (& git -C $script:repoRoot hash-object -- $unchangedPath).Trim()
+            $pilotBlob = (& git -C $script:repoRoot rev-parse "component/deployment-validation/v0.3.3:$unchangedPath").Trim()
+            $currentBlob | Should -Be $pilotBlob
+        }
+    }
     It 'does not invoke actions while planning' {
         $script:actionInvoked = $false
         $result = Invoke-AzdValidationCheck -Id 'context.plan' -Phase context -Title 'Plan' -Summary 'Plan only' `
