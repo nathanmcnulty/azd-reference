@@ -40,6 +40,10 @@
       "desiredBaseline": "2026.08",
       "components": [
         {
+          "id": "azure-monitor-scheduled-query-notifications",
+          "desiredVersion": "0.1.0"
+        },
+        {
           "id": "deployment-validation",
           "desiredVersion": "1.0.0"
         },
