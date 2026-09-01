@@ -75,6 +75,10 @@ jobs:
           az bicep build --file ./skeleton/infra/main.bicep --stdout | Out-Null
           az bicep build --file ./components/bicep/azure-monitor-scheduled-query-notifications/logic-app-action-group.bicep --stdout | Out-Null
           az bicep build --file ./components/bicep/azure-monitor-scheduled-query-notifications/scheduled-query-alert.bicep --stdout | Out-Null
+          az bicep build --file ./components/bicep/flex-scheduled-poller-host/flex-scheduled-poller-host.bicep --stdout | Out-Null
+          $pollerTemplate = Join-Path $env:RUNNER_TEMP 'flex-scheduled-poller-migration.json'
+          az bicep build --file ./tests/fixtures/bicep/flex-scheduled-poller-host/migration-wrapper.bicep --outfile $pollerTemplate
+          ./tests/Assert-FlexScheduledPollerCompiledTemplate.ps1 -TemplatePath $pollerTemplate
           $compiledRoot = Join-Path $env:RUNNER_TEMP 'azure-monitor-notification-fixtures'
           New-Item -ItemType Directory -Path $compiledRoot -Force | Out-Null
           $pimTemplate = Join-Path $compiledRoot 'pim-wrapper.json'

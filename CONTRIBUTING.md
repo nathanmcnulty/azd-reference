@@ -1,5 +1,8 @@
 # Contributing
 
+Use the portfolio terms defined in [`docs/nomenclature.md`](docs/nomenclature.md)
+when proposing a solution, component, wrapper, contract, or mode.
+
 ## Promotion rule
 
 A reusable component should normally have two real consumers or one proven

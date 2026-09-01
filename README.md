@@ -28,6 +28,8 @@ The first foundation release establishes:
 - a stable PowerShell deployment-validation component;
 - a pilot Azure Monitor scheduled-query notification component that preserves
   solution-owned KQL and Logic App behavior;
+- a pilot 512 MB Flex scheduled-poller host that preserves solution-owned API,
+  checkpoint, and delivery behavior without forcing Log Analytics;
 - a delegated Microsoft Graph session coordinator that proves context and token
   usability before reuse;
 - safe component synchronization and drift-validation tooling;
@@ -39,11 +41,12 @@ The first foundation release establishes:
 - a template skeleton that demonstrates the portfolio contract; and
 - automated validation for the reference repository itself.
 
-Notification envelope and delivery-result schemas and the shared Azure Monitor
-scheduled-query/action-group boundary are now versioned pilot components. Teams
-bots, Sentinel analytics/automation, Logic App workflow behavior, and polling
-Functions remain extraction candidates until pilot adoption proves the correct
-boundaries across multiple solutions.
+Notification envelope and delivery-result schemas, the shared Azure Monitor
+scheduled-query/action-group boundary, and the Flex scheduled-poller host are
+now versioned pilot components. Teams bots, Sentinel analytics/automation,
+Logic App workflow behavior, and solution-specific polling code remain
+extraction candidates until pilot adoption proves the correct boundaries across
+multiple solutions.
 
 ## Layout
 
@@ -76,7 +79,8 @@ the updated `azd-components.lock.json` in the consumer repository.
 The lock file is metadata. It is never executable and deployment must not fetch
 the source repository.
 
-See [`docs/architecture.md`](docs/architecture.md) and
+See [`docs/nomenclature.md`](docs/nomenclature.md),
+[`docs/architecture.md`](docs/architecture.md), and
 [`standards/component-lifecycle.md`](standards/component-lifecycle.md) before
 adding a component.
 

@@ -41,8 +41,10 @@ Remaining promotion order:
 2. Azure Monitor scheduled-query alert and action-group receiver modules:
    available as the `azure-monitor-scheduled-query-notifications@0.1.0` pilot
    component.
-3. Teams managed-connector authorization and delivery proof.
-4. Identity-only storage, observability, and Flex Consumption Function baseline.
+3. Flex Consumption host and durable Blob state: available as the
+   `flex-scheduled-poller-host@0.1.0` pilot component. Identity-only host and
+   deployment storage remains a hardening candidate.
+4. Teams managed-connector authorization and delivery proof.
 5. Application-role planning beyond the delegated Graph authentication component.
 6. Polling contracts and fixtures; shared runtime only after compatible state and
    credential interfaces exist.

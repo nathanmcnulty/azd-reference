@@ -63,6 +63,21 @@ Describe 'Component synchronization' {
         { & $drift -TargetPath $consumer } | Should -Not -Throw
     }
 
+    It 'synchronizes the Flex scheduled-poller host with exact provenance and no drift' {
+        & $sync -Component flex-scheduled-poller-host -TargetPath $consumer | Out-Null
+        $lock = Get-Content -LiteralPath (Join-Path $consumer 'azd-components.lock.json') -Raw | ConvertFrom-Json
+        $lock.components.Count | Should -Be 1
+        $lock.components[0].id | Should -Be 'flex-scheduled-poller-host'
+        $lock.components[0].version | Should -Be '0.1.0'
+        $lock.components[0].sourceRevision | Should -Match '^[0-9a-f]{40}$'
+        $lock.components[0].files.Count | Should -Be 1
+        $lock.components[0].files[0].target | Should -Be 'infra/vendor/Azd.FlexScheduledPoller/flex-scheduled-poller-host.bicep'
+        $managed = Join-Path $consumer $lock.components[0].files[0].target
+        (Get-FileHash -LiteralPath $managed -Algorithm SHA256).Hash.ToLowerInvariant() |
+            Should -Be $lock.components[0].files[0].sha256
+        { & $drift -TargetPath $consumer } | Should -Not -Throw
+    }
+
     It 'is deterministic for the same component revision' {
         & $sync -Component deployment-validation -TargetPath $consumer | Out-Null
         $firstHash = (Get-FileHash -LiteralPath (Join-Path $consumer 'azd-components.lock.json') -Algorithm SHA256).Hash

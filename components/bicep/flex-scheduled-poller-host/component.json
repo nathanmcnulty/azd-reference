@@ -1,0 +1,15 @@
+{
+  "$schema": "../../../schemas/component-manifest.schema.json",
+  "manifestVersion": "1.1",
+  "id": "flex-scheduled-poller-host",
+  "version": "0.1.0",
+  "description": "A right-sized Flex Consumption host and durable storage boundary for solution-owned scheduled pollers.",
+  "status": "pilot",
+  "changelog": "components/bicep/flex-scheduled-poller-host/CHANGELOG.md",
+  "files": [
+    {
+      "source": "components/bicep/flex-scheduled-poller-host/flex-scheduled-poller-host.bicep",
+      "target": "infra/vendor/Azd.FlexScheduledPoller/flex-scheduled-poller-host.bicep"
+    }
+  ]
+}
