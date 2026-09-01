@@ -1,0 +1,218 @@
+name: Prepare portfolio component updates
+
+on:
+  schedule:
+    - cron: '17 14 * * 1'
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - portfolio/consumers.json
+
+permissions:
+  contents: read
+
+concurrency:
+  group: portfolio-component-updates
+  cancel-in-progress: false
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      matrix: ${{ steps.candidates.outputs.matrix }}
+      has-updates: ${{ steps.candidates.outputs.has-updates }}
+    steps:
+      - name: Check out reference repository and component tags
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: portfolio/azd-reference
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Check out registered public consumers
+        shell: pwsh
+        run: |
+          $referenceRoot = Resolve-Path ./portfolio/azd-reference
+          $registryPath = Join-Path $referenceRoot 'portfolio/consumers.json'
+          $schemaPath = Join-Path $referenceRoot 'schemas/portfolio-consumers.schema.json'
+          $registryRaw = Get-Content -LiteralPath $registryPath -Raw
+          $registryRaw | Test-Json -SchemaFile $schemaPath -ErrorAction Stop | Out-Null
+          $registry = $registryRaw | ConvertFrom-Json
+          foreach ($consumer in $registry.consumers) {
+            if ([string] $consumer.repository -notmatch '^https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$') {
+              throw "Only public GitHub consumers may be reconciled: '$($consumer.repository)'."
+            }
+            $target = Join-Path ./portfolio ([string] $consumer.checkoutDirectory)
+            & git clone --depth 1 --single-branch --branch ([string] $consumer.defaultBranch) -- ([string] $consumer.repository) $target
+            if ($LASTEXITCODE -ne 0) { throw "Unable to clone '$($consumer.id)'." }
+          }
+
+      - name: Audit and select explicitly approved updates
+        id: candidates
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $referenceRoot = Resolve-Path ./portfolio/azd-reference
+          $statusPath = Join-Path $PWD 'portfolio-status.json'
+          & (Join-Path $referenceRoot 'tooling/Get-AzdPortfolioStatus.ps1') `
+            -PortfolioRoot ./portfolio `
+            -AsJson | Set-Content -LiteralPath $statusPath -Encoding utf8NoBOM
+          $matrix = & (Join-Path $referenceRoot 'tooling/Get-AzdPortfolioUpdateCandidates.ps1') `
+            -PortfolioRoot ./portfolio `
+            -StatusPath $statusPath `
+            -ExcludeOpenPullRequests `
+            -AsJson
+          if ($LASTEXITCODE -ne 0) { throw 'Unable to select portfolio update candidates.' }
+          $candidateCount = @($matrix | ConvertFrom-Json).Count
+          "matrix=$matrix" | Add-Content -LiteralPath $env:GITHUB_OUTPUT -Encoding utf8NoBOM
+          "has-updates=$($candidateCount -gt 0)".ToLowerInvariant() | Add-Content -LiteralPath $env:GITHUB_OUTPUT -Encoding utf8NoBOM
+
+      - name: Upload portfolio report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: portfolio-update-status
+          path: portfolio-status.json
+          if-no-files-found: error
+          retention-days: 30
+
+  prepare:
+    needs: discover
+    if: needs.discover.outputs.has-updates == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        include: ${{ fromJSON(needs.discover.outputs.matrix) }}
+    steps:
+      - name: Check out reference repository and component tags
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: portfolio/azd-reference
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Check out the exact registered consumer default branch
+        shell: pwsh
+        run: |
+          $target = Join-Path ./portfolio '${{ matrix.checkoutDirectory }}'
+          & git clone --single-branch --branch '${{ matrix.defaultBranch }}' -- '${{ matrix.repository }}' $target
+          if ($LASTEXITCODE -ne 0) { throw "Unable to clone '${{ matrix.consumer }}'." }
+
+      - name: Prepare and validate locally without a write credential
+        shell: pwsh
+        run: |
+          $referenceRoot = Resolve-Path ./portfolio/azd-reference
+          & (Join-Path $referenceRoot 'tooling/Update-AzdPortfolio.ps1') `
+            -Component '${{ matrix.component }}' `
+            -Version '${{ matrix.version }}' `
+            -ConsumerId '${{ matrix.consumer }}' `
+            -PortfolioRoot ./portfolio `
+            -WorktreeRoot (Join-Path $env:RUNNER_TEMP 'azd-component-update-worktrees') `
+            -Operation Prepare `
+            -Confirm:$false
+          if ($LASTEXITCODE -ne 0) { throw 'Component preparation or consumer validation failed.' }
+
+      - name: Package only the validated Git branch
+        shell: pwsh
+        run: |
+          $consumerRoot = Resolve-Path (Join-Path ./portfolio '${{ matrix.checkoutDirectory }}')
+          $bundlePath = Join-Path $env:RUNNER_TEMP 'prepared-branch.bundle'
+          & git -C $consumerRoot bundle create $bundlePath 'refs/heads/${{ matrix.branch }}'
+          if ($LASTEXITCODE -ne 0) { throw 'Unable to package the validated branch.' }
+          & git -C $consumerRoot bundle verify $bundlePath
+          if ($LASTEXITCODE -ne 0) { throw 'The validated branch bundle is invalid.' }
+
+      - name: Transfer the validated branch without credentials
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: prepared-${{ matrix.consumer }}-${{ matrix.component }}-${{ matrix.version }}
+          path: ${{ runner.temp }}/prepared-branch.bundle
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    needs: [discover, prepare]
+    if: needs.discover.outputs.has-updates == 'true' && vars.AZD_PORTFOLIO_APP_CLIENT_ID != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: portfolio-updates
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        include: ${{ fromJSON(needs.discover.outputs.matrix) }}
+    steps:
+      - name: Check out reference repository and component tags
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: portfolio/azd-reference
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Check out the exact registered consumer default branch
+        shell: pwsh
+        run: |
+          $target = Join-Path ./portfolio '${{ matrix.checkoutDirectory }}'
+          & git clone --single-branch --branch '${{ matrix.defaultBranch }}' -- '${{ matrix.repository }}' $target
+          if ($LASTEXITCODE -ne 0) { throw "Unable to clone '${{ matrix.consumer }}'." }
+
+      - name: Download the branch validated on the credential-free runner
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: prepared-${{ matrix.consumer }}-${{ matrix.component }}-${{ matrix.version }}
+          path: ${{ runner.temp }}/prepared-branch
+
+      - name: Restore the exact validated branch
+        shell: pwsh
+        run: |
+          $consumerRoot = Resolve-Path (Join-Path ./portfolio '${{ matrix.checkoutDirectory }}')
+          $bundlePath = Join-Path $env:RUNNER_TEMP 'prepared-branch/prepared-branch.bundle'
+          & git -C $consumerRoot bundle verify $bundlePath
+          if ($LASTEXITCODE -ne 0) { throw 'The downloaded branch bundle is invalid.' }
+          & git -C $consumerRoot fetch $bundlePath 'refs/heads/${{ matrix.branch }}:refs/heads/${{ matrix.branch }}'
+          if ($LASTEXITCODE -ne 0) { throw 'Unable to restore the validated branch.' }
+
+      - name: Mint a repository-scoped GitHub App token after validation
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ vars.AZD_PORTFOLIO_APP_CLIENT_ID }}
+          private-key: ${{ secrets.AZD_PORTFOLIO_APP_PRIVATE_KEY }}
+          owner: ${{ matrix.repositoryOwner }}
+          repositories: ${{ matrix.repositoryName }}
+          permission-contents: write
+          permission-pull-requests: write
+
+      - name: Publish the exact prevalidated branch as a draft pull request
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          gh auth setup-git
+          $referenceRoot = Resolve-Path ./portfolio/azd-reference
+          & (Join-Path $referenceRoot 'tooling/Publish-AzdPortfolioUpdates.ps1') `
+            -Component '${{ matrix.component }}' `
+            -Version '${{ matrix.version }}' `
+            -ConsumerId '${{ matrix.consumer }}' `
+            -PortfolioRoot ./portfolio `
+            -WorktreeRoot (Join-Path $env:RUNNER_TEMP 'unused-publish-worktrees') `
+            -PreparedBranchesOnly `
+            -Confirm:$false
+          if ($LASTEXITCODE -ne 0) { throw 'Draft pull-request publication failed.' }
+
+  configuration-required:
+    needs: [discover, prepare]
+    if: needs.discover.outputs.has-updates == 'true' && vars.AZD_PORTFOLIO_APP_CLIENT_ID == ''
+    runs-on: ubuntu-latest
+    steps:
+      - name: Explain the missing publication credential
+        shell: pwsh
+        run: |
+          Write-Error 'Approved updates are waiting, but AZD_PORTFOLIO_APP_CLIENT_ID is not configured.'

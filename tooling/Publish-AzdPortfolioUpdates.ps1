@@ -19,6 +19,8 @@ param(
     [ValidatePattern('^[a-z][a-z0-9-]+$')]
     [string] $ConsumerId,
 
+    [switch] $PreparedBranchesOnly,
+
     [switch] $PruneRemovedFiles
 )
 
@@ -251,15 +253,34 @@ foreach ($consumer in $selectedConsumers) {
         throw "Remote update branch already exists: '$branch'."
     }
 
-    $consumerUpdateParameters = $updateParameters.Clone()
-    $consumerUpdateParameters.Operation = 'Prepare'
-    $consumerUpdateParameters.WorktreeRoot = $WorktreeRoot
-    $consumerUpdateParameters.ConsumerId = [string] $consumer.id
-    $preparedResults = @(& (Join-Path $referenceRoot 'tooling/Update-AzdPortfolio.ps1') @consumerUpdateParameters -Confirm:$false)
-    if ($preparedResults.Count -ne 1) {
-        throw "Consumer '$($consumer.id)' did not produce exactly one preparation result."
+    if ($PreparedBranchesOnly) {
+        $preparedRevision = [string] (Invoke-GitChecked -RepositoryRoot $checkoutRoot -Arguments @(
+                'rev-parse', '--verify', '--end-of-options', "refs/heads/$branch"
+            ) | Select-Object -First 1)
+        $preparedParent = [string] (Invoke-GitChecked -RepositoryRoot $checkoutRoot -Arguments @(
+                'rev-parse', '--verify', '--end-of-options', "$preparedRevision^"
+            ) | Select-Object -First 1)
+        if ($preparedParent -ne $liveDefaultRevision) {
+            throw "Prepared branch is not based on the current live default branch: '$branch'."
+        }
+        $prepared = [pscustomobject] [ordered]@{
+            consumer = [string] $consumer.id
+            branch = $branch
+            commit = $preparedRevision
+            state = 'prepared'
+        }
     }
-    $prepared = $preparedResults[0]
+    else {
+        $consumerUpdateParameters = $updateParameters.Clone()
+        $consumerUpdateParameters.Operation = 'Prepare'
+        $consumerUpdateParameters.WorktreeRoot = $WorktreeRoot
+        $consumerUpdateParameters.ConsumerId = [string] $consumer.id
+        $preparedResults = @(& (Join-Path $referenceRoot 'tooling/Update-AzdPortfolio.ps1') @consumerUpdateParameters -Confirm:$false)
+        if ($preparedResults.Count -ne 1) {
+            throw "Consumer '$($consumer.id)' did not produce exactly one preparation result."
+        }
+        $prepared = $preparedResults[0]
+    }
     if ($prepared.state -eq 'alreadyCurrent') {
         $publishedResults += [pscustomobject] [ordered]@{
             consumer = $prepared.consumer

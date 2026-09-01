@@ -148,3 +148,35 @@ checks out fresh copies of the public registered consumers, runs the read-only
 portfolio audit, fails on findings, and retains the JSON report for 30 days. The
 workflow does not execute consumer validation scripts, authenticate to Azure or
 Microsoft Graph, or mutate a consumer repository.
+
+## Automated draft update pull requests
+
+`.github/workflows/portfolio-updates.yml` reconciles the exact versions approved
+in `portfolio/consumers.json`; it never discovers or selects a newer release on
+its own. It runs after the weekly audit, on manual dispatch, and whenever the
+registry changes on `main`. Existing exact update pull requests are skipped.
+
+The workflow deliberately separates preparation from publication on different
+fresh runners. It first
+clones public consumers without persisted checkout credentials, audits their
+current locks, updates an isolated local branch, and runs the registered
+repository validation. Only the resulting Git bundle crosses the job boundary
+through a one-day workflow artifact. Consumer validation code and the App secret
+never share a runner. Only after validation succeeds does the protected
+`portfolio-updates` environment expose the GitHub App private key to a fresh
+publication job. The minted
+installation token is limited to the one matrix repository and to `contents:
+write` plus `pull_requests: write`; the publisher may only create the expected
+branch and a draft pull request from the already validated commit.
+
+Configure the reference repository with:
+
+- environment: `portfolio-updates`, with a required reviewer when the repository
+  plan supports deployment protection rules;
+- repository or environment variable: `AZD_PORTFOLIO_APP_CLIENT_ID`;
+- environment secret: `AZD_PORTFOLIO_APP_PRIVATE_KEY`.
+
+Install the App only on registered consumer repositories. It does not need Azure
+or Microsoft Graph permissions, Actions administration, repository
+administration, issue access, or access to unregistered repositories. The weekly
+read-only drift workflow remains independent of this publishing credential.

@@ -431,6 +431,36 @@ Describe 'Guarded portfolio publication' {
         $source | Should -Not -Match "'--force'"
         $source | Should -Not -Match "'pr',\s*'(?:merge|review)'"
     }
+
+    It 'can publish an exact branch that was prepared before publication credentials are used' {
+        $updater = Join-Path $script:repoRoot 'tooling/Update-AzdPortfolio.ps1'
+        $prepared = @(& $updater `
+                -Component deployment-validation `
+                -Version 0.3.3 `
+                -ConsumerId consumer-one `
+                -PortfolioRoot $portfolioRoot `
+                -WorktreeRoot $worktrees `
+                -RegistryPath $registryPath `
+                -Operation Prepare `
+                -Confirm:$false)
+
+        $prepared.Count | Should -Be 1
+        $prepared[0].state | Should -Be 'prepared'
+
+        $published = @(& $publisher `
+                -Component deployment-validation `
+                -Version 0.3.3 `
+                -ConsumerId consumer-one `
+                -PortfolioRoot $portfolioRoot `
+                -WorktreeRoot $worktrees `
+                -RegistryPath $registryPath `
+                -PreparedBranchesOnly `
+                -Confirm:$false)
+
+        $published.Count | Should -Be 1
+        $published[0].state | Should -Be 'published'
+        $published[0].commit | Should -Be $prepared[0].commit
+    }
 }
 
 Describe 'Scheduled public portfolio drift workflow' {
@@ -447,5 +477,34 @@ Describe 'Scheduled public portfolio drift workflow' {
         $source | Should -Match '-FailOnFindings'
         $source | Should -Match 'actions/upload-artifact@[0-9a-f]{40}'
         $source | Should -Not -Match '(?i)az login|connect-azaccount|connect-mggraph|Test-Repository\.ps1'
+    }
+}
+
+Describe 'Credential-separated portfolio update workflow' {
+    BeforeAll {
+        $script:repoRoot = Split-Path $PSScriptRoot -Parent
+        $script:updateWorkflow = Join-Path $script:repoRoot '.github/workflows/portfolio-updates.yml'
+    }
+
+    It 'prepares before minting a narrowly scoped App token and only publishes prepared branches' {
+        $source = Get-Content -LiteralPath $updateWorkflow -Raw
+        $source | Should -Match '(?m)^\s*schedule:'
+        $source | Should -Match '(?m)^\s*workflow_dispatch:'
+        $source | Should -Match '(?m)^permissions:\r?\n\s+contents: read$'
+        $source | Should -Match 'environment: portfolio-updates'
+        $source | Should -Match 'persist-credentials: false'
+        $source | Should -Match '(?m)^\s{2}prepare:'
+        $source | Should -Match '(?m)^\s{2}publish:'
+        $source | Should -Match 'git\s+-C\s+\$consumerRoot\s+bundle create'
+        $source | Should -Match 'actions/upload-artifact@[0-9a-f]{40}'
+        $source | Should -Match 'actions/download-artifact@[0-9a-f]{40}'
+        $source | Should -Match 'actions/create-github-app-token@[0-9a-f]{40}'
+        $source | Should -Match 'permission-contents: write'
+        $source | Should -Match 'permission-pull-requests: write'
+        $source | Should -Match '-PreparedBranchesOnly'
+        $source.IndexOf('-Operation Prepare') | Should -BeLessThan $source.IndexOf('actions/create-github-app-token@')
+        $source.IndexOf('actions/upload-artifact@', $source.IndexOf('-Operation Prepare')) | Should -BeLessThan $source.IndexOf('actions/create-github-app-token@')
+        $source.IndexOf('actions/create-github-app-token@') | Should -BeLessThan $source.IndexOf('-PreparedBranchesOnly')
+        $source | Should -Not -Match '(?i)az login|connect-azaccount|connect-mggraph'
     }
 }

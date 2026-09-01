@@ -48,6 +48,10 @@
           "desiredVersion": "1.0.0"
         },
         {
+          "id": "flex-scheduled-poller-host",
+          "desiredVersion": "0.1.0"
+        },
+        {
           "id": "graph-delegated-authentication",
           "desiredVersion": "0.1.1"
         },
