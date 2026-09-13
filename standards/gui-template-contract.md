@@ -6,10 +6,10 @@ and checked-in lifecycle scripts remain the executable source of truth.
 
 The GUI schema is owned by `azd-gui`. This repository does not copy or publish
 that schema. The compatibility reference for this initial standard is
-`azd-gui` commit `fec8f72ca65a1028d491e137d40db83f528787ec`,
+`azd-gui` commit `513155e`,
 `schemas/azd-gui.schema.json`, SHA-256
-`d2ce9cb480d074fcb2d19bcb0d59b8904106c3beaececc34b44a729d1761a28e`.
-That is a reviewed source reference, not a public schema URL. A stable public
+`af45b6360a2c36314079b56a5df1d8971836faf1db95ba1217e1d6d609cd3fbd`.
+That is a development source reference pending the merged conditional-requirements benchmark, not a public schema URL. A stable public
 schema URL is pending while `azd-gui` remains private.
 
 ## Three catalog boundaries
@@ -44,6 +44,17 @@ The manifest requires `schemaVersion`, `prerequisites`, `connections`, and
 `configuration`. Declare only settings that map to a template-owned azd
 environment variable. Do not duplicate native GUI controls for tenant,
 subscription, location, resource group, or environment name as custom fields.
+Prerequisites, connections, and registered permission checks may declare an
+optional boolean `condition`, for example
+`{ "field": "includeExchange", "equals": true }`. The controller must be an
+unconditional, non-sensitive boolean configuration field with an explicit
+boolean default. Conditions support strict `true`/`false` equality only; native
+validation rejects strings and other value types. Feature groups containing
+controllers appear before the readiness gates they control, so an
+administrator chooses optional components before tools, connections, and
+read-only checks are evaluated. Keep baseline access requirements
+unconditional: disabling an optional feature must never remove the Azure or
+Graph access needed by the template's baseline setup.
 
 `skeleton/azd-gui.json` intentionally has an empty `configuration.groups`
 array. Its only parameters are `AZURE_ENV_NAME` and `AZURE_LOCATION`, supplied
@@ -59,6 +70,12 @@ Connections explain why a cached session is needed. They must not initiate a
 login, include credentials, or request device-code authentication. Registered
 permission checks are read-only preflight evidence. A successful check does
 not prove that a user can safely perform later directory or resource writes.
+For the Maester pilot, the optional `ExchangeOnlineManagement` PowerShell
+module prerequisite is conditioned on `includeExchange == true`. Its
+installation remains a manual, operator-reviewed step. The baseline Azure
+CLI, Azure Developer CLI, and PowerShell prerequisites and baseline access
+checks remain required when Exchange, Teams, Azure, or dashboard components
+are disabled.
 
 ## Hooks and optional features
 
