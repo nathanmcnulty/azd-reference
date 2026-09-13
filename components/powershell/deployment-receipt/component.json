@@ -1,0 +1,23 @@
+{
+  "$schema": "../../../schemas/component-manifest.schema.json",
+  "manifestVersion": "1.1",
+  "id": "deployment-receipt",
+  "version": "0.1.0",
+  "description": "Writes bounded, schema-validated deployment receipts at a producer-owned repository-relative path.",
+  "status": "candidate",
+  "changelog": "components/powershell/deployment-receipt/CHANGELOG.md",
+  "files": [
+    {
+      "source": "components/powershell/deployment-receipt/Azd.DeploymentReceipt.psd1",
+      "target": "scripts/vendor/Azd.DeploymentReceipt/Azd.DeploymentReceipt.psd1"
+    },
+    {
+      "source": "components/powershell/deployment-receipt/Azd.DeploymentReceipt.psm1",
+      "target": "scripts/vendor/Azd.DeploymentReceipt/Azd.DeploymentReceipt.psm1"
+    },
+    {
+      "source": "schemas/deployment-receipt.schema.json",
+      "target": "scripts/vendor/Azd.DeploymentReceipt/deployment-receipt.schema.json"
+    }
+  ]
+}
