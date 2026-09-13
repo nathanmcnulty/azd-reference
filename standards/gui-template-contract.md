@@ -6,12 +6,12 @@ and checked-in lifecycle scripts remain the executable source of truth.
 
 The GUI schema is owned by `azd-gui`. This repository does not copy or publish
 that schema. The compatibility reference for this initial standard is
-`azd-gui` commit `a0f108777a6ec0607c84188ae494603a66e0c8f0`,
+`azd-gui` commit `3ee9d5f2b162b441e5d86f0baed3091dad18fb6d`,
 `schemas/azd-gui.schema.json`, SHA-256
 `dbfc8cc53878ee7a52c91d8d47e72f8f451cad74eb07ff82457a5f97721cb233`.
-This exact revision includes conditional feature requirements and the
-security-group picker. A stable public schema URL is pending while `azd-gui`
-remains private.
+This exact revision includes conditional feature requirements, the
+security-group picker, and the external-template preparation gate. A stable
+public schema URL is pending while `azd-gui` remains private.
 
 ## Three catalog boundaries
 
@@ -24,20 +24,28 @@ another:
 | GUI pinned catalog | A GUI publisher-owned gallery index that selects a repository, exact commit, optional subdirectory, and currently either a bundled or origin-constrained sidecar manifest. | The GUI resolves and materializes the exact commit before deployment. A gallery entry is not a substitute for reviewing the template. |
 | `azd-gui.json` | The desired embedded template deployment contract for prerequisites, connections, configuration fields, and registered read-only permission checks. | It is intended to be read from the selected template revision. It neither changes template code nor authorizes hooks, provisioning, or tenant writes. |
 
-An external gallery is discovery metadata. The desired deployment decision binds
-the catalog entry, repository, commit, subdirectory, and embedded manifest bytes
-to the same reviewed template revision. This binding is not yet implemented for
-current external gallery sidecar manifests: they require a catalog-declared
-`manifestSha256` digest of their exact served bytes and must remain on the same
-HTTPS origin, but are not bound to the selected repository commit. Treat them as review metadata, not the
-deployment control, until that binding exists. Direct GitHub inspection already
-reads an embedded manifest at its resolved commit.
+An external gallery is discovery metadata. Preparation resolves the selected
+repository, exact commit, and optional subdirectory into one retained checkout.
+For an external entry, it verifies the catalog-declared `manifestSha256` for
+the reviewed sidecar, then requires that sidecar to be byte-identical to the
+embedded `azd-gui.json` in the pinned selected subdirectory. Template authors
+who publish a sidecar must embed those exact same manifest bytes in the selected
+template revision.
 
-Catalog digest checks establish consistency with the accepted catalog, not
-publisher authentication or agreement with executable template code. Previously
-accepted external catalogs without sidecar digests require a fresh review. The
-GUI retains these sources in Settings and can reapply a reviewed contract only
-to an existing project with the same template ID and commit.
+The GUI derives the effective contract from that checkout and compares it with
+the reviewed sidecar contract, including detected interactive lifecycle hooks.
+It performs these checks before creating a destination, registering a project,
+or starting azd initialization, and retains the verified checkout for
+preparation. A gallery
+entry still is not a substitute for source review.
+
+Catalog digest checks establish consistency with the accepted catalog and the
+pinned checkout at preparation time. They do not establish publisher
+authentication, prove later mutable project content, or repair old registered
+projects whose contracts were accepted before this gate. Previously accepted
+external catalogs without sidecar digests require a fresh review. The GUI
+retains these sources in Settings and can reapply a reviewed contract only to
+an existing project with the same template ID and commit.
 
 ## Embedded manifest rules
 
