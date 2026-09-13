@@ -6,11 +6,12 @@ and checked-in lifecycle scripts remain the executable source of truth.
 
 The GUI schema is owned by `azd-gui`. This repository does not copy or publish
 that schema. The compatibility reference for this initial standard is
-`azd-gui` commit `9c351af5ddf457db1b901b9b4b1adbf52e5572bb`,
+`azd-gui` commit `a0f108777a6ec0607c84188ae494603a66e0c8f0`,
 `schemas/azd-gui.schema.json`, SHA-256
-`af45b6360a2c36314079b56a5df1d8971836faf1db95ba1217e1d6d609cd3fbd`.
-This exact revision includes conditional feature requirements. A stable public
-schema URL is pending while `azd-gui` remains private.
+`dbfc8cc53878ee7a52c91d8d47e72f8f451cad74eb07ff82457a5f97721cb233`.
+This exact revision includes conditional feature requirements and the
+security-group picker. A stable public schema URL is pending while `azd-gui`
+remains private.
 
 ## Three catalog boundaries
 
@@ -55,6 +56,20 @@ administrator chooses optional components before tools, connections, and
 read-only checks are evaluated. Keep baseline access requirements
 unconditional: disabling an optional feature must never remove the Azure or
 Graph access needed by the template's baseline setup.
+
+An optional `lookup: "securityGroup"` is permitted only on a non-sensitive
+`entraObject` configuration field. It is a wizard convenience for selecting a
+security-enabled Entra group; the selected value remains the group object ID
+that the template maps to its declared environment variable. The wizard uses a
+tenant- and subscription-bound prefix search after at least two non-control
+characters, returns at most 25 validated ID/display-name pairs, and requires an
+administrator to explicitly select a returned ID because display names are not
+unique. It clears every lookup ID, including a manually entered ID, when either
+target changes. It uses the cached Azure CLI session for read-only public
+Microsoft Graph requests only. It must not start a login,
+request or grant permissions, expose tokens, or follow Graph pagination links.
+If the lookup is unavailable or does not find the intended group, retain manual
+object-ID entry as the administrator-reviewed fallback; do not infer a group.
 
 `skeleton/azd-gui.json` intentionally has an empty `configuration.groups`
 array. Its only parameters are `AZURE_ENV_NAME` and `AZURE_LOCATION`, supplied
