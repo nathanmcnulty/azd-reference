@@ -6,9 +6,9 @@ and checked-in lifecycle scripts remain the executable source of truth.
 
 The GUI schema is owned by `azd-gui`. This repository does not copy or publish
 that schema. The compatibility reference for this initial standard is
-`azd-gui` commit `22a5a1abc1eeaff4e942a8c90fd514a2afaaa53c`,
+`azd-gui` commit `fec8f72ca65a1028d491e137d40db83f528787ec`,
 `schemas/azd-gui.schema.json`, SHA-256
-`1214fede3f7196135f2eae4545689eb2a44117688a304126943df8ac4feebfae`.
+`d2ce9cb480d074fcb2d19bcb0d59b8904106c3beaececc34b44a729d1761a28e`.
 That is a reviewed source reference, not a public schema URL. A stable public
 schema URL is pending while `azd-gui` remains private.
 
@@ -26,10 +26,17 @@ another:
 An external gallery is discovery metadata. The desired deployment decision binds
 the catalog entry, repository, commit, subdirectory, and embedded manifest bytes
 to the same reviewed template revision. This binding is not yet implemented for
-current external gallery sidecar manifests: they are origin-constrained but not
-bound to the selected repository commit. Treat them as review metadata, not the
+current external gallery sidecar manifests: they require a catalog-declared
+`manifestSha256` digest of their exact served bytes and must remain on the same
+HTTPS origin, but are not bound to the selected repository commit. Treat them as review metadata, not the
 deployment control, until that binding exists. Direct GitHub inspection already
 reads an embedded manifest at its resolved commit.
+
+Catalog digest checks establish consistency with the accepted catalog, not
+publisher authentication or agreement with executable template code. Previously
+accepted external catalogs without sidecar digests require a fresh review. The
+GUI retains these sources in Settings and can reapply a reviewed contract only
+to an existing project with the same template ID and commit.
 
 ## Embedded manifest rules
 
@@ -67,6 +74,15 @@ components, required permissions, lifecycle hooks, outputs, validation checks,
 and receipt details must agree with the template implementation. Do not infer
 optional behavior merely from a component lock: the lock records provenance of
 vendored files, not selected feature state.
+
+Optional `recommendationProfiles` provide explicit starting points with `id`,
+`title`, `description`, and a `values` map keyed by configuration field IDs.
+Explain identity permissions, optional resources, and operational consequences.
+Profiles cannot set secrets, sensitive fields, or standard target/source values.
+They must match declared field types, options, and supported validation rules.
+Keep template defaults intact: the administrator applies a profile and reviews
+the resulting choices before execution. A minimal profile is not a promise of
+zero required permissions.
 
 ## Receipts and validation
 
