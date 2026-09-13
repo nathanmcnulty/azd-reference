@@ -82,7 +82,8 @@ the source repository.
 See [`docs/nomenclature.md`](docs/nomenclature.md),
 [`docs/architecture.md`](docs/architecture.md), and
 [`standards/component-lifecycle.md`](standards/component-lifecycle.md) before
-adding a component.
+adding a component. For template discovery and GUI deployment metadata, see
+[`standards/gui-template-contract.md`](standards/gui-template-contract.md).
 
 ## Portfolio status and updates
 
