@@ -64,10 +64,16 @@ Describe 'Component synchronization' {
         { & $drift -TargetPath $consumer } | Should -Not -Throw
 
         $module = Join-Path $consumer 'scripts/vendor/Azd.DeploymentReceipt/Azd.DeploymentReceipt.psd1'
-        Import-Module $module -Force
-        $receipt = New-AzdDeploymentReceipt -Template example -TemplateVersion 0.1.0 -Mode plan
-        Write-AzdDeploymentReceipt -Receipt $receipt -RepositoryRoot $consumer | Should -Be 'reports/deployment-receipt.json'
-        (Get-Content -LiteralPath (Join-Path $consumer 'reports/deployment-receipt.json') -Raw | Test-Json -SchemaFile (Join-Path (Split-Path $module -Parent) 'deployment-receipt.schema.json') -ErrorAction Stop) | Should -BeTrue
+        $vendoredModule = $null
+        try {
+            $vendoredModule = Import-Module $module -Force -PassThru
+            $receipt = New-AzdDeploymentReceipt -Template example -TemplateVersion 0.1.0 -Mode plan
+            Write-AzdDeploymentReceipt -Receipt $receipt -RepositoryRoot $consumer | Should -Be 'reports/deployment-receipt.json'
+            (Get-Content -LiteralPath (Join-Path $consumer 'reports/deployment-receipt.json') -Raw | Test-Json -SchemaFile (Join-Path (Split-Path $module -Parent) 'deployment-receipt.schema.json') -ErrorAction Stop) | Should -BeTrue
+        }
+        finally {
+            if ($vendoredModule) { $vendoredModule | Remove-Module -Force -ErrorAction SilentlyContinue }
+        }
     }
 
     It 'synchronizes Azure Monitor notification modules as a first-class component' {
