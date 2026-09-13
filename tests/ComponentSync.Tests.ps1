@@ -50,6 +50,26 @@ Describe 'Component synchronization' {
         { & $drift -TargetPath $consumer } | Should -Not -Throw
     }
 
+    It 'synchronizes the receipt writer with its vendored default schema' {
+        & $sync -Component deployment-receipt -TargetPath $consumer | Out-Null
+        $lock = Get-Content -LiteralPath (Join-Path $consumer 'azd-components.lock.json') -Raw | ConvertFrom-Json
+        $lock.components.Count | Should -Be 1
+        $lock.components[0].id | Should -Be 'deployment-receipt'
+        $lock.components[0].files.Count | Should -Be 3
+        foreach ($file in $lock.components[0].files) {
+            $target = Join-Path $consumer $file.target
+            Test-Path -LiteralPath $target | Should -BeTrue
+            (Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash.ToLowerInvariant() | Should -Be $file.sha256
+        }
+        { & $drift -TargetPath $consumer } | Should -Not -Throw
+
+        $module = Join-Path $consumer 'scripts/vendor/Azd.DeploymentReceipt/Azd.DeploymentReceipt.psd1'
+        Import-Module $module -Force
+        $receipt = New-AzdDeploymentReceipt -Template example -TemplateVersion 0.1.0 -Mode plan
+        Write-AzdDeploymentReceipt -Receipt $receipt -RepositoryRoot $consumer | Should -Be 'reports/deployment-receipt.json'
+        (Get-Content -LiteralPath (Join-Path $consumer 'reports/deployment-receipt.json') -Raw | Test-Json -SchemaFile (Join-Path (Split-Path $module -Parent) 'deployment-receipt.schema.json') -ErrorAction Stop) | Should -BeTrue
+    }
+
     It 'synchronizes Azure Monitor notification modules as a first-class component' {
         & $sync -Component azure-monitor-scheduled-query-notifications -TargetPath $consumer | Out-Null
         $lock = Get-Content -LiteralPath (Join-Path $consumer 'azd-components.lock.json') -Raw | ConvertFrom-Json

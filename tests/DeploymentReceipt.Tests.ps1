@@ -14,6 +14,10 @@ Describe 'Deployment receipt writer' {
         $receipt.summary.applied | Should -Be 0
         $receipt.summary.skipped | Should -Be 2
         { New-AzdDeploymentReceipt -Template example -TemplateVersion 0.1.0 -Mode plan -Applied 1 } | Should -Throw '*cannot report applied*'
+
+        $caseFolded = New-AzdDeploymentReceipt -Template example -TemplateVersion 0.1.0 -Mode Plan
+        $caseFolded.mode | Should -Be 'plan'
+        Write-AzdDeploymentReceipt -Receipt $caseFolded -RepositoryRoot $TestDrive -OutputPath 'reports/case-folded-plan.json' -SchemaPath $script:schemaPath | Should -Be 'reports/case-folded-plan.json'
     }
 
     It 'writes an atomic schema-valid enforce receipt to the producer-owned default path' {
@@ -33,13 +37,81 @@ Describe 'Deployment receipt writer' {
         { New-AzdDeploymentReceipt -Template example -TemplateVersion 0.1.0 -Mode enforce -Artifacts '../outside.json' } | Should -Throw '*repository-relative*'
     }
 
+    It 'revalidates direct receipt objects before writing' {
+        $receipt = New-AzdDeploymentReceipt -Template example -TemplateVersion 0.1.0 -Mode enforce
+        $receipt.template = ''
+        { Write-AzdDeploymentReceipt -Receipt $receipt -RepositoryRoot $TestDrive -SchemaPath $script:schemaPath } | Should -Throw '*Template must be nonempty*'
+
+        $receipt = New-AzdDeploymentReceipt -Template example -TemplateVersion 0.1.0 -Mode enforce
+        $receipt.artifacts = @('reports/output.json?sig=secret')
+        { Write-AzdDeploymentReceipt -Receipt $receipt -RepositoryRoot $TestDrive -SchemaPath $script:schemaPath } | Should -Throw '*cannot be written*'
+
+        $receipt = New-AzdDeploymentReceipt -Template example -TemplateVersion 0.1.0 -Mode enforce
+        $receipt.artifacts = @((1..501 | ForEach-Object { "reports/$_.json" }))
+        { Write-AzdDeploymentReceipt -Receipt $receipt -RepositoryRoot $TestDrive -SchemaPath $script:schemaPath } | Should -Throw '*limited to 500*'
+        $receipt.artifacts = @()
+        $receipt.operationalActions = @((1..501 | ForEach-Object { "Action $_" }))
+        { Write-AzdDeploymentReceipt -Receipt $receipt -RepositoryRoot $TestDrive -SchemaPath $script:schemaPath } | Should -Throw '*limited to 500*'
+    }
+
+    It 'rejects ambiguous output paths before creating directories or moving the receipt' {
+        $receipt = New-AzdDeploymentReceipt -Template example -TemplateVersion 0.1.0 -Mode enforce
+        $root = Join-Path $TestDrive 'ambiguous-output-root'
+        New-Item -ItemType Directory -Path $root | Out-Null
+        foreach ($outputPath in @('', '.', 'reports/', 'reports//receipt.json', 'reports/./receipt.json', 'reports/receipt.json:metadata', 'reports\receipt.json')) {
+            { Write-AzdDeploymentReceipt -Receipt $receipt -RepositoryRoot $root -OutputPath $outputPath -SchemaPath $script:schemaPath } | Should -Throw
+        }
+        Test-Path -LiteralPath (Join-Path $root 'reports') | Should -BeFalse
+    }
+
+    It 'rejects an existing directory as the receipt target' {
+        $root = Join-Path $TestDrive 'directory-target-root'
+        $reports = Join-Path $root 'reports'
+        New-Item -ItemType Directory -Path $reports -Force | Out-Null
+        $receipt = New-AzdDeploymentReceipt -Template example -TemplateVersion 0.1.0 -Mode enforce
+
+        { Write-AzdDeploymentReceipt -Receipt $receipt -RepositoryRoot $root -OutputPath 'reports' -SchemaPath $script:schemaPath } | Should -Throw '*must name a file*'
+        @(Get-ChildItem -LiteralPath $reports -Force).Count | Should -Be 0
+    }
+
+    It 'includes the emitted newline in the receipt byte limit' {
+        $receipt = New-AzdDeploymentReceipt -Template example -TemplateVersion 0.1.0 -Mode enforce
+        $payloadBytes = [System.Text.Encoding]::UTF8.GetByteCount(($receipt | ConvertTo-Json -Depth 30) + "`n")
+        $root = Join-Path $TestDrive 'byte-limit-root'
+        New-Item -ItemType Directory -Path $root | Out-Null
+
+        InModuleScope Azd.DeploymentReceipt {
+            param($Receipt, $RepositoryRoot, $SchemaPath, $PayloadBytes)
+            $originalLimit = $script:MaxReceiptBytes
+            try {
+                $script:MaxReceiptBytes = $PayloadBytes
+                { Write-AzdDeploymentReceipt -Receipt $Receipt -RepositoryRoot $RepositoryRoot -SchemaPath $SchemaPath } | Should -Not -Throw
+                $script:MaxReceiptBytes = $PayloadBytes - 1
+                { Write-AzdDeploymentReceipt -Receipt $Receipt -RepositoryRoot $RepositoryRoot -OutputPath 'reports/too-small.json' -SchemaPath $SchemaPath } | Should -Throw '*exceeds 1 MiB*'
+            }
+            finally {
+                $script:MaxReceiptBytes = $originalLimit
+            }
+        } -Parameters @{ Receipt = $receipt; RepositoryRoot = $root; SchemaPath = $script:schemaPath; PayloadBytes = $payloadBytes }
+    }
+
     It 'does not replace an existing receipt when the supplied receipt is invalid' {
         $reports = Join-Path $TestDrive 'reports'
         New-Item -ItemType Directory -Path $reports -Force | Out-Null
         $path = Join-Path $reports 'deployment-receipt.json'
         Set-Content -LiteralPath $path -Value 'preserve-me' -NoNewline
 
-        { Write-AzdDeploymentReceipt -Receipt ([pscustomobject]@{ mode = 'plan'; summary = @{ applied = 1 } }) -RepositoryRoot $TestDrive -SchemaPath $script:schemaPath } | Should -Throw '*cannot report applied*'
+        $invalid = [pscustomobject]@{
+            schemaVersion = '1.0'
+            template = 'example'
+            templateVersion = '0.1.0'
+            mode = 'plan'
+            summary = @{ applied = 1 }
+            artifacts = @()
+            operationalActions = @()
+            details = @{}
+        }
+        { Write-AzdDeploymentReceipt -Receipt $invalid -RepositoryRoot $TestDrive -SchemaPath $script:schemaPath } | Should -Throw '*cannot report applied*'
         Get-Content -LiteralPath $path -Raw | Should -Be 'preserve-me'
     }
 

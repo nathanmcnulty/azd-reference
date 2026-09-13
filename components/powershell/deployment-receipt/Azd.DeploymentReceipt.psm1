@@ -15,7 +15,7 @@ function Test-AzdReceiptReparsePoint {
 
 function Assert-AzdReceiptText {
     param(
-        [Parameter(Mandatory)][string] $Value,
+        [Parameter(Mandatory)][AllowEmptyString()][string] $Value,
         [Parameter(Mandatory)][string] $Label,
         [int] $MaximumLength = $script:MaxTextLength
     )
@@ -26,6 +26,21 @@ function Assert-AzdReceiptText {
     if ($Value -match $script:SensitiveValuePattern -or $Value -match '(?i)https?://[^\s]*/callback(?:[/?#]|$)') {
         throw "$Label contains a value that cannot be written to a deployment receipt."
     }
+}
+
+function Get-AzdReceiptProperty {
+    param(
+        [Parameter(Mandatory)][object] $Object,
+        [Parameter(Mandatory)][string] $Name
+    )
+
+    if ($Object -is [System.Collections.IDictionary]) {
+        if (-not $Object.Contains($Name)) { throw "Receipt must contain $Name." }
+        return $Object[$Name]
+    }
+    $property = $Object.PSObject.Properties[$Name]
+    if ($null -eq $property) { throw "Receipt must contain $Name." }
+    return $property.Value
 }
 
 function Assert-AzdReceiptSafeValue {
@@ -75,6 +90,7 @@ function Assert-AzdReceiptSafeValue {
 function Assert-AzdReceiptArtifactPath {
     param([Parameter(Mandatory)][string] $Path)
 
+    Assert-AzdReceiptText -Value $Path -Label 'Receipt artifact' -MaximumLength 512
     if ([string]::IsNullOrWhiteSpace($Path) -or $Path.Length -gt 512 -or
         [System.IO.Path]::IsPathRooted($Path) -or $Path -match '[\\\x00-\x1F]' -or
         ($Path -split '/' | Where-Object { $_ -in '.', '..' })) {
@@ -85,16 +101,67 @@ function Assert-AzdReceiptArtifactPath {
 function Assert-AzdReceiptShape {
     param([Parameter(Mandatory)][object] $Receipt)
 
-    $mode = [string] $Receipt.mode
+    $schemaVersion = Get-AzdReceiptProperty -Object $Receipt -Name 'schemaVersion'
+    if ($schemaVersion -isnot [string] -or $schemaVersion -ne '1.0') { throw 'Receipt schemaVersion must be 1.0.' }
+    $template = Get-AzdReceiptProperty -Object $Receipt -Name 'template'
+    if ($template -isnot [string]) { throw 'Template must be a string.' }
+    Assert-AzdReceiptText -Value $template -Label 'Template' -MaximumLength 128
+    $templateVersion = Get-AzdReceiptProperty -Object $Receipt -Name 'templateVersion'
+    if ($templateVersion -isnot [string]) { throw 'Template version must be a string.' }
+    Assert-AzdReceiptText -Value $templateVersion -Label 'Template version' -MaximumLength 128
+    $mode = Get-AzdReceiptProperty -Object $Receipt -Name 'mode'
+    if ($mode -isnot [string]) { throw 'Receipt mode must be a string.' }
     if ($mode -notin @('plan', 'enforce')) { throw 'Receipt mode must be plan or enforce.' }
-    if ($mode -eq 'plan' -and [int64] $Receipt.summary.applied -ne 0) {
+    $summary = Get-AzdReceiptProperty -Object $Receipt -Name 'summary'
+    $applied = Get-AzdReceiptProperty -Object $summary -Name 'applied'
+    if ($mode -eq 'plan' -and [int64] $applied -ne 0) {
         throw 'Plan receipts cannot report applied actions.'
     }
     $itemCount = 0
-    Assert-AzdReceiptSafeValue -Value $Receipt.details -ItemCount ([ref] $itemCount)
-    foreach ($artifact in @($Receipt.artifacts)) { Assert-AzdReceiptArtifactPath -Path ([string] $artifact) }
-    foreach ($action in @($Receipt.operationalActions)) {
-        Assert-AzdReceiptText -Value ([string] $action) -Label 'Operational action'
+    Assert-AzdReceiptSafeValue -Value (Get-AzdReceiptProperty -Object $Receipt -Name 'details') -ItemCount ([ref] $itemCount)
+    $artifacts = @(Get-AzdReceiptProperty -Object $Receipt -Name 'artifacts')
+    $actions = @(Get-AzdReceiptProperty -Object $Receipt -Name 'operationalActions')
+    if ($artifacts.Count -gt $script:MaxCollectionItems -or $actions.Count -gt $script:MaxCollectionItems) {
+        throw 'Receipt artifacts and operational actions are limited to 500 items each.'
+    }
+    foreach ($artifact in $artifacts) {
+        if ($artifact -isnot [string]) { throw 'Receipt artifacts must be strings.' }
+        Assert-AzdReceiptArtifactPath -Path $artifact
+    }
+    foreach ($action in $actions) {
+        if ($action -isnot [string]) { throw 'Operational actions must be strings.' }
+        Assert-AzdReceiptText -Value $action -Label 'Operational action'
+    }
+}
+
+function Assert-AzdReceiptOutputPath {
+    param([Parameter(Mandatory)][string] $OutputPath)
+
+    if ([string]::IsNullOrWhiteSpace($OutputPath) -or $OutputPath.Length -gt 512 -or
+        [System.IO.Path]::IsPathRooted($OutputPath) -or $OutputPath -match '[\\:\x00-\x1F]' -or
+        $OutputPath -match '[\\/]$') {
+        throw 'OutputPath must be a bounded repository-relative file path.'
+    }
+    $segments = @($OutputPath -split '/')
+    if ($segments.Count -eq 0 -or ($segments | Where-Object { [string]::IsNullOrEmpty($_) -or $_ -in '.', '..' })) {
+        throw 'OutputPath cannot contain empty, dot, or parent-traversal segments.'
+    }
+    return $segments
+}
+
+function Assert-AzdReceiptSafePath {
+    param(
+        [Parameter(Mandatory)][string] $RepositoryRoot,
+        [Parameter(Mandatory)][string[]] $Segments,
+        [Parameter(Mandatory)][string] $Message
+    )
+
+    $cursor = $RepositoryRoot
+    foreach ($segment in $Segments) {
+        $cursor = Join-Path $cursor $segment
+        if ((Test-Path -LiteralPath $cursor) -and (Test-AzdReceiptReparsePoint -Path $cursor)) {
+            throw $Message
+        }
     }
 }
 
@@ -118,6 +185,7 @@ function New-AzdDeploymentReceipt {
     Assert-AzdReceiptText -Value $Template -Label 'Template' -MaximumLength 128
     Assert-AzdReceiptText -Value $TemplateVersion -Label 'Template version' -MaximumLength 128
     if ($Mode -eq 'plan' -and $Applied -ne 0) { throw 'Plan receipts cannot report applied actions.' }
+    $normalizedMode = $Mode.ToLowerInvariant()
     if ($Artifacts.Count -gt $script:MaxCollectionItems -or $OperationalActions.Count -gt $script:MaxCollectionItems) {
         throw 'Receipt artifacts and operational actions are limited to 500 items each.'
     }
@@ -126,7 +194,7 @@ function New-AzdDeploymentReceipt {
         generatedAt = $GeneratedAt.UtcDateTime.ToString('o')
         template = $Template
         templateVersion = $TemplateVersion
-        mode = $Mode
+        mode = $normalizedMode
         summary = [ordered]@{
             applied = $Applied
             unchanged = $Unchanged
@@ -147,13 +215,11 @@ function Write-AzdDeploymentReceipt {
     param(
         [Parameter(Mandatory)][object] $Receipt,
         [Parameter(Mandatory)][string] $RepositoryRoot,
-        [string] $OutputPath = $script:DefaultOutputPath,
+        [AllowEmptyString()][string] $OutputPath = $script:DefaultOutputPath,
         [string] $SchemaPath = (Join-Path $PSScriptRoot 'deployment-receipt.schema.json')
     )
 
-    if ([System.IO.Path]::IsPathRooted($OutputPath) -or $OutputPath -split '[\\/]' -contains '..') {
-        throw 'OutputPath must be repository-relative and cannot contain parent traversal.'
-    }
+    $segments = Assert-AzdReceiptOutputPath -OutputPath $OutputPath
     $root = [System.IO.Path]::GetFullPath($RepositoryRoot)
     if (-not (Test-Path -LiteralPath $root -PathType Container)) { throw 'RepositoryRoot must be an existing directory.' }
     if (Test-AzdReceiptReparsePoint -Path $root) { throw 'RepositoryRoot cannot be a symbolic link or reparse point.' }
@@ -162,17 +228,12 @@ function Write-AzdDeploymentReceipt {
     $comparison = if ([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([System.Runtime.InteropServices.OSPlatform]::Windows)) { [System.StringComparison]::OrdinalIgnoreCase } else { [System.StringComparison]::Ordinal }
     if (-not $target.StartsWith($rootPrefix, $comparison)) { throw 'OutputPath resolves outside RepositoryRoot.' }
 
-    $cursor = $root
-    foreach ($segment in $OutputPath -split '[\\/]') {
-        $cursor = Join-Path $cursor $segment
-        if ((Test-Path -LiteralPath $cursor) -and (Test-AzdReceiptReparsePoint -Path $cursor)) {
-            throw 'OutputPath cannot traverse a symbolic link or reparse point.'
-        }
-    }
+    Assert-AzdReceiptSafePath -RepositoryRoot $root -Segments $segments -Message 'OutputPath cannot traverse a symbolic link or reparse point.'
     Assert-AzdReceiptShape -Receipt $Receipt
     if (-not (Test-Path -LiteralPath $SchemaPath -PathType Leaf)) { throw 'The deployment receipt schema is unavailable.' }
     $json = $Receipt | ConvertTo-Json -Depth 30
-    if ([System.Text.Encoding]::UTF8.GetByteCount($json) -gt $script:MaxReceiptBytes) { throw 'Deployment receipt exceeds 1 MiB.' }
+    $payload = $json + "`n"
+    if ([System.Text.Encoding]::UTF8.GetByteCount($payload) -gt $script:MaxReceiptBytes) { throw 'Deployment receipt exceeds 1 MiB.' }
     try {
         if (-not ($json | Test-Json -SchemaFile $SchemaPath -ErrorAction Stop)) { throw 'Schema validation returned false.' }
     }
@@ -181,17 +242,18 @@ function Write-AzdDeploymentReceipt {
     $directory = Split-Path -Parent $target
     if (-not (Test-Path -LiteralPath $directory)) { New-Item -ItemType Directory -Path $directory -Force | Out-Null }
     if (Test-AzdReceiptReparsePoint -Path $directory) { throw 'Output directory cannot be a symbolic link or reparse point.' }
+    if (Test-Path -LiteralPath $target -PathType Container) { throw 'OutputPath must name a file, not an existing directory.' }
     $temporaryPath = Join-Path $directory ('.{0}.{1}.tmp' -f [System.IO.Path]::GetFileName($target), [guid]::NewGuid().ToString('N'))
     try {
-        [System.IO.File]::WriteAllText($temporaryPath, $json + "`n", [System.Text.UTF8Encoding]::new($false))
-        $cursor = $root
-        foreach ($segment in $OutputPath -split '[\\/]') {
-            $cursor = Join-Path $cursor $segment
-            if ((Test-Path -LiteralPath $cursor) -and (Test-AzdReceiptReparsePoint -Path $cursor)) {
-                throw 'OutputPath became a symbolic link or reparse point before the receipt could be committed.'
-            }
+        [System.IO.File]::WriteAllText($temporaryPath, $payload, [System.Text.UTF8Encoding]::new($false))
+        if (Test-AzdReceiptReparsePoint -Path $directory) {
+            throw 'Output directory became a symbolic link or reparse point before the receipt could be committed.'
         }
-        Move-Item -LiteralPath $temporaryPath -Destination $target -Force
+        Assert-AzdReceiptSafePath -RepositoryRoot $root -Segments $segments -Message 'OutputPath became a symbolic link or reparse point before the receipt could be committed.'
+        if (Test-Path -LiteralPath $target -PathType Container) {
+            throw 'OutputPath became an existing directory before the receipt could be committed.'
+        }
+        [System.IO.File]::Move($temporaryPath, $target, $true)
     }
     finally {
         if (Test-Path -LiteralPath $temporaryPath) { Remove-Item -LiteralPath $temporaryPath -Force }

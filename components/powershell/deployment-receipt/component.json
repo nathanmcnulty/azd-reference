@@ -2,7 +2,7 @@
   "$schema": "../../../schemas/component-manifest.schema.json",
   "manifestVersion": "1.1",
   "id": "deployment-receipt",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Writes bounded, schema-validated deployment receipts at a producer-owned repository-relative path.",
   "status": "candidate",
   "changelog": "components/powershell/deployment-receipt/CHANGELOG.md",
