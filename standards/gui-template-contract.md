@@ -6,10 +6,10 @@ and checked-in lifecycle scripts remain the executable source of truth.
 
 The GUI schema is owned by `azd-gui`. This repository does not copy or publish
 that schema. The compatibility reference for this initial standard is
-`azd-gui` commit `513155e`,
+`azd-gui` commit `9c351af5ddf457db1b901b9b4b1adbf52e5572bb`,
 `schemas/azd-gui.schema.json`, SHA-256
 `af45b6360a2c36314079b56a5df1d8971836faf1db95ba1217e1d6d609cd3fbd`.
-That is a development source reference pending the merged conditional-requirements benchmark, not a public schema URL. A stable public
+This exact revision includes conditional feature requirements. A stable public
 schema URL is pending while `azd-gui` remains private.
 
 ## Three catalog boundaries
