@@ -10,10 +10,18 @@ boundaries without promoting them prematurely.
 | --- | --- | --- |
 | Teams Workflow/webhook URL | Anonymous HTTPS endpoint protected by a bearer URL. The URL is a secret and must never appear in receipts or logs. | `azd-risk-based-ca`, `azd-pim`, `azd-device-notifications` |
 | Logic Apps Teams managed connector | Azure API connection with one-time user OAuth consent, connection readiness, workflow enablement, and delivery-run proof. | `azd-risk-based-ca`, `azd-emergency-access`, `azd-entra-health-monitoring` |
-| Bot Service proactive delivery | Teams app installation, Bot Framework authentication, stored conversation references, and proactive personal messages. | `azd-device-notifications` |
+| Bot Service proactive delivery | Teams app installation, Bot Framework authentication, stored conversation references, and proactive personal messages. | `azd-device-notifications`, `azd-auth-notifications` |
 
 These transports may share message and delivery-result schemas. They must remain
 separate deployable components.
+
+`azd-auth-notifications` is now a second consumer of the personal Bot Service
+pattern. Both consumers should continue to own their Bot manifest, card content,
+route policy, state schema, catalog publication, and installation workflow while
+their recipient-visible delivery evidence is incomplete. Reconsider a narrowly
+scoped `teams-personal-bot-lifecycle` component after both solutions prove a
+human-visible personal receipt and converge on tenant-bound conversation capture,
+safe provider-result taxonomy, ownership receipts, and propagation handling.
 
 ## Monitoring terminology
 
