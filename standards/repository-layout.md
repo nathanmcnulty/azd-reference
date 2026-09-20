@@ -7,6 +7,7 @@ folders apply:
 .github/workflows/<registered-validation-workflow>.yml
 .github/workflows/dependency-review.yml
 azure.yaml
+.azd/catalog.json             # recommended public discovery metadata
 infra/
 scripts/
   Test-Deployment.ps1
@@ -33,6 +34,10 @@ Requirements:
   resources to delete.
 - Optional features expose deployment outputs and validation state separately.
 - Public templates contain everything required to initialize and deploy them.
+- Public templates that are listed in the website should commit concise,
+  solution-owned `.azd/catalog.json` metadata according to
+  [`catalog-metadata.md`](catalog-metadata.md); detailed setup remains in the
+  README and `docs/`.
 - Managed files use hashes of the exact committed source blobs. Consumer
   `.gitattributes` must enforce LF for `**/vendor/**` and
   `azd-components.lock.json`. A stale CRLF working representation is accepted
