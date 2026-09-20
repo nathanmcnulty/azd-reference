@@ -59,7 +59,7 @@ jobs:
               }
               Invoke-ScriptAnalyzer @analyzerArguments
             }
-            foreach ($path in './tooling', './skeleton') {
+            foreach ($path in './tooling', './skeleton', './examples') {
               Invoke-ScriptAnalyzer -Path $path -Recurse -Settings ./PSScriptAnalyzerSettings.psd1
             }
           )
@@ -91,6 +91,7 @@ jobs:
         run: |
           az bicep install --version v0.42.1
           az bicep build --file ./skeleton/infra/main.bicep --stdout | Out-Null
+          az bicep build --file ./examples/deployment-check/infra/main.bicep --stdout | Out-Null
           az bicep build --file ./components/bicep/azure-monitor-scheduled-query-notifications/logic-app-action-group.bicep --stdout | Out-Null
           az bicep build --file ./components/bicep/azure-monitor-scheduled-query-notifications/scheduled-query-alert.bicep --stdout | Out-Null
           az bicep build --file ./components/bicep/flex-scheduled-poller-host/flex-scheduled-poller-host.bicep --stdout | Out-Null
