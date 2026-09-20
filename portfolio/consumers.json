@@ -223,6 +223,7 @@
       "repositoryValidationWorkflow": ".github/workflows/validate.yml",
       "rolloutRing": "pilot",
       "adoption": "adopted",
+      "desiredBaseline": "2026.08.2",
       "components": [
         {
           "id": "graph-delegated-authentication",
