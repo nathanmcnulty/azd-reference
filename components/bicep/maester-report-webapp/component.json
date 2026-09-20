@@ -1,0 +1,15 @@
+{
+  "$schema": "../../../schemas/component-manifest.schema.json",
+  "manifestVersion": "1.1",
+  "id": "maester-report-webapp",
+  "version": "0.1.0",
+  "description": "Optional App Service report host for Maester templates, including publishing controls, tags, locks, and host identity permissions.",
+  "status": "pilot",
+  "changelog": "components/bicep/maester-report-webapp/CHANGELOG.md",
+  "files": [
+    {
+      "source": "components/bicep/maester-report-webapp/maester-report-webapp.bicep",
+      "target": "infra/vendor/Azd.MaesterReportWebApp/maester-report-webapp.bicep"
+    }
+  ]
+}
