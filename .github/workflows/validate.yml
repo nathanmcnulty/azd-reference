@@ -41,7 +41,25 @@ jobs:
           }
           if ($parseErrors.Count) { throw ($parseErrors | Format-List | Out-String) }
           $analysis = @(
-            foreach ($path in './components', './tooling', './skeleton') {
+            foreach ($manifest in Get-ChildItem ./components -Recurse -File -Filter 'component.json') {
+              $analyzerArguments = @{
+                Path = $manifest.Directory.FullName
+                Recurse = $true
+                Settings = './PSScriptAnalyzerSettings.psd1'
+              }
+              if ($manifest.Directory.Name -eq 'maester-azd-hooks') {
+                # These shared compatibility hooks intentionally preserve their
+                # public command names and best-effort cleanup behavior.
+                $analyzerArguments.ExcludeRule = @(
+                  'PSAvoidGlobalFunctions',
+                  'PSAvoidUsingEmptyCatchBlock',
+                  'PSUseBOMForUnicodeEncodedFile',
+                  'PSUseSingularNouns'
+                )
+              }
+              Invoke-ScriptAnalyzer @analyzerArguments
+            }
+            foreach ($path in './tooling', './skeleton') {
               Invoke-ScriptAnalyzer -Path $path -Recurse -Settings ./PSScriptAnalyzerSettings.psd1
             }
           )

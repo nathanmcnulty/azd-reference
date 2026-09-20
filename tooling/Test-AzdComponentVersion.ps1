@@ -276,3 +276,8 @@ if ($violations.Count -gt 0) {
     $components = @($violations | ForEach-Object { "$($_.component)@$($_.currentVersion)" }) -join ', '
     throw "Canonical component content changed without a component version change: $components. Update each component manifest version."
 }
+
+# A new component legitimately has a missing base manifest. Get-BaseBlobId uses
+# git's non-zero lookup result to detect that case, so clear the native exit code
+# before returning success to CI callers.
+$global:LASTEXITCODE = 0

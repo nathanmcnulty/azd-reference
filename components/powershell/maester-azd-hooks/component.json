@@ -1,0 +1,43 @@
+{
+  "$schema": "../../../schemas/component-manifest.schema.json",
+  "manifestVersion": "1.1",
+  "id": "maester-azd-hooks",
+  "version": "0.1.0",
+  "description": "Shared azd hooks, target-context helpers, and optional Microsoft Graph permission setup for Maester templates.",
+  "status": "pilot",
+  "changelog": "components/powershell/maester-azd-hooks/CHANGELOG.md",
+  "files": [
+    {
+      "source": "components/powershell/maester-azd-hooks/Get-ManagedIdentityPrincipal.ps1",
+      "target": "scripts/vendor/Azd.MaesterHooks/Get-ManagedIdentityPrincipal.ps1"
+    },
+    {
+      "source": "components/powershell/maester-azd-hooks/Grant-MaesterGraphPermissions.ps1",
+      "target": "scripts/vendor/Azd.MaesterHooks/Grant-MaesterGraphPermissions.ps1"
+    },
+    {
+      "source": "components/powershell/maester-azd-hooks/Maester-Helpers.psm1",
+      "target": "scripts/vendor/Azd.MaesterHooks/Maester-Helpers.psm1"
+    },
+    {
+      "source": "components/powershell/maester-azd-hooks/Maester-PreDownCleanup.psm1",
+      "target": "scripts/vendor/Azd.MaesterHooks/Maester-PreDownCleanup.psm1"
+    },
+    {
+      "source": "components/powershell/maester-azd-hooks/Maester-PreProvision.psm1",
+      "target": "scripts/vendor/Azd.MaesterHooks/Maester-PreProvision.psm1"
+    },
+    {
+      "source": "components/powershell/maester-azd-hooks/Maester-PreUp.psm1",
+      "target": "scripts/vendor/Azd.MaesterHooks/Maester-PreUp.psm1"
+    },
+    {
+      "source": "components/powershell/maester-azd-hooks/Maester-SetupHelpers.psm1",
+      "target": "scripts/vendor/Azd.MaesterHooks/Maester-SetupHelpers.psm1"
+    },
+    {
+      "source": "components/powershell/maester-azd-hooks/Maester-UpWizard.psm1",
+      "target": "scripts/vendor/Azd.MaesterHooks/Maester-UpWizard.psm1"
+    }
+  ]
+}
