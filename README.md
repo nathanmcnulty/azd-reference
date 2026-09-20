@@ -57,6 +57,7 @@ multiple solutions.
 ```text
 components/   Versioned component source and component manifests
 docs/         Architecture and extraction decisions
+examples/     Named, self-contained templates for reviewed deployment pilots
 portfolio/    Consumer registry and repository baseline
 schemas/      Machine-readable portfolio contracts
 skeleton/     Starting point for a new independently supported solution
@@ -64,6 +65,9 @@ standards/    Normative portfolio conventions
 tests/        Reference tooling and component tests
 tooling/      Component synchronization and portfolio validation
 ```
+
+Start with [Azure deployment check](examples/deployment-check/README.md) for a
+resource-group-only deployment, read-only validation, and cleanup walkthrough.
 
 ## Using a component
 
