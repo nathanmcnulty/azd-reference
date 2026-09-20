@@ -14,6 +14,11 @@ example, PIM registers `.github/workflows/validate-azd-pim.yml` and
 `azd-pim/scripts/Test-Repository.ps1`, while validation still runs with the
 solution root as its working directory.
 
+Use [`standards/standalone-promotion.md`](../standards/standalone-promotion.md)
+when a registered consumer is moving out of `azd-work-in-progress`. Component
+rollout automation updates an existing consumer; it does not replace the
+standalone-repository promotion process.
+
 When a consumer declares `desiredBaseline`, both planning and preparation pass
 that exact value to component synchronization. Preparation writes it into
 `azd-components.lock.json` in the same transaction as the component update and

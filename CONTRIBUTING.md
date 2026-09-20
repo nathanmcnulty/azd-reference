@@ -9,6 +9,11 @@ A reusable component should normally have two real consumers or one proven
 consumer plus a second reviewed adoption plan. Keep solution-specific code in its
 own repository until that evidence exists.
 
+When a solution moves from `azd-work-in-progress` to a standalone repository,
+follow [`standards/standalone-promotion.md`](standards/standalone-promotion.md).
+The promotion requires linked standalone, registry, and incubation-removal
+changes; a public repository alone is not a complete portfolio registration.
+
 ## Component changes
 
 Every component change must:
