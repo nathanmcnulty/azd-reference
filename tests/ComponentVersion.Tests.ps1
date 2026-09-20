@@ -113,6 +113,7 @@ Describe 'Canonical component version immutability' {
         } | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath (Join-Path $newRoot 'component.json') -Encoding utf8NoBOM
 
         { & $guard -BaseRevision $baseRevision } | Should -Not -Throw
+        $LASTEXITCODE | Should -Be 0
         $results = @(& $guard -BaseRevision $baseRevision -PassThru)
         ($results | Where-Object component -eq 'new-component').state | Should -Be 'new'
     }
