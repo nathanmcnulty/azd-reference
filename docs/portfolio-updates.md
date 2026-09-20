@@ -34,6 +34,24 @@ Baseline checks include SHA-pinned external
 actions, top-level `contents: read` workflow permissions, and grouped, bounded
 Dependabot updates.
 
+The separate `tooling/Get-AzdGitHubGovernanceStatus.ps1` audit queries live
+repository settings without changing them. It checks the selected-action
+policy, SHA enforcement, default workflow permissions, Dependabot security
+updates, public-repository scanning controls, and the authoritative default
+branch and release-tag rulesets. Run it with an authenticated `gh` session
+that can read repository administration settings:
+
+```powershell
+./tooling/Get-AzdGitHubGovernanceStatus.ps1 `
+  -Repository nathanmcnulty/azd-risk-based-ca `
+  -AsJson
+```
+
+The audit deliberately treats exact required status-check names as live
+repository configuration. A workflow file can exist while a ruleset still
+requires an obsolete context, as happened when a matrix validation job was
+renamed. The audit does not approve, merge, bypass, or alter settings.
+
 ## Release tags
 
 A reviewed component release uses:

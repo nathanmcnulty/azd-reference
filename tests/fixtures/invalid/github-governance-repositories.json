@@ -1,0 +1,11 @@
+{
+  "schemaVersion": "1.0",
+  "repositories": [
+    {
+      "id": "consumer-one",
+      "repository": "https://github.com/example/consumer-one",
+      "defaultBranch": "main",
+      "requiredStatusChecks": []
+    }
+  ]
+}

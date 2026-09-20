@@ -5,6 +5,7 @@ folders apply:
 
 ```text
 .github/workflows/<registered-validation-workflow>.yml
+.github/workflows/dependency-review.yml
 azure.yaml
 infra/
 scripts/

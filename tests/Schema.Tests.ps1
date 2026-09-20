@@ -7,6 +7,8 @@ Describe 'Portfolio JSON schemas' {
         @{ Name = 'component lock'; Schema = 'azd-components-lock.schema.json'; Fixture = 'azd-components.lock.json' },
         @{ Name = 'portfolio consumers'; Schema = 'portfolio-consumers.schema.json'; Fixture = 'portfolio-consumers.json' },
         @{ Name = 'repository baseline'; Schema = 'repository-baseline.schema.json'; Fixture = 'repository-baseline.json' },
+        @{ Name = 'GitHub governance'; Schema = 'github-governance.schema.json'; Fixture = 'github-governance.json' },
+        @{ Name = 'GitHub governance repositories'; Schema = 'github-governance-repositories.schema.json'; Fixture = 'github-governance-repositories.json' },
         @{ Name = 'deployment validation'; Schema = 'deployment-validation.schema.json'; Fixture = 'deployment-validation.json' },
         @{ Name = 'deployment receipt'; Schema = 'deployment-receipt.schema.json'; Fixture = 'deployment-receipt.json' },
         @{ Name = 'notification envelope'; Schema = 'notification-envelope.schema.json'; Fixture = 'notification-envelope.json' },
@@ -49,6 +51,10 @@ Describe 'Portfolio JSON schemas' {
             Test-Json -SchemaFile (Join-Path $script:repoRoot 'schemas/portfolio-consumers.schema.json') -ErrorAction Stop) | Should -BeTrue
         (Get-Content -LiteralPath (Join-Path $portfolioRoot 'repository-baseline.json') -Raw |
             Test-Json -SchemaFile (Join-Path $script:repoRoot 'schemas/repository-baseline.schema.json') -ErrorAction Stop) | Should -BeTrue
+        (Get-Content -LiteralPath (Join-Path $portfolioRoot 'github-governance.json') -Raw |
+            Test-Json -SchemaFile (Join-Path $script:repoRoot 'schemas/github-governance.schema.json') -ErrorAction Stop) | Should -BeTrue
+        (Get-Content -LiteralPath (Join-Path $portfolioRoot 'github-governance-repositories.json') -Raw |
+            Test-Json -SchemaFile (Join-Path $script:repoRoot 'schemas/github-governance-repositories.schema.json') -ErrorAction Stop) | Should -BeTrue
     }
 
     It 'requires every stable component to have at least two adopted consumer shapes' {

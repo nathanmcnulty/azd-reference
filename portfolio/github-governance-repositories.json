@@ -1,0 +1,126 @@
+{
+  "$schema": "../schemas/github-governance-repositories.schema.json",
+  "schemaVersion": "1.0",
+  "repositories": [
+    {
+      "id": "azd-advanced-auditing",
+      "repository": "https://github.com/nathanmcnulty/azd-advanced-auditing",
+      "defaultBranch": "main",
+      "requiredStatusChecks": ["validate", "Analyze (actions)", "dependency-review"]
+    },
+    {
+      "id": "azd-auth-notifications",
+      "repository": "https://github.com/nathanmcnulty/azd-auth-notifications",
+      "defaultBranch": "main",
+      "requiredStatusChecks": ["validate", "Analyze (actions)", "dependency-review"]
+    },
+    {
+      "id": "azd-cloud-pc-recommendations",
+      "repository": "https://github.com/nathanmcnulty/azd-cloud-pc-recommendations",
+      "defaultBranch": "main",
+      "requiredStatusChecks": ["validate", "Analyze (actions)", "dependency-review"]
+    },
+    {
+      "id": "azd-defender-reporting",
+      "repository": "https://github.com/nathanmcnulty/azd-defender-reporting",
+      "defaultBranch": "main",
+      "requiredStatusChecks": ["validate", "Analyze (actions)", "dependency-review"]
+    },
+    {
+      "id": "azd-device-cleanup",
+      "repository": "https://github.com/nathanmcnulty/azd-device-cleanup",
+      "defaultBranch": "main",
+      "requiredStatusChecks": ["validate", "Analyze (actions)", "dependency-review"]
+    },
+    {
+      "id": "azd-device-notifications",
+      "repository": "https://github.com/nathanmcnulty/azd-device-notifications",
+      "defaultBranch": "main",
+      "requiredStatusChecks": ["validate", "Analyze (javascript-typescript)", "dependency-review"]
+    },
+    {
+      "id": "azd-emergency-access",
+      "repository": "https://github.com/nathanmcnulty/azd-emergency-access",
+      "defaultBranch": "main",
+      "requiredStatusChecks": ["validate", "Analyze (actions)", "dependency-review"]
+    },
+    {
+      "id": "azd-entra-health-monitoring",
+      "repository": "https://github.com/nathanmcnulty/azd-entra-health-monitoring",
+      "defaultBranch": "main",
+      "requiredStatusChecks": ["validate", "Analyze (actions)", "dependency-review"]
+    },
+    {
+      "id": "azd-entra-iga",
+      "repository": "https://github.com/nathanmcnulty/azd-entra-iga",
+      "defaultBranch": "main",
+      "requiredStatusChecks": ["validate", "Analyze (actions)", "dependency-review"]
+    },
+    {
+      "id": "azd-global-secure-access",
+      "repository": "https://github.com/nathanmcnulty/azd-global-secure-access",
+      "defaultBranch": "main",
+      "requiredStatusChecks": ["validate", "Analyze (actions)", "dependency-review"]
+    },
+    {
+      "id": "azd-maester",
+      "repository": "https://github.com/nathanmcnulty/azd-maester",
+      "defaultBranch": "main",
+      "requiredStatusChecks": ["validate", "Analyze (actions)", "dependency-review"]
+    },
+    {
+      "id": "azd-maester-azureautomation",
+      "repository": "https://github.com/nathanmcnulty/azd-maester-azureautomation",
+      "defaultBranch": "main",
+      "requiredStatusChecks": ["validate", "Analyze (actions)", "dependency-review"]
+    },
+    {
+      "id": "azd-maester-azuredevops",
+      "repository": "https://github.com/nathanmcnulty/azd-maester-azuredevops",
+      "defaultBranch": "main",
+      "requiredStatusChecks": ["validate", "Analyze (actions)", "dependency-review"]
+    },
+    {
+      "id": "azd-maester-containerappjob",
+      "repository": "https://github.com/nathanmcnulty/azd-maester-containerappjob",
+      "defaultBranch": "main",
+      "requiredStatusChecks": ["validate", "Analyze (actions)", "dependency-review"]
+    },
+    {
+      "id": "azd-maester-functionapp",
+      "repository": "https://github.com/nathanmcnulty/azd-maester-functionapp",
+      "defaultBranch": "main",
+      "requiredStatusChecks": ["validate", "Analyze (actions)", "dependency-review"]
+    },
+    {
+      "id": "azd-myworkid",
+      "repository": "https://github.com/nathanmcnulty/azd-myworkid",
+      "defaultBranch": "main",
+      "requiredStatusChecks": ["run tests", "analyze", "dependency-review"]
+    },
+    {
+      "id": "azd-pim",
+      "repository": "https://github.com/nathanmcnulty/azd-pim",
+      "defaultBranch": "main",
+      "requiredStatusChecks": ["validate", "analyze", "dependency-review"]
+    },
+    {
+      "id": "azd-risk-based-ca",
+      "repository": "https://github.com/nathanmcnulty/azd-risk-based-ca",
+      "defaultBranch": "main",
+      "requiredStatusChecks": ["Validate (ubuntu-latest)", "Validate (windows-latest)", "analyze", "dependency-review"]
+    },
+    {
+      "id": "azd-sysmon",
+      "repository": "https://github.com/nathanmcnulty/azd-sysmon",
+      "defaultBranch": "main",
+      "requiredStatusChecks": ["validate", "Analyze (actions)", "dependency-review"]
+    },
+    {
+      "id": "azd-verified-id",
+      "repository": "https://github.com/nathanmcnulty/azd-verified-id",
+      "defaultBranch": "main",
+      "requiredStatusChecks": ["validate", "Analyze (actions)", "dependency-review"]
+    }
+  ]
+}
