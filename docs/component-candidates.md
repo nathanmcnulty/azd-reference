@@ -4,6 +4,15 @@ The initial portfolio review found useful duplication, but most runtime patterns
 do not yet share one safe abstraction. This inventory records the intended
 boundaries without promoting them prematurely.
 
+## Sysmon deployment
+
+The public `nathanmcnulty/azd-sysmon` consumer vendors
+`graph-delegated-authentication@0.1.1` for its optional Intune publisher. Its
+Sysmon package builder, endpoint installer, Windows Event DCR, and target-selection
+policy remain solution-owned until another consumer proves a reusable boundary.
+Upstream configuration XMLs use their own release/hash manifest and retain their
+original license; they are not relicensed as an azd-reference component.
+
 ## Teams transports
 
 | Transport | Security and operating model | Current reference |
