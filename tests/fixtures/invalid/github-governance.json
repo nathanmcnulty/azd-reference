@@ -1,0 +1,45 @@
+{
+  "schemaVersion": "1.0",
+  "scope": "invalid",
+  "actions": {
+    "allowedActions": "all",
+    "githubOwnedAllowed": true,
+    "verifiedAllowed": false,
+    "shaPinningRequired": true,
+    "thirdPartyPatternsMustBeExplicit": true
+  },
+  "workflow": {
+    "defaultPermissions": "write"
+  },
+  "dependabot": {
+    "securityUpdatesRequired": true,
+    "updatesMustBeGroupedAndBounded": true
+  },
+  "secretScanning": {
+    "requiredForPublic": true,
+    "pushProtectionRequiredForPublic": true
+  },
+  "codeScanning": {
+    "requiredForPublic": true,
+    "acceptedModes": ["workflow"]
+  },
+  "dependencyReview": {
+    "requiredForPublic": true
+  },
+  "defaultBranch": {
+    "required": true,
+    "requirePullRequest": true,
+    "requiredApprovingReviewCount": 1,
+    "requiredConversationResolution": true,
+    "strictStatusChecks": true,
+    "allowForcePushes": false,
+    "allowDeletions": false,
+    "administratorBypass": "recovery-only"
+  },
+  "releaseTags": {
+    "requiredForPublic": true,
+    "pattern": "refs/tags/v*",
+    "allowUpdates": false,
+    "allowDeletions": false
+  }
+}

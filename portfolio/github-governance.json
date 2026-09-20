@@ -1,0 +1,49 @@
+{
+  "$schema": "../schemas/github-governance.schema.json",
+  "schemaVersion": "1.0",
+  "scope": "independently supported azd repositories",
+  "actions": {
+    "allowedActions": "selected",
+    "githubOwnedAllowed": true,
+    "verifiedAllowed": false,
+    "shaPinningRequired": true,
+    "thirdPartyPatternsMustBeExplicit": true
+  },
+  "workflow": {
+    "defaultPermissions": "read"
+  },
+  "dependabot": {
+    "securityUpdatesRequired": true,
+    "updatesMustBeGroupedAndBounded": true
+  },
+  "secretScanning": {
+    "requiredForPublic": true,
+    "pushProtectionRequiredForPublic": true
+  },
+  "codeScanning": {
+    "requiredForPublic": true,
+    "acceptedModes": [
+      "workflow",
+      "default-setup"
+    ]
+  },
+  "dependencyReview": {
+    "requiredForPublic": true
+  },
+  "defaultBranch": {
+    "required": true,
+    "requirePullRequest": true,
+    "requiredApprovingReviewCount": 0,
+    "requiredConversationResolution": true,
+    "strictStatusChecks": true,
+    "allowForcePushes": false,
+    "allowDeletions": false,
+    "administratorBypass": "recovery-only"
+  },
+  "releaseTags": {
+    "requiredForPublic": true,
+    "pattern": "refs/tags/v*",
+    "allowUpdates": false,
+    "allowDeletions": false
+  }
+}

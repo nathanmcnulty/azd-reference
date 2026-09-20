@@ -37,8 +37,8 @@ The first foundation release establishes:
 - a pilot optional Maester report web app module with consistent identity,
   publishing, lock, and tag behavior;
 - safe component synchronization and drift-validation tooling;
-- a machine-readable consumer registry, repository baseline, and read-only
-  portfolio status audit;
+- machine-readable consumer, repository-baseline, and GitHub-governance
+  contracts with read-only portfolio status audits;
 - isolated-worktree preparation and guarded draft-PR publication of reviewed
   component updates;
 - scheduled read-only drift surveillance across public consumers;

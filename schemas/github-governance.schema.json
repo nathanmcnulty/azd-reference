@@ -1,0 +1,202 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "azd GitHub governance contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "scope",
+    "actions",
+    "workflow",
+    "dependabot",
+    "secretScanning",
+    "codeScanning",
+    "dependencyReview",
+    "defaultBranch",
+    "releaseTags"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "schemaVersion": {
+      "const": "1.0"
+    },
+    "scope": {
+      "type": "string",
+      "minLength": 1
+    },
+    "actions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "allowedActions",
+        "githubOwnedAllowed",
+        "verifiedAllowed",
+        "shaPinningRequired",
+        "thirdPartyPatternsMustBeExplicit"
+      ],
+      "properties": {
+        "allowedActions": {
+          "const": "selected"
+        },
+        "githubOwnedAllowed": {
+          "const": true
+        },
+        "verifiedAllowed": {
+          "const": false
+        },
+        "shaPinningRequired": {
+          "const": true
+        },
+        "thirdPartyPatternsMustBeExplicit": {
+          "const": true
+        }
+      }
+    },
+    "workflow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "defaultPermissions"
+      ],
+      "properties": {
+        "defaultPermissions": {
+          "const": "read"
+        }
+      }
+    },
+    "dependabot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "securityUpdatesRequired",
+        "updatesMustBeGroupedAndBounded"
+      ],
+      "properties": {
+        "securityUpdatesRequired": {
+          "const": true
+        },
+        "updatesMustBeGroupedAndBounded": {
+          "const": true
+        }
+      }
+    },
+    "secretScanning": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "requiredForPublic",
+        "pushProtectionRequiredForPublic"
+      ],
+      "properties": {
+        "requiredForPublic": {
+          "const": true
+        },
+        "pushProtectionRequiredForPublic": {
+          "const": true
+        }
+      }
+    },
+    "codeScanning": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "requiredForPublic",
+        "acceptedModes"
+      ],
+      "properties": {
+        "requiredForPublic": {
+          "const": true
+        },
+        "acceptedModes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "workflow",
+              "default-setup"
+            ]
+          }
+        }
+      }
+    },
+    "dependencyReview": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "requiredForPublic"
+      ],
+      "properties": {
+        "requiredForPublic": {
+          "const": true
+        }
+      }
+    },
+    "defaultBranch": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "required",
+        "requirePullRequest",
+        "requiredApprovingReviewCount",
+        "requiredConversationResolution",
+        "strictStatusChecks",
+        "allowForcePushes",
+        "allowDeletions",
+        "administratorBypass"
+      ],
+      "properties": {
+        "required": {
+          "const": true
+        },
+        "requirePullRequest": {
+          "const": true
+        },
+        "requiredApprovingReviewCount": {
+          "const": 0
+        },
+        "requiredConversationResolution": {
+          "const": true
+        },
+        "strictStatusChecks": {
+          "const": true
+        },
+        "allowForcePushes": {
+          "const": false
+        },
+        "allowDeletions": {
+          "const": false
+        },
+        "administratorBypass": {
+          "const": "recovery-only"
+        }
+      }
+    },
+    "releaseTags": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "requiredForPublic",
+        "pattern",
+        "allowUpdates",
+        "allowDeletions"
+      ],
+      "properties": {
+        "requiredForPublic": {
+          "const": true
+        },
+        "pattern": {
+          "const": "refs/tags/v*"
+        },
+        "allowUpdates": {
+          "const": false
+        },
+        "allowDeletions": {
+          "const": false
+        }
+      }
+    }
+  }
+}
