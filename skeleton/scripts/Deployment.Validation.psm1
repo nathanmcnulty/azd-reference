@@ -4,8 +4,6 @@ function Get-ProjectValidationDefinition {
     [CmdletBinding()]
     param()
 
-    $repositoryRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
-
     New-AzdValidationCheckDefinition `
         -Id 'context.template-root' `
         -Phase context `
@@ -13,6 +11,7 @@ function Get-ProjectValidationDefinition {
         -Summary 'azure.yaml exists at the repository root.' `
         -SideEffect none `
         -Action {
+            $repositoryRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
             if (-not (Test-Path -LiteralPath (Join-Path $repositoryRoot 'azure.yaml') -PathType Leaf)) {
                 throw 'azure.yaml was not found.'
             }
@@ -26,15 +25,17 @@ function Get-ProjectValidationDefinition {
         -SideEffect readOnly `
         -Remediation 'Run az login using the normal broker or browser flow, then rerun validation.' `
         -Action {
-            if (-not $env:AZURE_TENANT_ID -or -not $env:AZURE_SUBSCRIPTION_ID) {
-                throw 'Expected Azure tenant and subscription values are missing.'
+            if (-not $env:AZURE_SUBSCRIPTION_ID) {
+                throw 'Expected Azure subscription value is missing.'
             }
-            $contextJson = & az account show --only-show-errors --output json
-            if ($LASTEXITCODE -ne 0) { throw 'No usable cached Azure CLI context was found.' }
+            $contextJson = & az account show --subscription $env:AZURE_SUBSCRIPTION_ID --only-show-errors --output json
+            if ($LASTEXITCODE -ne 0) { throw 'No usable cached Azure CLI context was found for the selected subscription.' }
             $context = $contextJson | ConvertFrom-Json
-            if ([string] $context.tenantId -ne [string] $env:AZURE_TENANT_ID -or
-                [string] $context.id -ne [string] $env:AZURE_SUBSCRIPTION_ID) {
-                throw 'The cached Azure CLI context does not match the expected tenant and subscription.'
+            if ([string] $context.id -ne [string] $env:AZURE_SUBSCRIPTION_ID) {
+                throw 'The Azure CLI context does not match the expected subscription.'
+            }
+            if ($env:AZURE_TENANT_ID -and [string] $context.tenantId -ne [string] $env:AZURE_TENANT_ID) {
+                throw 'The Azure CLI context does not match the expected tenant.'
             }
         }
 
