@@ -32,6 +32,10 @@ The first foundation release establishes:
   checkpoint, and delivery behavior without forcing Log Analytics;
 - a delegated Microsoft Graph session coordinator that proves context and token
   usability before reuse;
+- pilot Maester azd hooks, target-context helpers, and optional Graph permission
+  setup shared by the four Maester hosting templates;
+- a pilot optional Maester report web app module with consistent identity,
+  publishing, lock, and tag behavior;
 - safe component synchronization and drift-validation tooling;
 - a machine-readable consumer registry, repository baseline, and read-only
   portfolio status audit;

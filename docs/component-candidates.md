@@ -60,3 +60,17 @@ Remaining promotion order:
 Keep KQL, Adaptive Card content, domain event normalization, PIM custom-extension
 behavior, Sentinel analytic rules, and Teams Bot domain integration solution-owned
 through the initial pilots.
+
+## Maester hosting templates
+
+The four Maester hosting shapes share two pilot components while retaining their
+host-specific runners and provisioning behavior:
+
+- `maester-azd-hooks@0.1.0` carries the shared azd lifecycle hooks, target-context
+  helpers, and optional Graph permission setup.
+- `maester-report-webapp@0.1.1` carries the optional report web app resources,
+  publishing controls, host identity permission, tags, and delete lock.
+
+Maester module execution is pinned independently to the stable `2.2.0` release.
+The two reference components remain pilots until all four consumers validate the
+same vendored files and optional-feature permissions in their normal azd flows.
