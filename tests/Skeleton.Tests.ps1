@@ -35,4 +35,64 @@ Describe 'Starter skeleton' {
             Remove-Item Function:\az -ErrorAction SilentlyContinue
         }
     }
+
+    It 'uses the selected subscription for context validation without requiring a tenant variable' {
+        $consumer = Join-Path $TestDrive 'scoped-consumer'
+        $scopedSkeletonPath = Join-Path (Split-Path -Parent $PSScriptRoot) 'skeleton'
+        New-Item -ItemType Directory -Path $consumer | Out-Null
+        Get-ChildItem -LiteralPath $scopedSkeletonPath -Force | Copy-Item -Destination $consumer -Recurse
+        Test-Path -LiteralPath (Join-Path $consumer 'azure.yaml') -PathType Leaf | Should -BeTrue
+
+        $names = @('AZURE_SUBSCRIPTION_ID', 'AZURE_TENANT_ID')
+        $original = @{}
+        foreach ($name in $names) {
+            $item = Get-Item -LiteralPath "Env:$name" -ErrorAction SilentlyContinue
+            $original[$name] = if ($item) { $item.Value } else { $null }
+        }
+        $script:azInvocations = @()
+        $script:azContext = '{"id":"11111111-1111-1111-1111-111111111111","tenantId":"22222222-2222-2222-2222-222222222222"}'
+        function global:az {
+            param([Parameter(ValueFromRemainingArguments = $true)][string[]] $Arguments)
+
+            $script:azInvocations += ,@($Arguments)
+            $global:LASTEXITCODE = 0
+            if ($Arguments[0] -eq 'account' -and $Arguments[1] -eq 'show') {
+                return $script:azContext
+            }
+        }
+
+        try {
+            $env:AZURE_SUBSCRIPTION_ID = '11111111-1111-1111-1111-111111111111'
+            Remove-Item -LiteralPath Env:AZURE_TENANT_ID -ErrorAction SilentlyContinue
+            Import-Module (Join-Path $consumer 'scripts/vendor/Azd.DeploymentValidation/Azd.DeploymentValidation.psd1') -Force
+            Import-Module (Join-Path $consumer 'scripts/Deployment.Validation.psm1') -Force
+            $definition = @(Get-ProjectValidationDefinition | Where-Object Id -eq 'context.azure-cli-session')
+
+            $definition.Count | Should -Be 1
+            & $definition[0].Action
+
+            $accountCall = @($script:azInvocations | Where-Object { $_[0] -eq 'account' -and $_[1] -eq 'show' })
+            $accountCall.Count | Should -Be 1
+            $accountCall[0] | Should -Contain '--subscription'
+            $accountCall[0][([Array]::IndexOf($accountCall[0], '--subscription') + 1)] | Should -Be $env:AZURE_SUBSCRIPTION_ID
+
+            $script:azContext = '{"id":"33333333-3333-3333-3333-333333333333","tenantId":"22222222-2222-2222-2222-222222222222"}'
+            { & $definition[0].Action } | Should -Throw '*expected subscription*'
+
+            $script:azContext = '{"id":"11111111-1111-1111-1111-111111111111","tenantId":"22222222-2222-2222-2222-222222222222"}'
+            $env:AZURE_TENANT_ID = '44444444-4444-4444-4444-444444444444'
+            { & $definition[0].Action } | Should -Throw '*expected tenant*'
+        }
+        finally {
+            Remove-Item Function:\az -ErrorAction SilentlyContinue
+            foreach ($name in $names) {
+                if ($null -eq $original[$name]) {
+                    Remove-Item -LiteralPath "Env:$name" -ErrorAction SilentlyContinue
+                }
+                else {
+                    Set-Item -LiteralPath "Env:$name" -Value $original[$name]
+                }
+            }
+        }
+    }
 }
