@@ -34,6 +34,11 @@ merge path and must not be used to hide a missing or stale check.
 - Public repositories have CodeQL coverage through either a pinned CodeQL
   workflow or GitHub's default setup, plus a dependency-review workflow on
   pull requests.
+- Private repositories retain the action, token, Dependabot, pull-request,
+  deletion, force-push, and tag controls that their GitHub plan supports. The
+  portfolio registry records only validation checks that the repository can
+  actually produce; it must not require a CodeQL or dependency-review status
+  that GitHub cannot provide for an unlicensed private repository.
 - The default branch uses one authoritative active ruleset. Required status
   check names are the current check names, including matrix suffixes; a stale
   legacy context must not be retained alongside the ruleset.

@@ -54,7 +54,7 @@
       "id": "azd-entra-iga",
       "repository": "https://github.com/nathanmcnulty/azd-entra-iga",
       "defaultBranch": "main",
-      "requiredStatusChecks": ["validate", "Analyze (actions)", "dependency-review"]
+      "requiredStatusChecks": ["test"]
     },
     {
       "id": "azd-global-secure-access",
