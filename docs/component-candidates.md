@@ -60,7 +60,7 @@ host-specific runners and provisioning behavior:
 
 - `maester-azd-hooks@0.1.0` carries the shared azd lifecycle hooks, target-context
   helpers, and optional Graph permission setup.
-- `maester-report-webapp@0.1.0` carries the optional report web app resources,
+- `maester-report-webapp@0.1.1` carries the optional report web app resources,
   publishing controls, host identity permission, tags, and delete lock.
 
 Maester module execution is pinned independently to the stable `2.2.0` release.

@@ -113,6 +113,106 @@
         "entryPoint": "scripts/Test-Repository.ps1",
         "timeoutMinutes": 30
       }
+    },
+    {
+      "id": "azd-maester-azuredevops",
+      "repository": "https://github.com/nathanmcnulty/azd-maester-azuredevops",
+      "checkoutDirectory": "azd-maester-azuredevops",
+      "solutionRoot": ".",
+      "defaultBranch": "main",
+      "repositoryValidationWorkflow": ".github/workflows/validate.yml",
+      "rolloutRing": "pilot",
+      "adoption": "pending",
+      "desiredBaseline": "2026.09",
+      "components": [
+        {
+          "id": "maester-azd-hooks",
+          "desiredVersion": "0.1.0"
+        },
+        {
+          "id": "maester-report-webapp",
+          "desiredVersion": "0.1.1"
+        }
+      ],
+      "validation": {
+        "entryPoint": "tests/TargetContext.Tests.ps1",
+        "timeoutMinutes": 30
+      }
+    },
+    {
+      "id": "azd-maester-functionapp",
+      "repository": "https://github.com/nathanmcnulty/azd-maester-functionapp",
+      "checkoutDirectory": "azd-maester-functionapp",
+      "solutionRoot": ".",
+      "defaultBranch": "main",
+      "repositoryValidationWorkflow": ".github/workflows/validate.yml",
+      "rolloutRing": "pilot",
+      "adoption": "pending",
+      "desiredBaseline": "2026.09",
+      "components": [
+        {
+          "id": "maester-azd-hooks",
+          "desiredVersion": "0.1.0"
+        },
+        {
+          "id": "maester-report-webapp",
+          "desiredVersion": "0.1.1"
+        }
+      ],
+      "validation": {
+        "entryPoint": "tests/TargetContext.Tests.ps1",
+        "timeoutMinutes": 30
+      }
+    },
+    {
+      "id": "azd-maester-azureautomation",
+      "repository": "https://github.com/nathanmcnulty/azd-maester-azureautomation",
+      "checkoutDirectory": "azd-maester-azureautomation",
+      "solutionRoot": ".",
+      "defaultBranch": "main",
+      "repositoryValidationWorkflow": ".github/workflows/validate.yml",
+      "rolloutRing": "pilot",
+      "adoption": "pending",
+      "desiredBaseline": "2026.09",
+      "components": [
+        {
+          "id": "maester-azd-hooks",
+          "desiredVersion": "0.1.0"
+        },
+        {
+          "id": "maester-report-webapp",
+          "desiredVersion": "0.1.1"
+        }
+      ],
+      "validation": {
+        "entryPoint": "tests/TargetContext.Tests.ps1",
+        "timeoutMinutes": 30
+      }
+    },
+    {
+      "id": "azd-maester-containerappjob",
+      "repository": "https://github.com/nathanmcnulty/azd-maester-containerappjob",
+      "checkoutDirectory": "azd-maester-containerappjob",
+      "solutionRoot": ".",
+      "defaultBranch": "main",
+      "repositoryValidationWorkflow": ".github/workflows/validate.yml",
+      "rolloutRing": "pilot",
+      "adoption": "pending",
+      "desiredBaseline": "2026.09",
+      "components": [
+        {
+          "id": "maester-azd-hooks",
+          "desiredVersion": "0.1.0"
+        },
+        {
+          "id": "maester-report-webapp",
+          "desiredVersion": "0.1.1"
+        }
+      ],
+      "validation": {
+        "entryPoint": "tests/TargetContext.Tests.ps1",
+        "timeoutMinutes": 30
+      }
     }
   ]
 }
