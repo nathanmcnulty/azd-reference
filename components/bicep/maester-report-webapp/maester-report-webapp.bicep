@@ -34,6 +34,9 @@ param publisherPrincipalId string = ''
 @description('Principal type for the optional Website Contributor assignment.')
 param publisherPrincipalType string = 'ServicePrincipal'
 
+@description('Existing publisher resource ID used to preserve the original role-assignment name.')
+param publisherResourceId string = ''
+
 var resourceTags = union({
     workload: 'maester'
     solution: solutionName
@@ -101,7 +104,7 @@ resource webAppFtpBasicAuth 'Microsoft.Web/sites/basicPublishingCredentialsPolic
 }
 
 resource publisherWebsiteContributor 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!empty(publisherPrincipalId)) {
-  name: guid(webApp.id, publisherPrincipalId, 'WebsiteContributor')
+  name: guid(webApp.id, empty(publisherResourceId) ? publisherPrincipalId : publisherResourceId, 'WebsiteContributor')
   scope: webApp
   properties: {
     roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'de139f84-1756-47ae-9be6-808fbbe84772')
@@ -111,7 +114,7 @@ resource publisherWebsiteContributor 'Microsoft.Authorization/roleAssignments@20
 }
 
 resource webAppDeleteLock 'Microsoft.Authorization/locks@2020-05-01' = if (enableResourceLocks) {
-  name: 'delete-lock'
+  name: 'lock-cannot-delete-webapp'
   scope: webApp
   properties: {
     level: 'CanNotDelete'
