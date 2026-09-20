@@ -53,8 +53,8 @@ Azure CLI context, and the deployed resource group. It writes
 `reports/deployment-validation.json`. A failed validation does not roll back the
 resource group; correct the connection and rerun validation or clean up.
 
-The GUI's validation action reruns those checks. From the CLI, run the hook with
-the selected environment loaded:
+The GUI displays the saved validation report. To rerun the checks, run the hook
+from the CLI with the selected environment loaded:
 
 ```powershell
 azd hooks run postprovision
