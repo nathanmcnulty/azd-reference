@@ -37,8 +37,8 @@ The first foundation release establishes:
 - a pilot optional Maester report web app module with consistent identity,
   publishing, lock, and tag behavior;
 - safe component synchronization and drift-validation tooling;
-- machine-readable consumer, repository-baseline, and GitHub-governance
-  contracts with read-only portfolio status audits;
+- a machine-readable consumer registry, repository-baseline, GitHub-governance,
+  and catalog metadata contracts with read-only portfolio status audits;
 - isolated-worktree preparation and guarded draft-PR publication of reviewed
   component updates;
 - scheduled read-only drift surveillance across public consumers;
@@ -90,7 +90,9 @@ the source repository.
 See [`docs/nomenclature.md`](docs/nomenclature.md),
 [`docs/architecture.md`](docs/architecture.md), and
 [`standards/component-lifecycle.md`](standards/component-lifecycle.md) before
-adding a component. For template discovery and GUI deployment metadata, see
+adding a component. For template discovery and concise repository-owned copy,
+see [`standards/catalog-metadata.md`](standards/catalog-metadata.md). For GUI
+deployment metadata, see
 [`standards/gui-template-contract.md`](standards/gui-template-contract.md).
 
 ## Portfolio status and updates

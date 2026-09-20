@@ -9,6 +9,7 @@ Describe 'Portfolio JSON schemas' {
         @{ Name = 'repository baseline'; Schema = 'repository-baseline.schema.json'; Fixture = 'repository-baseline.json' },
         @{ Name = 'GitHub governance'; Schema = 'github-governance.schema.json'; Fixture = 'github-governance.json' },
         @{ Name = 'GitHub governance repositories'; Schema = 'github-governance-repositories.schema.json'; Fixture = 'github-governance-repositories.json' },
+        @{ Name = 'catalog metadata'; Schema = 'catalog-metadata.schema.json'; Fixture = 'catalog-metadata.json' },
         @{ Name = 'deployment validation'; Schema = 'deployment-validation.schema.json'; Fixture = 'deployment-validation.json' },
         @{ Name = 'deployment receipt'; Schema = 'deployment-receipt.schema.json'; Fixture = 'deployment-receipt.json' },
         @{ Name = 'notification envelope'; Schema = 'notification-envelope.schema.json'; Fixture = 'notification-envelope.json' },

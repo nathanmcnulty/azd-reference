@@ -1,0 +1,20 @@
+{
+  "title": "Device lifecycle notifications",
+  "summary": "Notify users and administrators about Microsoft Entra and Intune device changes.",
+  "tags": [
+    "Microsoft Entra ID",
+    "Microsoft Intune",
+    "Device Management"
+  ],
+  "highlights": [
+    "Supports Teams and email delivery",
+    "Starts with a test group and paused collection",
+    "Only notifies—it never changes device state"
+  ],
+  "featured": false,
+  "solutionCount": 3,
+  "quickstartCommands": [
+    "azd init -t nathanmcnulty/azd-device-notifications",
+    "azd up"
+  ]
+}

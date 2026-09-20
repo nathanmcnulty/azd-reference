@@ -19,6 +19,8 @@ every Dependabot `updates` entry must independently declare a group and a
 positive open-pull-request limit. Repository-owned validation remains responsible
 for deeper workflow semantics. A repository may add stricter controls.
 
-`.azd/catalog.json` is recommended while older solutions are migrated. Once the
-catalog contract is proven across the portfolio it can become required in a new
-baseline version.
+`.azd/catalog.json` is recommended while older solutions are migrated. Follow
+[`catalog-metadata.md`](catalog-metadata.md) and validate against
+[`schemas/catalog-metadata.schema.json`](../schemas/catalog-metadata.schema.json)
+when adding it. Once the catalog contract is proven across the portfolio it can
+become required in a new baseline version.
