@@ -213,6 +213,26 @@
         "entryPoint": "tests/TargetContext.Tests.ps1",
         "timeoutMinutes": 30
       }
+    },
+    {
+      "id": "azd-sysmon",
+      "repository": "https://github.com/nathanmcnulty/azd-sysmon",
+      "checkoutDirectory": "azd-sysmon",
+      "solutionRoot": ".",
+      "defaultBranch": "main",
+      "repositoryValidationWorkflow": ".github/workflows/validate.yml",
+      "rolloutRing": "pilot",
+      "adoption": "adopted",
+      "components": [
+        {
+          "id": "graph-delegated-authentication",
+          "desiredVersion": "0.1.1"
+        }
+      ],
+      "validation": {
+        "entryPoint": "scripts/Test-Repository.ps1",
+        "timeoutMinutes": 20
+      }
     }
   ]
 }
