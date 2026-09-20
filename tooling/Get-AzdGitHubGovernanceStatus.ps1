@@ -39,7 +39,7 @@ function Get-GhContent {
     catch { return $null }
 }
 
-function Get-WorkflowSignals {
+function Get-WorkflowSignal {
     param(
         [Parameter(Mandatory)][string] $Repository,
         [Parameter(Mandatory)] $Metadata
@@ -184,7 +184,7 @@ foreach ($repositoryName in $Repository) {
         $findings.Add('dependabotSecurityUpdatesDisabled')
     }
 
-    $signals = Get-WorkflowSignals -Repository $repositoryName -Metadata $metadata
+    $signals = Get-WorkflowSignal -Repository $repositoryName -Metadata $metadata
     if (-not $signals.available) { $findings.Add('workflowInventoryUnavailable') }
 
     $isPublic = -not [bool] $metadata.private
