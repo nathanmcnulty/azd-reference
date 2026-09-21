@@ -39,11 +39,47 @@ function Get-GhContent {
     catch { return $null }
 }
 
+function Get-ExpectedCatalogCaller {
+    param(
+        [Parameter(Mandatory)] $Policy,
+        [Parameter(Mandatory)][string] $DefaultBranch,
+        [Parameter(Mandatory)][string] $CatalogPath
+    )
+
+    $lines = @(
+        'name: azd catalog metadata',
+        '',
+        'on:',
+        '  pull_request:',
+        '  push:',
+        "    branches: [$DefaultBranch]",
+        '  workflow_dispatch:',
+        '',
+        'permissions:',
+        '  contents: read',
+        '',
+        'jobs:',
+        '  catalog:',
+        '    name: azd catalog metadata',
+        "    uses: $($Policy.workflow)@$($Policy.desiredWorkflowRevision)",
+        '    permissions:',
+        '      contents: read'
+    )
+    if ($CatalogPath -ne '.azd/catalog.json') {
+        $lines += @(
+            '    with:',
+            "      catalog-path: $CatalogPath"
+        )
+    }
+    $lines -join "`n"
+}
+
 function Get-CatalogValidationSignal {
     param(
         [Parameter(Mandatory)][string] $Repository,
         [Parameter(Mandatory)] $Policy,
-        [Parameter(Mandatory)] $Enrollment
+        [Parameter(Mandatory)] $Enrollment,
+        [Parameter(Mandatory)][string] $DefaultBranch
     )
 
     $caller = Get-GhContent -Repository $Repository -Path ([string] $Policy.callerPath)
@@ -67,10 +103,20 @@ function Get-CatalogValidationSignal {
     if ([string] $Enrollment.state -in @('pilot', 'required')) {
         $catalogPresent = $null -ne (Get-GhContent -Repository $Repository -Path $catalogPath)
     }
+    $callerContractValid = $false
+    if ($null -ne $caller) {
+        $expectedCaller = Get-ExpectedCatalogCaller `
+            -Policy $Policy `
+            -DefaultBranch $DefaultBranch `
+            -CatalogPath $catalogPath
+        $normalizedCaller = ($caller -replace "`r`n", "`n").TrimEnd("`r", "`n")
+        $callerContractValid = $normalizedCaller -ceq $expectedCaller
+    }
 
     [pscustomobject]@{
         callerPresent = $null -ne $caller
         callerRevision = $revision
+        callerContractValid = $callerContractValid
         catalogPath = $catalogPath
         catalogPresent = $catalogPresent
     }
@@ -153,11 +199,13 @@ $registry = $registryRaw | ConvertFrom-Json
 $expectedStatusChecks = @{}
 $expectedReleaseTagPatterns = @{}
 $catalogEnrollments = @{}
+$registryEntries = @{}
 foreach ($entry in @($registry.repositories)) {
     $repositoryUrl = [string] $entry.repository
     $repositoryName = $repositoryUrl -replace '^https://github\.com/', ''
     $expectedStatusChecks[$repositoryName] = @($entry.requiredStatusChecks)
     $catalogEnrollments[$repositoryName] = $entry.catalogValidation
+    $registryEntries[$repositoryName] = $entry
     $expectedReleaseTagPatterns[$repositoryName] = if ($entry.PSObject.Properties.Name -contains 'releaseTagPattern') {
         [string] $entry.releaseTagPattern
     }
@@ -248,7 +296,8 @@ foreach ($repositoryName in $Repository) {
         $catalogSignal = Get-CatalogValidationSignal `
             -Repository $repositoryName `
             -Policy $registry.catalogValidationPolicy `
-            -Enrollment $enrollment
+            -Enrollment $enrollment `
+            -DefaultBranch ([string] $registryEntries[$repositoryName].defaultBranch)
         $catalogRevision = $catalogSignal.callerRevision
 
         switch ($catalogState) {
@@ -261,6 +310,7 @@ foreach ($repositoryName in $Repository) {
                 elseif ($catalogRevision -ne [string] $registry.catalogValidationPolicy.desiredWorkflowRevision) {
                     $findings.Add("catalogCallerRevision:$catalogRevision")
                 }
+                elseif (-not $catalogSignal.callerContractValid) { $findings.Add('catalogCallerContractMismatch') }
                 if (-not $catalogSignal.catalogPresent) { $findings.Add("catalogMetadataMissing:$($catalogSignal.catalogPath)") }
             }
             'required' {
@@ -269,6 +319,7 @@ foreach ($repositoryName in $Repository) {
                 elseif ($catalogRevision -ne [string] $registry.catalogValidationPolicy.desiredWorkflowRevision) {
                     $findings.Add("catalogCallerRevision:$catalogRevision")
                 }
+                elseif (-not $catalogSignal.callerContractValid) { $findings.Add('catalogCallerContractMismatch') }
                 if (-not $catalogSignal.catalogPresent) { $findings.Add("catalogMetadataMissing:$($catalogSignal.catalogPath)") }
                 $catalogContext = [string] $registry.catalogValidationPolicy.requiredStatusCheck.context
                 if ($catalogContext -notin @($expectedStatusChecks[$repositoryName])) {
