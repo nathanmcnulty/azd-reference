@@ -8,7 +8,9 @@ param(
 
     [switch] $AsJson,
 
-    [switch] $FailOnFindings
+    [switch] $FailOnFindings,
+
+    [switch] $CatalogValidationOnly
 )
 
 Set-StrictMode -Version Latest
@@ -392,6 +394,9 @@ foreach ($repositoryName in $Repository) {
     $mainRuleset = Get-ActiveRuleset -Repository $repositoryName -Target branch -Include '~DEFAULT_BRANCH'
     if ($null -eq $mainRuleset) {
         $findings.Add('defaultBranchRulesetMissing')
+        if ($CatalogValidationOnly -and $catalogState -eq 'required') {
+            $findings.Add('catalogRequiredStatusCheckMissing')
+        }
     }
     else {
         $rules = @($mainRuleset.rules)
@@ -411,6 +416,9 @@ foreach ($repositoryName in $Repository) {
         $statusRule = $rules | Where-Object type -eq 'required_status_checks' | Select-Object -First 1
         if ($null -eq $statusRule) {
             $findings.Add('defaultBranchRequiredStatusChecksMissing')
+            if ($CatalogValidationOnly -and $catalogState -eq 'required') {
+                $findings.Add('catalogRequiredStatusCheckMissing')
+            }
         }
         else {
             if (-not [bool] $statusRule.parameters.strict_required_status_checks_policy) {
@@ -472,6 +480,12 @@ foreach ($repositoryName in $Repository) {
             if ('deletion' -notin $tagTypes) { $findings.Add('releaseTagDeletionNotBlocked') }
             if ('update' -notin $tagTypes) { $findings.Add('releaseTagUpdateNotBlocked') }
         }
+    }
+
+    if ($CatalogValidationOnly) {
+        $catalogFindings = @($findings | Where-Object { [string] $_ -like 'catalog*' })
+        $findings.Clear()
+        foreach ($finding in $catalogFindings) { $findings.Add($finding) }
     }
 
     $results += [pscustomobject] [ordered]@{

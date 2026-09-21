@@ -51,6 +51,7 @@ jobs:
 
           $reportJson = ./tooling/Get-AzdGitHubGovernanceStatus.ps1 `
             -Repository $repositories `
+            -CatalogValidationOnly `
             -AsJson
           $reportJson | Set-Content -LiteralPath ./catalog-governance-status.json -Encoding utf8NoBOM
 
