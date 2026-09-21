@@ -63,6 +63,13 @@ Describe 'Portfolio JSON schemas' {
             Test-Json -SchemaFile (Join-Path $script:repoRoot 'schemas/release-integrity.schema.json') -ErrorAction Stop) | Should -BeTrue
     }
 
+    It 'accepts a component-free consumer without inventing a dependency' {
+        $portfolio = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'fixtures/valid/portfolio-consumers.json') -Raw | ConvertFrom-Json
+        $portfolio.consumers[0].components = @()
+        ($portfolio | ConvertTo-Json -Depth 10 |
+            Test-Json -SchemaFile (Join-Path $script:repoRoot 'schemas/portfolio-consumers.schema.json') -ErrorAction Stop) | Should -BeTrue
+    }
+
     It 'requires every stable component to have at least two adopted consumer shapes' {
         $registry = Get-Content -LiteralPath (Join-Path $script:repoRoot 'portfolio/consumers.json') -Raw | ConvertFrom-Json
         $stableManifests = @(Get-ChildItem -LiteralPath (Join-Path $script:repoRoot 'components') -Filter component.json -File -Recurse | ForEach-Object {
