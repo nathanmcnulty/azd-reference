@@ -2,7 +2,7 @@
   "$schema": "../../../schemas/component-manifest.schema.json",
   "manifestVersion": "1.1",
   "id": "maester-azd-hooks",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Shared azd hooks, target-context helpers, and optional Microsoft Graph permission setup for Maester templates.",
   "status": "pilot",
   "changelog": "components/powershell/maester-azd-hooks/CHANGELOG.md",
