@@ -222,6 +222,13 @@ if (-not ($registryRaw | Test-Json -SchemaFile $registrySchema -ErrorAction Stop
     throw 'The GitHub governance repository registry does not satisfy its schema.'
 }
 $registry = $registryRaw | ConvertFrom-Json
+$requiredCatalogRepositories = @($registry.repositories | Where-Object {
+        [string] $_.catalogValidation.state -eq 'required'
+    })
+if ([string] $registry.catalogValidationPolicy.enforcementMode -eq 'non-required' -and
+    $requiredCatalogRepositories.Count -gt 0) {
+    throw 'Catalog validation enforcement is non-required, but the registry contains required repositories.'
+}
 $canonicalWorkflowRepository = @(([string] $registry.catalogValidationPolicy.workflow -split '/')[0..1]) -join '/'
 $expectedStatusChecks = @{}
 $expectedReleaseTagPatterns = @{}
