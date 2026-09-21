@@ -93,7 +93,7 @@
       "id": "azd-maester",
       "repository": "https://github.com/nathanmcnulty/azd-maester",
       "defaultBranch": "main",
-      "requiredStatusChecks": ["validate", "Analyze (actions)", "dependency-review"],
+      "requiredStatusChecks": ["validate", "dependency-review"],
       "catalogValidation": {"state": "pending"}
     },
     {

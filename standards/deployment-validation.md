@@ -47,6 +47,27 @@ Warnings and skipped checks remain visible but do not fail the process.
 Reports use repository-relative paths, are gitignored, and must not contain
 tokens, callback URLs, authorization query strings, or unreviewed command output.
 
+## Optional management evidence binding
+
+Unbound reports remain schema version 1.0. Supplying `EvidenceClass` and a
+complete `EvidenceBinding` to `New-AzdValidationReport` emits schema version 1.1
+and stores the typed record at
+`environment.metadata.azdManagementEvidence`. Plan and verify reports use the
+`validation` class with a `validate` operation; delivery mode uses the
+`delivery` class and operation. The binding records an opaque project ID and
+environment, Azure target, template source, and operation UUID.
+
+`ManagementNextActions` accepts at most 20 registered code, owner, and priority
+triples. A consumer may map those codes to app-owned text, but must not project
+arbitrary metadata, report evidence, diagnostics, expected or actual values,
+URLs, or HTML. Both the binding and check outcomes remain producer assertions.
+They do not authenticate the report or prove mutation, delivery, or cleanup.
+
+Schema 1.1 requires the complete namespace; schema 1.0 forbids it. Older readers
+therefore reject bound evidence instead of treating it as an ordinary passed
+1.0 report. Other environment metadata remains available to producers and is
+not part of the management contract.
+
 Use `New-AzdCheckFailure` for expected operational failures. Supply a stable,
 allowlisted `failureCode`, safe details, and specific remediation; do not place
 raw exception messages in reports. Unexpected exceptions remain reduced to the

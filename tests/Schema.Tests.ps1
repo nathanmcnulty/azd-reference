@@ -9,9 +9,12 @@ Describe 'Portfolio JSON schemas' {
         @{ Name = 'repository baseline'; Schema = 'repository-baseline.schema.json'; Fixture = 'repository-baseline.json' },
         @{ Name = 'GitHub governance'; Schema = 'github-governance.schema.json'; Fixture = 'github-governance.json' },
         @{ Name = 'GitHub governance repositories'; Schema = 'github-governance-repositories.schema.json'; Fixture = 'github-governance-repositories.json' },
+        @{ Name = 'release integrity'; Schema = 'release-integrity.schema.json'; Fixture = 'release-integrity.json' },
         @{ Name = 'catalog metadata'; Schema = 'catalog-metadata.schema.json'; Fixture = 'catalog-metadata.json' },
         @{ Name = 'deployment validation'; Schema = 'deployment-validation.schema.json'; Fixture = 'deployment-validation.json' },
+        @{ Name = 'bound deployment validation'; Schema = 'deployment-validation.schema.json'; Fixture = 'deployment-validation-bound.json' },
         @{ Name = 'deployment receipt'; Schema = 'deployment-receipt.schema.json'; Fixture = 'deployment-receipt.json' },
+        @{ Name = 'bound deployment receipt'; Schema = 'deployment-receipt.schema.json'; Fixture = 'deployment-receipt-bound.json' },
         @{ Name = 'notification envelope'; Schema = 'notification-envelope.schema.json'; Fixture = 'notification-envelope.json' },
         @{ Name = 'notification delivery result'; Schema = 'notification-delivery-result.schema.json'; Fixture = 'notification-delivery-result.json' }
     )
@@ -56,6 +59,8 @@ Describe 'Portfolio JSON schemas' {
             Test-Json -SchemaFile (Join-Path $script:repoRoot 'schemas/github-governance.schema.json') -ErrorAction Stop) | Should -BeTrue
         (Get-Content -LiteralPath (Join-Path $portfolioRoot 'github-governance-repositories.json') -Raw |
             Test-Json -SchemaFile (Join-Path $script:repoRoot 'schemas/github-governance-repositories.schema.json') -ErrorAction Stop) | Should -BeTrue
+        (Get-Content -LiteralPath (Join-Path $portfolioRoot 'release-integrity.json') -Raw |
+            Test-Json -SchemaFile (Join-Path $script:repoRoot 'schemas/release-integrity.schema.json') -ErrorAction Stop) | Should -BeTrue
     }
 
     It 'requires every stable component to have at least two adopted consumer shapes' {
@@ -96,5 +101,22 @@ Describe 'Portfolio JSON schemas' {
         $portfolio = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'fixtures/valid/portfolio-consumers.json') -Raw | ConvertFrom-Json
         $portfolio.consumers[0].PSObject.Properties.Remove('repositoryValidationWorkflow')
         { $portfolio | ConvertTo-Json -Depth 10 | Test-Json -SchemaFile (Join-Path $script:repoRoot 'schemas/portfolio-consumers.schema.json') -ErrorAction Stop } | Should -Throw
+    }
+
+    It 'requires schema 1.1 and a complete namespace to appear together' {
+        foreach ($item in @(
+                @{ Schema = 'deployment-receipt.schema.json'; Fixture = 'deployment-receipt-bound.json'; Path = 'details' },
+                @{ Schema = 'deployment-validation.schema.json'; Fixture = 'deployment-validation-bound.json'; Path = 'environment.metadata' }
+            )) {
+            $schemaPath = Join-Path $script:repoRoot "schemas/$($item.Schema)"
+            $fixture = Get-Content -LiteralPath (Join-Path $PSScriptRoot "fixtures/valid/$($item.Fixture)") -Raw | ConvertFrom-Json
+            $fixture.schemaVersion = '1.0'
+            { $fixture | ConvertTo-Json -Depth 30 | Test-Json -SchemaFile $schemaPath -ErrorAction Stop } | Should -Throw
+
+            $fixture.schemaVersion = '1.1'
+            if ($item.Path -eq 'details') { $fixture.details.PSObject.Properties.Remove('azdManagementEvidence') }
+            else { $fixture.environment.metadata.PSObject.Properties.Remove('azdManagementEvidence') }
+            { $fixture | ConvertTo-Json -Depth 30 | Test-Json -SchemaFile $schemaPath -ErrorAction Stop } | Should -Throw
+        }
     }
 }

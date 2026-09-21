@@ -64,6 +64,10 @@ The tag's committed manifest ID and version must match the requested component.
 The lock records the resolved full commit, and status checks both the tag label
 and committed manifest before accepting that provenance. Repository rules should
 block tag update and deletion while retaining an administrator recovery path.
+Create and verify releases using the fail-closed
+[component release procedure](component-releases.md). Portfolio adoption starts
+only after GitHub verifies the signed annotated tag and its exact attestation
+workflow succeeds.
 
 ## Planning
 

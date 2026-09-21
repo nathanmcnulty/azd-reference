@@ -1,5 +1,19 @@
 # Deployment validation changelog
 
+## 1.1.1
+
+- Reissue the unchanged stable 1.1 evidence-binding contract at a new immutable
+  patch version so maintainers can create a signed, GitHub-verified release tag.
+- The published 1.1.0 tag remains immutable but is not an attested release because
+  its annotated tag object was unsigned.
+
+## 1.1.0
+
+- Add optional schema 1.1 management evidence binding for project, target,
+  source, and operation correlation while retaining unbound schema 1.0 output.
+- Add bounded, allowlisted next actions and distinguish validation evidence
+  from delivery evidence without upgrading either claim.
+
 ## 1.0.0
 
 - Promote the component from pilot to stable after adoption by Emergency

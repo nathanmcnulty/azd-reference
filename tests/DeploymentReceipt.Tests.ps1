@@ -4,6 +4,12 @@ Describe 'Deployment receipt writer' {
         $script:modulePath = Join-Path $script:repoRoot 'components/powershell/deployment-receipt/Azd.DeploymentReceipt.psd1'
         $script:schemaPath = Join-Path $script:repoRoot 'schemas/deployment-receipt.schema.json'
         Import-Module $script:modulePath -Force
+        $script:evidenceBinding = @{
+            project = @{ id = 'project-example'; environment = 'dev' }
+            target = @{ azureCloud = 'AzureCloud'; tenantId = '00000000-0000-0000-0000-000000000000'; subscriptionId = '11111111-1111-1111-1111-111111111111'; resourceGroup = 'rg-example-dev' }
+            source = @{ templateId = 'example'; revision = '0123456789abcdef0123456789abcdef01234567'; contractDigest = ('a' * 64) }
+            operation = @{ id = '22222222-2222-2222-2222-222222222222'; kind = 'up' }
+        }
     }
 
     It 'creates plan receipts with no applied actions' {
@@ -29,6 +35,30 @@ Describe 'Deployment receipt writer' {
         $path = Join-Path $TestDrive $relative
         Test-Path -LiteralPath $path | Should -BeTrue
         (Get-Content -LiteralPath $path -Raw | Test-Json -SchemaFile $script:schemaPath -ErrorAction Stop) | Should -BeTrue
+    }
+
+    It 'emits bounded schema 1.1 management evidence without replacing other details' {
+        $receipt = New-AzdDeploymentReceipt -Template example -TemplateVersion 0.2.0 -Mode enforce -Applied 1 `
+            -Details @{ feature = 'kept' } -EvidenceClass resourceMutation -EvidenceBinding $script:evidenceBinding `
+            -ManagementNextActions @(@{ code = 'verifyResources'; owner = 'subscriptionOwner'; priority = 'required' })
+
+        $receipt.schemaVersion | Should -Be '1.1'
+        $receipt.details.feature | Should -Be 'kept'
+        $receipt.details.azdManagementEvidence.evidenceClass | Should -Be 'resourceMutation'
+        $receipt.details.azdManagementEvidence.nextActions[0].code | Should -Be 'verifyResources'
+        Write-AzdDeploymentReceipt -Receipt $receipt -RepositoryRoot $TestDrive -OutputPath 'reports/bound.json' -SchemaPath $script:schemaPath | Should -Be 'reports/bound.json'
+
+        $receipt.details.azdManagementEvidence.binding.operation.kind = 'cleanup'
+        { Write-AzdDeploymentReceipt -Receipt $receipt -RepositoryRoot $TestDrive -OutputPath 'reports/mismatched.json' -SchemaPath $script:schemaPath } | Should -Throw '*does not satisfy*'
+    }
+
+    It 'rejects partial, mismatched, and unregistered management evidence' {
+        { New-AzdDeploymentReceipt -Template example -TemplateVersion 0.2.0 -Mode enforce -EvidenceClass resourceMutation } | Should -Throw '*both required*'
+        $wrongKind = $script:evidenceBinding | ConvertTo-Json -Depth 10 | ConvertFrom-Json -AsHashtable
+        $wrongKind.operation = @{ id = '22222222-2222-2222-2222-222222222222'; kind = 'cleanup' }
+        { New-AzdDeploymentReceipt -Template example -TemplateVersion 0.2.0 -Mode enforce -EvidenceClass resourceMutation -EvidenceBinding $wrongKind } | Should -Throw '*does not match*'
+        { New-AzdDeploymentReceipt -Template example -TemplateVersion 0.2.0 -Mode enforce -EvidenceClass resourceMutation -EvidenceBinding $script:evidenceBinding `
+                -ManagementNextActions @(@{ code = 'openUrl'; owner = 'operator'; priority = 'required' }) } | Should -Throw '*not registered*'
     }
 
     It 'rejects obvious sensitive data and unsafe artifact paths before writing' {

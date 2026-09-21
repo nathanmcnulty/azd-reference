@@ -122,12 +122,12 @@
       "defaultBranch": "main",
       "repositoryValidationWorkflow": ".github/workflows/validate.yml",
       "rolloutRing": "pilot",
-      "adoption": "pending",
+      "adoption": "adopted",
       "desiredBaseline": "2026.09",
       "components": [
         {
           "id": "maester-azd-hooks",
-          "desiredVersion": "0.1.1"
+          "desiredVersion": "0.1.5"
         },
         {
           "id": "maester-report-webapp",
@@ -147,12 +147,12 @@
       "defaultBranch": "main",
       "repositoryValidationWorkflow": ".github/workflows/validate.yml",
       "rolloutRing": "pilot",
-      "adoption": "pending",
+      "adoption": "adopted",
       "desiredBaseline": "2026.09",
       "components": [
         {
           "id": "maester-azd-hooks",
-          "desiredVersion": "0.1.1"
+          "desiredVersion": "0.1.5"
         },
         {
           "id": "maester-report-webapp",
@@ -172,12 +172,12 @@
       "defaultBranch": "main",
       "repositoryValidationWorkflow": ".github/workflows/validate.yml",
       "rolloutRing": "pilot",
-      "adoption": "pending",
+      "adoption": "adopted",
       "desiredBaseline": "2026.09",
       "components": [
         {
           "id": "maester-azd-hooks",
-          "desiredVersion": "0.1.1"
+          "desiredVersion": "0.1.5"
         },
         {
           "id": "maester-report-webapp",
@@ -197,12 +197,12 @@
       "defaultBranch": "main",
       "repositoryValidationWorkflow": ".github/workflows/validate.yml",
       "rolloutRing": "pilot",
-      "adoption": "pending",
+      "adoption": "adopted",
       "desiredBaseline": "2026.09",
       "components": [
         {
           "id": "maester-azd-hooks",
-          "desiredVersion": "0.1.1"
+          "desiredVersion": "0.1.5"
         },
         {
           "id": "maester-report-webapp",

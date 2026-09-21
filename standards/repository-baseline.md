@@ -12,6 +12,11 @@ The baseline is an audit contract, not an overlay. README content, security
 contacts, dependency ecosystems, validation commands, and workflow jobs remain
 repository-owned. Do not copy them blindly from another solution.
 
+`SECURITY.md` is required at the repository root. Its minimum reporting,
+supported-version, response-target, and safe-disclosure content is defined in
+[`security-policy.md`](security-policy.md); repository-specific scope and
+supported-version details remain the repository owner's responsibility.
+
 External GitHub Actions use full commit SHAs with readable version comments.
 Workflow permissions default to `contents: read`, and dependency updates are
 grouped and bounded. The status tool enforces these portable lexical controls;

@@ -1,0 +1,25 @@
+{
+  "schemaVersion": "1.0",
+  "scope": "invalid",
+  "enforcement": "enforced",
+  "securityPolicy": {
+    "path": "SECURITY.md",
+    "requiredHeadings": [
+      "## Reporting a vulnerability"
+    ]
+  },
+  "releaseTags": {
+    "protectedRequired": true,
+    "signedAnnotatedTagsRequired": false,
+    "verification": "github-tag-object",
+    "defaultPattern": "refs/tags/v*"
+  },
+  "artifacts": {
+    "workflowPath": ".github/workflows/release-attestation.yml",
+    "sourceReleaseBundleAttestationRequired": true,
+    "publishedArtifactAttestationRequired": true,
+    "sbomAttestationRecommended": true,
+    "attestationAction": "actions/attest",
+    "predicateType": "https://slsa.dev/provenance/v1"
+  }
+}

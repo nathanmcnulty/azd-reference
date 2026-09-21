@@ -98,6 +98,8 @@ For template discovery and concise repository-owned copy, see
 [`standards/catalog-metadata.md`](standards/catalog-metadata.md). For GUI
 deployment metadata, see
 [`standards/gui-template-contract.md`](standards/gui-template-contract.md).
+For immutable signed component tags and release attestations, see
+[`docs/component-releases.md`](docs/component-releases.md).
 
 ## Portfolio status and updates
 
