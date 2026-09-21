@@ -54,7 +54,7 @@ Describe 'Catalog validation package and governance' {
         $pilots = @($script:registry.repositories | Where-Object {
                 [string] $_.catalogValidation.state -eq 'pilot'
             } | ForEach-Object { [string] $_.id })
-        $pilots | Should -Be @('azd-emergency-access', 'azd-risk-based-ca')
+        $pilots | Should -Be @('azd-emergency-access', 'azd-risk-based-ca', 'azd-santa')
     }
 
     It 'does not declare the catalog check required before pilot observation' {
