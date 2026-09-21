@@ -4,7 +4,7 @@
     "workflow": "nathanmcnulty/azd-reference/.github/workflows/catalog-metadata.yml",
     "callerPath": ".github/workflows/catalog-metadata.yml",
     "desiredWorkflowRevision": "not-a-sha",
-    "requiredStatusCheck": {"context": "azd catalog metadata", "integrationId": 15368}
+    "requiredStatusCheck": {"context": "azd catalog metadata / azd catalog metadata", "integrationId": 15368}
   },
   "repositories": [
     {

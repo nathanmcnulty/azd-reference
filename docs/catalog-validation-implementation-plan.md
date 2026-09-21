@@ -55,7 +55,7 @@ The planned version-2 shape is:
     "workflow": "nathanmcnulty/azd-reference/.github/workflows/catalog-metadata.yml",
     "desiredWorkflowRevision": "<40-character commit C SHA>",
     "requiredStatusCheck": {
-      "context": "azd catalog metadata",
+      "context": "azd catalog metadata / azd catalog metadata",
       "integrationId": 15368
     }
   },
@@ -297,7 +297,10 @@ execute or attempt to prove them safe.
 
 ## Result contract
 
-Use one stable check/job name: `azd catalog metadata`.
+Name both the caller job and reusable job `azd catalog metadata`. GitHub exposes
+the resulting Check Run context as
+`azd catalog metadata / azd catalog metadata`; the pilot must confirm this
+context and its source integration ID before any required-check change.
 
 The machine-readable result contains:
 
