@@ -1,0 +1,28 @@
+name: azd catalog metadata validator
+description: Validates repository-owned .azd/catalog.json without executing repository code.
+
+inputs:
+  github-token:
+    description: Read-only GitHub token used to fetch one catalog blob at the event commit.
+    required: true
+  catalog-path:
+    description: Repository-relative catalog metadata path.
+    required: false
+    default: .azd/catalog.json
+  workflow-repository:
+    description: Repository containing the running reusable workflow.
+    required: true
+  workflow-file-path:
+    description: Repository-relative path of the running reusable workflow.
+    required: true
+  workflow-sha:
+    description: Commit SHA of the running reusable workflow.
+    required: true
+
+outputs:
+  result-json:
+    description: Versioned machine-readable validation result.
+
+runs:
+  using: node24
+  main: dist/index.js

@@ -83,6 +83,14 @@ All fields are optional. Omit a field when its value cannot be verified instead
 of guessing. The following targets are writing guidance; the JSON Schema checks
 shape and types, while review checks clarity and accuracy.
 
+The validator also applies conservative processing limits: the file must be an
+ordinary UTF-8 Git blob no larger than 32 KiB, JSON nesting may not exceed 16
+levels, strings may not exceed 4,096 characters, and array fields may contain
+at most 32 items. JSON comments, trailing commas, duplicate property names,
+symlinks, submodules, and Git LFS pointers are rejected. These limits keep
+validation deterministic and prevent display metadata from becoming a payload
+or execution surface.
+
 | Field | Guidance |
 | --- | --- |
 | `title` | Use a human title of roughly two to six words. Make it specific enough to distinguish the solution without repeating the repository slug. |

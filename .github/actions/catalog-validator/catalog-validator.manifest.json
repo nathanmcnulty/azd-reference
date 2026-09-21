@@ -1,0 +1,9 @@
+{
+  "contractVersion": "1.0",
+  "schemaVersion": "1.0.0",
+  "schemaPath": "schema/catalog-metadata.schema.json",
+  "schemaSha256": "15c2a3d0003e80f54f5421b3b02ffa0834f5398d73defae4c89ea8fe1c200830",
+  "validatorVersion": "1.0.0",
+  "validatorPath": "dist/index.js",
+  "validatorSha256": "9045ef7c7c49b5d478ecfca47e98e230a380a28cd46e70d6d151c9c73bc55ff2"
+}

@@ -2,5 +2,6 @@
 reports/
 TestResults/
 testResults.xml
+node_modules/
 *.tmp
 *.user

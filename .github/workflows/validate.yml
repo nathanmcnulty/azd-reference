@@ -71,6 +71,13 @@ jobs:
           Install-Module Microsoft.Graph.Authentication -RequiredVersion 2.38.0 -Force -Scope CurrentUser
           Invoke-Pester ./tests -CI
 
+      - name: Test and reproduce the catalog validator package
+        working-directory: ./.github/actions/catalog-validator
+        run: |
+          npm ci
+          npm test
+          npm run build
+
       - name: Enforce canonical component version changes
         run: |
           $baseRevision = if ($env:GITHUB_EVENT_NAME -eq 'pull_request') {

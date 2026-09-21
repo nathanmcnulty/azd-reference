@@ -1,27 +1,35 @@
 # Proposal: azd catalog validation GitHub App
 
-Status: Proposed
+Status: Deferred after architecture review
+
+The reviewed implementation direction is an Actions-first validator. See
+[`catalog-validation-implementation-plan.md`](catalog-validation-implementation-plan.md).
+This App proposal remains as the deferred alternative and its trust and
+operational requirements. It is not the approved MVP.
 
 This document describes a possible GitHub App for validating the public `azd`
 solution catalog across repositories. It is an architecture proposal, not a
 normative repository standard and not an authorization to register or deploy
 an App.
 
-## Decision summary
+## Conditional decision summary
 
-Build a small, initially private GitHub App that acts as a read-mostly control
-plane for catalog metadata. It should validate repository-owned
-`.azd/catalog.json` files, publish a GitHub Check, and detect drift between the
-canonical schema in `azd-reference` and the website's pinned schema copy.
+Do not build this App as the MVP. If the Actions-first pilot later meets an
+approved escalation trigger, reconsider a small, initially private GitHub App
+that acts as a read-mostly control plane for catalog metadata. It could validate
+repository-owned `.azd/catalog.json` files, publish an independently controlled
+GitHub Check, and detect drift between the canonical schema in `azd-reference`
+and the website's pinned schema copy.
 
 The first version should not modify repositories, execute template code, open
 pull requests, change branch protection, or merge changes. Remediation can be
 added later as an explicit, user-requested action.
 
-This approach is preferable to putting a copy of the same workflow in every
-template repository when the portfolio grows. It also gives the catalog a
-single, visible status surface without making the website or a deployment
-workflow responsible for governing unrelated repositories.
+The App becomes preferable only if pilot evidence shows that repository-owned
+workflow integrity, central revalidation, Actions policy, or pin maintenance
+cannot meet the approved operating model. Until then, its credential,
+webhook-recovery, state, queue, Check Run, and cross-account installation costs
+are not justified.
 
 ## Goals
 
@@ -233,7 +241,10 @@ Logs and metrics should include a correlation ID, delivery ID, installation,
 repository, commit SHA, validator revision, duration, and outcome. They should
 exclude secrets and unnecessary source content.
 
-## Implementation phases
+## Deferred App implementation phases
+
+Do not begin these phases unless the Actions-first plan records an approved App
+escalation trigger and receives separate authorization.
 
 ### Phase 0: settle the contract
 
