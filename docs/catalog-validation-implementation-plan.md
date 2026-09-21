@@ -1,6 +1,7 @@
 # Catalog validation implementation plan
 
-Status: Approved for implementation; non-blocking pilot in progress
+Status: Actions-first non-required pilot evidence complete; enforcement
+decision pending
 
 Hosted pilot observations are recorded in
 [catalog-validation-pilot-evidence.md](catalog-validation-pilot-evidence.md).

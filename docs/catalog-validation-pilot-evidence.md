@@ -1,6 +1,6 @@
 # Catalog validation pilot evidence
 
-Status: Non-required pilot in progress
+Status: Non-required pilot evidence complete; enforcement decision pending
 
 This record captures hosted GitHub evidence for the reusable catalog validator.
 It does not authorize required-check enforcement, deployment changes, or
@@ -38,9 +38,14 @@ Evidence:
   `404`, a stored-event rerun still completed successfully at the same SHA.
 
 The successful post-deletion rerun proves that deleting the branch reference
-does not immediately make the event commit inaccessible to GitHub. It does not
-prove behavior after deleting or privatizing the fork repository. That remains
-an explicit operational-error test gap.
+does not immediately make the event commit inaccessible to GitHub.
+
+After the disposable fork repository itself was deleted, attempt 5 of run
+`35655914160` launched normally and remained bound to the original repository
+and SHA. The validator failed in four seconds with the operational error
+`The source repository commit is unavailable (404 Not Found)`. The Check Run
+concluded failure and did not misclassify the unavailable source as invalid
+metadata or report a false success.
 
 ### Missing enrolled file
 
@@ -116,6 +121,8 @@ non-required use.
   run.
 - The stable Check Run identity observed on the fork matches the canonical
   governance tuple.
+- A deleted fork repository produces an explicit operational failure while
+  preserving the event's original repository and SHA as evidence.
 - First-time contributor approval is a real availability delay. The catalog
   check must remain non-required unless the maintainer explicitly accepts that
   delay or changes the repository approval policy through a separate decision.
@@ -124,10 +131,7 @@ non-required use.
 - Two standalone repositories and one explicit staged path now exercise the
   same immutable validator release without repository-specific validator code.
 
-## Remaining pilot evidence
+## Remaining maintainer decision
 
-- delete the verified disposable `patriot-nmcnulty/azd-santa` fork and rerun a
-  stored event to observe genuinely inaccessible-repository behavior. The
-  scoped CLI token cannot perform this step because it lacks `delete_repo`;
 - obtain an explicit maintainer decision on the first-time contributor delay
   before any required-check proposal.
