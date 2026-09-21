@@ -5,6 +5,16 @@ BeforeAll {
 }
 
 Describe 'Starter skeleton' {
+    It 'includes the security policy and release-attestation starter' {
+        Test-Path -LiteralPath (Join-Path $skeletonPath 'SECURITY.md') -PathType Leaf | Should -BeTrue
+        Test-Path -LiteralPath (Join-Path $skeletonPath '.github/workflows/release-attestation.yml') -PathType Leaf | Should -BeTrue
+
+        $integrityTool = Join-Path $repositoryRoot 'tooling/Test-AzdReleaseIntegrity.ps1'
+        $result = @(& $integrityTool -RepositoryRoot $skeletonPath)
+        $result.Count | Should -Be 1
+        $result[0].state | Should -Be 'current'
+    }
+
     It 'runs Plan without authentication, cloud calls, or delivery actions' {
         $consumer = Join-Path $TestDrive 'consumer'
         Copy-Item -LiteralPath $skeletonPath -Destination $consumer -Recurse

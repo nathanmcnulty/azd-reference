@@ -1,0 +1,106 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "azd release integrity contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "scope",
+    "enforcement",
+    "securityPolicy",
+    "releaseTags",
+    "artifacts"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "schemaVersion": {
+      "const": "1.0"
+    },
+    "scope": {
+      "type": "string",
+      "minLength": 1
+    },
+    "enforcement": {
+      "const": "migration"
+    },
+    "securityPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "requiredHeadings"
+      ],
+      "properties": {
+        "path": {
+          "const": "SECURITY.md"
+        },
+        "requiredHeadings": {
+          "const": [
+            "## Reporting a vulnerability",
+            "## Supported versions",
+            "## Response targets",
+            "## Safe disclosure"
+          ]
+        }
+      }
+    },
+    "releaseTags": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protectedRequired",
+        "signedAnnotatedTagsRequired",
+        "verification",
+        "defaultPattern"
+      ],
+      "properties": {
+        "protectedRequired": {
+          "const": true
+        },
+        "signedAnnotatedTagsRequired": {
+          "const": true
+        },
+        "verification": {
+          "const": "github-tag-object"
+        },
+        "defaultPattern": {
+          "const": "refs/tags/v*"
+        }
+      }
+    },
+    "artifacts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "workflowPath",
+        "sourceReleaseBundleAttestationRequired",
+        "publishedArtifactAttestationRequired",
+        "sbomAttestationRecommended",
+        "attestationAction",
+        "predicateType"
+      ],
+      "properties": {
+        "workflowPath": {
+          "const": ".github/workflows/release-attestation.yml"
+        },
+        "sourceReleaseBundleAttestationRequired": {
+          "const": true
+        },
+        "publishedArtifactAttestationRequired": {
+          "const": true
+        },
+        "sbomAttestationRecommended": {
+          "const": true
+        },
+        "attestationAction": {
+          "const": "actions/attest"
+        },
+        "predicateType": {
+          "const": "https://slsa.dev/provenance/v1"
+        }
+      }
+    }
+  }
+}

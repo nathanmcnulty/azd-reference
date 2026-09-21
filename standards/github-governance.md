@@ -12,13 +12,25 @@ workflow rename from silently leaving an obsolete branch-protection context.
 It also records a repository-specific release-tag pattern when a repository
 publishes a different kind of artifact.
 
+The registry requires only status contexts that the repository actually
+produces. A public repository using GitHub CodeQL default setup may have no
+`Analyze (...)` pull-request check; its configured default setup still counts
+as CodeQL coverage and must not be replaced with a fabricated required check.
+
+`portfolio/release-integrity.json` is the migration contract for the stronger
+`SECURITY.md`, signed release-tag, and artifact-attestation standard. See
+[`security-policy.md`](security-policy.md) and
+[`release-integrity.md`](release-integrity.md) for the required content and
+rollout sequence.
+
 ## Single-maintainer model
 
 Every default branch requires a pull request and successful, strict status
-checks, but requires zero approving reviews. Conversation resolution, linear
-history, and protection from force-push and deletion remain enabled. The
-administrator bypass is retained only as a recovery path; it is not a normal
-merge path and must not be used to hide a missing or stale check.
+checks, but requires zero approving reviews. Conversation resolution and
+protection from force-push and deletion remain enabled. GitHub currently models
+the owner/administrator bypass as technically available (`always`); the
+single-maintainer policy treats that bypass as emergency-only and it must not
+be used to hide a missing or stale check.
 
 ## Required controls
 
@@ -35,6 +47,9 @@ merge path and must not be used to hide a missing or stale check.
 - GitHub's template-repository flag is disabled. An `azd` deployable template
   is identified by its committed `azure.yaml` and the portfolio registry; the
   GitHub **Use this template** feature is not part of the product contract.
+- Public repositories contain a root `SECURITY.md`; its required reporting,
+  supported-version, response-target, and safe-disclosure sections are defined
+  in [`security-policy.md`](security-policy.md).
 - Public repositories enable secret scanning and push protection.
 - Public repositories have CodeQL coverage through either a pinned CodeQL
   workflow or GitHub's default setup, plus a dependency-review workflow on

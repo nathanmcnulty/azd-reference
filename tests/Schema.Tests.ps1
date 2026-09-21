@@ -9,6 +9,7 @@ Describe 'Portfolio JSON schemas' {
         @{ Name = 'repository baseline'; Schema = 'repository-baseline.schema.json'; Fixture = 'repository-baseline.json' },
         @{ Name = 'GitHub governance'; Schema = 'github-governance.schema.json'; Fixture = 'github-governance.json' },
         @{ Name = 'GitHub governance repositories'; Schema = 'github-governance-repositories.schema.json'; Fixture = 'github-governance-repositories.json' },
+        @{ Name = 'release integrity'; Schema = 'release-integrity.schema.json'; Fixture = 'release-integrity.json' },
         @{ Name = 'catalog metadata'; Schema = 'catalog-metadata.schema.json'; Fixture = 'catalog-metadata.json' },
         @{ Name = 'deployment validation'; Schema = 'deployment-validation.schema.json'; Fixture = 'deployment-validation.json' },
         @{ Name = 'deployment receipt'; Schema = 'deployment-receipt.schema.json'; Fixture = 'deployment-receipt.json' },
@@ -56,6 +57,8 @@ Describe 'Portfolio JSON schemas' {
             Test-Json -SchemaFile (Join-Path $script:repoRoot 'schemas/github-governance.schema.json') -ErrorAction Stop) | Should -BeTrue
         (Get-Content -LiteralPath (Join-Path $portfolioRoot 'github-governance-repositories.json') -Raw |
             Test-Json -SchemaFile (Join-Path $script:repoRoot 'schemas/github-governance-repositories.schema.json') -ErrorAction Stop) | Should -BeTrue
+        (Get-Content -LiteralPath (Join-Path $portfolioRoot 'release-integrity.json') -Raw |
+            Test-Json -SchemaFile (Join-Path $script:repoRoot 'schemas/release-integrity.schema.json') -ErrorAction Stop) | Should -BeTrue
     }
 
     It 'requires every stable component to have at least two adopted consumer shapes' {
