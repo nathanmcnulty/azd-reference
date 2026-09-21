@@ -44,7 +44,9 @@ actual checks and required permissions are solution-specific.
 
 1. Change and test a component in this repository.
 2. Assign a semantic version, lifecycle status, and changelog in `component.json`.
-3. After review, create the immutable `component/<id>/v<version>` tag.
+3. After review, create and verify the immutable signed annotated
+   `component/<id>/v<version>` tag using the
+   [component release procedure](component-releases.md).
 4. Pilot exact-version synchronization into selected consumer branches.
 5. Validate the consumer locally and in its normal CI.
 6. Commit the copied files and lock update together.
