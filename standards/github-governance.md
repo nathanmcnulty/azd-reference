@@ -7,8 +7,10 @@ while this contract checks live GitHub repository settings.
 
 `portfolio/github-governance-repositories.json` is the explicit portfolio
 registry for these controls. It records the exact required status-check names
-for every supported template, including matrix job suffixes. This prevents a
+for every supported repository, including matrix job suffixes. This prevents a
 workflow rename from silently leaving an obsolete branch-protection context.
+It also records a repository-specific release-tag pattern when a repository
+publishes a different kind of artifact.
 
 ## Single-maintainer model
 
@@ -30,6 +32,9 @@ merge path and must not be used to hide a missing or stale check.
   treated as an explicit exception.
 - Dependabot security updates are enabled. Every configured update stream is
   grouped and bounded so one maintainer is not flooded with unreviewed PRs.
+- GitHub's template-repository flag is disabled. An `azd` deployable template
+  is identified by its committed `azure.yaml` and the portfolio registry; the
+  GitHub **Use this template** feature is not part of the product contract.
 - Public repositories enable secret scanning and push protection.
 - Public repositories have CodeQL coverage through either a pinned CodeQL
   workflow or GitHub's default setup, plus a dependency-review workflow on
@@ -42,8 +47,10 @@ merge path and must not be used to hide a missing or stale check.
 - The default branch uses one authoritative active ruleset. Required status
   check names are the current check names, including matrix suffixes; a stale
   legacy context must not be retained alongside the ruleset.
-- Public release tags use a protected `v*` ruleset that blocks update and
-  deletion.
+- Public deployable-template release tags use a protected `v*` ruleset that
+  blocks update and deletion. `azd-reference` protects its
+  `component/**/*` release-tag namespace instead because it publishes
+  versioned components; this exception is explicit in the portfolio registry.
 
 The live audit is intentionally read-only. It reports private-repository
 features that require a GitHub plan or a repository-administration credential

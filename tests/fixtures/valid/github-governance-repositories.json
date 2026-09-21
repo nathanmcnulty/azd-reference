@@ -6,7 +6,8 @@
       "id": "consumer-one",
       "repository": "https://github.com/example/consumer-one",
       "defaultBranch": "main",
-      "requiredStatusChecks": ["validate", "dependency-review"]
+      "requiredStatusChecks": ["validate", "dependency-review"],
+      "releaseTagPattern": "refs/tags/v*"
     }
   ]
 }
