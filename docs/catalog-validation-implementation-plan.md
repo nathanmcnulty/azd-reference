@@ -1,7 +1,7 @@
 # Catalog validation implementation plan
 
-Status: Actions-first non-required pilot evidence complete; enforcement
-decision pending
+Status: Actions-first non-required pilot complete; continued non-required
+operation approved
 
 Hosted pilot observations are recorded in
 [catalog-validation-pilot-evidence.md](catalog-validation-pilot-evidence.md).
