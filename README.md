@@ -88,10 +88,12 @@ The lock file is metadata. It is never executable and deployment must not fetch
 the source repository.
 
 See [`docs/nomenclature.md`](docs/nomenclature.md),
-[`docs/architecture.md`](docs/architecture.md), and
-[`standards/component-lifecycle.md`](standards/component-lifecycle.md) before
-adding a component. For template discovery and concise repository-owned copy,
-see [`standards/catalog-metadata.md`](standards/catalog-metadata.md). For GUI
+[`docs/architecture.md`](docs/architecture.md), and the
+[catalog validation GitHub App proposal](docs/catalog-validation-app-proposal.md)
+before designing cross-repository catalog automation. For component lifecycle,
+see [`standards/component-lifecycle.md`](standards/component-lifecycle.md).
+For template discovery and concise repository-owned copy, see
+[`standards/catalog-metadata.md`](standards/catalog-metadata.md). For GUI
 deployment metadata, see
 [`standards/gui-template-contract.md`](standards/gui-template-contract.md).
 
