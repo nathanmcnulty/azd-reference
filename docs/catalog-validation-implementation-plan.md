@@ -2,6 +2,9 @@
 
 Status: Approved for implementation; non-blocking pilot in progress
 
+Hosted pilot observations are recorded in
+[catalog-validation-pilot-evidence.md](catalog-validation-pilot-evidence.md).
+
 ## Decision
 
 Implement catalog validation as a reusable GitHub Actions workflow before
