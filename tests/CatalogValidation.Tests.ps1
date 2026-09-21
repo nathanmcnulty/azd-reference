@@ -65,4 +65,11 @@ Describe 'Catalog validation package and governance' {
             @($repository.requiredStatusChecks) | Should -Not -Contain $context
         }
     }
+
+    It 'keeps the scheduled catalog audit read-only and catalog-specific' {
+        $workflow = Get-Content -LiteralPath (Join-Path $script:repoRoot '.github/workflows/catalog-governance-audit.yml') -Raw
+        $workflow | Should -Match 'permissions:\s*\r?\n\s*contents: read'
+        $workflow | Should -Match '-CatalogValidationOnly'
+        $workflow | Should -Not -Match '(?i)gh\s+(pr|repo|ruleset)\s+(create|edit|delete|merge)'
+    }
 }
