@@ -98,6 +98,20 @@ Describe 'Portfolio component status' {
         @(& git -C $checkout status --porcelain) | Should -Be $before
     }
 
+    It 'reports a component-free consumer without requiring a component lock' {
+        & git -C $checkout rm azd-components.lock.json | Out-Null
+        & git -C $checkout commit -m 'Remove unused component lock' | Out-Null
+        $data = Get-Content -LiteralPath $registryPath -Raw | ConvertFrom-Json
+        $data.consumers[0].components = @()
+        $data | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $registryPath -Encoding utf8NoBOM
+
+        $result = @(& $statusTool -PortfolioRoot $portfolioRoot -RegistryPath $registryPath)
+        $result.Count | Should -Be 1
+        $result[0].state | Should -Be 'current'
+        $result[0].component | Should -BeNullOrEmpty
+        $result[0].findings | Should -Not -Contain 'lockMissing'
+    }
+
     It 'reports an outdated component' {
         $data = Get-Content -LiteralPath $registryPath -Raw | ConvertFrom-Json
         $data.consumers[0].components[0].desiredVersion = $nextVersion

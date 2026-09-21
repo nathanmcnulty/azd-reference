@@ -115,6 +115,22 @@
       }
     },
     {
+      "id": "azd-santa",
+      "repository": "https://github.com/nathanmcnulty/azd-santa",
+      "checkoutDirectory": "azd-santa",
+      "solutionRoot": ".",
+      "defaultBranch": "main",
+      "repositoryValidationWorkflow": ".github/workflows/validate.yml",
+      "rolloutRing": "pilot",
+      "adoption": "adopted",
+      "desiredBaseline": "2026.09",
+      "components": [],
+      "validation": {
+        "entryPoint": "scripts/Test-SantaTemplate.ps1",
+        "timeoutMinutes": 15
+      }
+    },
+    {
       "id": "azd-maester-azuredevops",
       "repository": "https://github.com/nathanmcnulty/azd-maester-azuredevops",
       "checkoutDirectory": "azd-maester-azuredevops",

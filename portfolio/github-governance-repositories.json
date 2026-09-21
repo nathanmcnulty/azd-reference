@@ -146,6 +146,13 @@
       "catalogValidation": {"state": "pilot"}
     },
     {
+      "id": "azd-santa",
+      "repository": "https://github.com/nathanmcnulty/azd-santa",
+      "defaultBranch": "main",
+      "requiredStatusChecks": ["validate (ubuntu-latest)", "validate (windows-latest)", "Analyze (actions)", "Analyze (python)", "dependency-review", "azd catalog metadata / azd catalog metadata"],
+      "catalogValidation": {"state": "required"}
+    },
+    {
       "id": "azd-sysmon",
       "repository": "https://github.com/nathanmcnulty/azd-sysmon",
       "defaultBranch": "main",
