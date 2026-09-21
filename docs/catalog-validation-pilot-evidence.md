@@ -1,6 +1,6 @@
 # Catalog validation pilot evidence
 
-Status: Non-required pilot evidence complete; enforcement decision pending
+Status: Non-required pilot complete; continued non-required operation approved
 
 This record captures hosted GitHub evidence for the reusable catalog validator.
 It does not authorize required-check enforcement, deployment changes, or
@@ -124,14 +124,16 @@ non-required use.
 - A deleted fork repository produces an explicit operational failure while
   preserving the event's original repository and SHA as evidence.
 - First-time contributor approval is a real availability delay. The catalog
-  check must remain non-required unless the maintainer explicitly accepts that
-  delay or changes the repository approval policy through a separate decision.
+  check remains non-required because that delay is not accepted as required-
+  check behavior.
 - This evidence does not justify a GitHub App. The Actions-first design remains
   sufficient for the current pilot.
 - Two standalone repositories and one explicit staged path now exercise the
   same immutable validator release without repository-specific validator code.
 
-## Remaining maintainer decision
+## Maintainer decision
 
-- obtain an explicit maintainer decision on the first-time contributor delay
-  before any required-check proposal.
+The maintainer approved continued non-required operation. Retain GitHub's
+`first_time_contributors` approval boundary and do not add the catalog check to
+repository rulesets. Any future required-check proposal is a new decision that
+must satisfy the separate approval gates in the implementation plan.
