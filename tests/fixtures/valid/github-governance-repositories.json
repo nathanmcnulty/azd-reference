@@ -1,7 +1,8 @@
 {
   "$schema": "../schemas/github-governance-repositories.schema.json",
-  "schemaVersion": "2.0",
+  "schemaVersion": "2.1",
   "catalogValidationPolicy": {
+    "enforcementMode": "non-required",
     "workflow": "nathanmcnulty/azd-reference/.github/workflows/catalog-metadata.yml",
     "callerPath": ".github/workflows/catalog-metadata.yml",
     "desiredWorkflowRevision": "0b79d2e1e1c920a13cede11d42c72b799cc2310c",

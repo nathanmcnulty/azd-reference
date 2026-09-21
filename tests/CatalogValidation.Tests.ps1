@@ -66,6 +66,20 @@ Describe 'Catalog validation package and governance' {
         }
     }
 
+    It 'requires separate portfolio and repository approvals before enforcement' {
+        $required = @($script:registry.repositories | Where-Object {
+                [string] $_.catalogValidation.state -eq 'required'
+            })
+        if ([string] $script:registry.catalogValidationPolicy.enforcementMode -eq 'non-required') {
+            $required.Count | Should -Be 0
+        }
+        foreach ($repository in $required) {
+            [string] $repository.catalogValidation.requiredApproval.approvedBy | Should -Be 'nathanmcnulty'
+            [string] $repository.catalogValidation.requiredApproval.evidence |
+                Should -Match '^https://github\.com/nathanmcnulty/azd-reference/(issues|pull)/[1-9][0-9]*$'
+        }
+    }
+
     It 'keeps the scheduled catalog audit read-only and catalog-specific' {
         $workflow = Get-Content -LiteralPath (Join-Path $script:repoRoot '.github/workflows/catalog-governance-audit.yml') -Raw
         $workflow | Should -Match 'permissions:\s*\r?\n\s*contents: read'

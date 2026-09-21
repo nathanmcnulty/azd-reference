@@ -10,12 +10,13 @@
   ],
   "properties": {
     "$schema": {"type": "string"},
-    "schemaVersion": {"const": "2.0"},
+    "schemaVersion": {"const": "2.1"},
     "catalogValidationPolicy": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["workflow", "callerPath", "desiredWorkflowRevision", "requiredStatusCheck"],
+      "required": ["enforcementMode", "workflow", "callerPath", "desiredWorkflowRevision", "requiredStatusCheck"],
       "properties": {
+        "enforcementMode": {"enum": ["non-required", "required-enabled"]},
         "workflow": {
           "const": "nathanmcnulty/azd-reference/.github/workflows/catalog-metadata.yml"
         },
@@ -57,13 +58,31 @@
       "properties": {
         "state": {"enum": ["pending", "pilot", "required", "exempt"]},
         "catalogPath": {"$ref": "#/$defs/catalogPath"},
-        "exemptionReason": {"type": "string", "minLength": 1}
+        "exemptionReason": {"type": "string", "minLength": 1},
+        "requiredApproval": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["approvedBy", "approvedAt", "evidence"],
+          "properties": {
+            "approvedBy": {"const": "nathanmcnulty"},
+            "approvedAt": {"type": "string", "format": "date-time"},
+            "evidence": {
+              "type": "string",
+              "pattern": "^https://github\\.com/nathanmcnulty/azd-reference/(?:issues|pull)/[1-9][0-9]*$"
+            }
+          }
+        }
       },
       "allOf": [
         {
           "if": {"properties": {"state": {"const": "exempt"}}, "required": ["state"]},
           "then": {"required": ["exemptionReason"]},
           "else": {"not": {"required": ["exemptionReason"]}}
+        },
+        {
+          "if": {"properties": {"state": {"const": "required"}}, "required": ["state"]},
+          "then": {"required": ["requiredApproval"]},
+          "else": {"not": {"required": ["requiredApproval"]}}
         }
       ]
     },
