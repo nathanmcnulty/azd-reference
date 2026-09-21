@@ -21,7 +21,9 @@ Describe 'Component synchronization' {
         & git -C $reference commit -m 'Test fixture' | Out-Null
         if ($LASTEXITCODE -ne 0) { throw 'Unable to create the Git reference fixture.' }
         $initialRevision = (& git -C $reference rev-parse HEAD).Trim()
-        & git -C $reference tag 'component/deployment-validation/v1.0.0' $initialRevision
+        $initialManifest = Get-Content -LiteralPath (Join-Path $reference 'components/powershell/deployment-validation/component.json') -Raw | ConvertFrom-Json
+        $initialVersion = [string] $initialManifest.version
+        & git -C $reference tag "component/deployment-validation/v$initialVersion" $initialRevision
         if ($LASTEXITCODE -ne 0) { throw 'Unable to tag the Git reference fixture.' }
 
         $sync = Join-Path $reference 'tooling/Sync-AzdComponent.ps1'
@@ -115,14 +117,14 @@ Describe 'Component synchronization' {
     It 'installs an exact tagged component version after HEAD advances' {
         $manifestPath = Join-Path $reference 'components/powershell/deployment-validation/component.json'
         $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
-        $manifest.version = '1.1.0'
+        $manifest.version = '1.2.0'
         $manifest | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $manifestPath -Encoding utf8NoBOM
         & git -C $reference add --all
         & git -C $reference commit -m 'Advance component fixture' | Out-Null
 
-        & $sync -Component deployment-validation -Version 1.0.0 -TargetPath $consumer | Out-Null
+        & $sync -Component deployment-validation -Version $initialVersion -TargetPath $consumer | Out-Null
         $lock = Get-Content -LiteralPath (Join-Path $consumer 'azd-components.lock.json') -Raw | ConvertFrom-Json
-        $lock.components[0].version | Should -Be '1.0.0'
+        $lock.components[0].version | Should -Be $initialVersion
         $lock.components[0].sourceRevision | Should -Be $initialRevision
     }
 
@@ -286,7 +288,7 @@ Describe 'Component synchronization' {
         & $sync -Component deployment-validation -TargetPath $consumer | Out-Null
         $manifestPath = Join-Path $reference 'components/powershell/deployment-validation/component.json'
         $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
-        $manifest.version = '1.1.0'
+        $manifest.version = '1.2.0'
         $manifest.files = @($manifest.files | Select-Object -First 1)
         $manifest | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $manifestPath -Encoding utf8NoBOM
         & git -C $reference add --all
@@ -299,7 +301,7 @@ Describe 'Component synchronization' {
         $manifestPath = Join-Path $reference 'components/powershell/deployment-validation/component.json'
         $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
         $removedTarget = [string] $manifest.files[-1].target
-        $manifest.version = '1.1.0'
+        $manifest.version = '1.2.0'
         $manifest.files = @($manifest.files | Select-Object -First ($manifest.files.Count - 1))
         $manifest | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $manifestPath -Encoding utf8NoBOM
         & git -C $reference add --all
@@ -331,7 +333,7 @@ Describe 'Component synchronization' {
         $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
         $removedTarget = [string] $manifest.files[-1].target
         Add-Content -LiteralPath (Join-Path $consumer $removedTarget) -Value '# keep me'
-        $manifest.version = '1.1.0'
+        $manifest.version = '1.2.0'
         $manifest.files = @($manifest.files | Select-Object -First ($manifest.files.Count - 1))
         $manifest | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $manifestPath -Encoding utf8NoBOM
         & git -C $reference add --all
@@ -345,7 +347,7 @@ Describe 'Component synchronization' {
         & $sync -Component deployment-validation -TargetPath $consumer | Out-Null
         $manifestPath = Join-Path $reference 'components/powershell/deployment-validation/component.json'
         $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
-        $manifest.version = '1.1.0'
+        $manifest.version = '1.2.0'
         $manifest | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $manifestPath -Encoding utf8NoBOM
         & git -C $reference add --all
         & git -C $reference commit -m 'Upgrade fixture' | Out-Null
@@ -353,7 +355,7 @@ Describe 'Component synchronization' {
 
         { & $sync -Component deployment-validation -Revision $initialRevision -TargetPath $consumer } | Should -Throw '*requires -AllowDowngrade*'
         { & $sync -Component deployment-validation -Revision $initialRevision -TargetPath $consumer -AllowDowngrade } | Should -Not -Throw
-        (Get-Content -LiteralPath (Join-Path $consumer 'azd-components.lock.json') -Raw | ConvertFrom-Json).components[0].version | Should -Be '1.0.0'
+        (Get-Content -LiteralPath (Join-Path $consumer 'azd-components.lock.json') -Raw | ConvertFrom-Json).components[0].version | Should -Be $initialVersion
     }
 
     It 'plans without changing the consumer' {

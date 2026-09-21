@@ -1,5 +1,12 @@
 # Deployment validation changelog
 
+## 1.1.0
+
+- Add optional schema 1.1 management evidence binding for project, target,
+  source, and operation correlation while retaining unbound schema 1.0 output.
+- Add bounded, allowlisted next actions and distinguish validation evidence
+  from delivery evidence without upgrading either claim.
+
 ## 1.0.0
 
 - Promote the component from pilot to stable after adoption by Emergency
