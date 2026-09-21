@@ -7,3 +7,4 @@
 *.md text eol=lf
 *.yml text eol=lf
 *.yaml text eol=lf
+.github/actions/catalog-validator/dist/index.js text eol=lf
