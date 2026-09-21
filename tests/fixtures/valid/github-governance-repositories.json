@@ -4,7 +4,7 @@
   "catalogValidationPolicy": {
     "workflow": "nathanmcnulty/azd-reference/.github/workflows/catalog-metadata.yml",
     "callerPath": ".github/workflows/catalog-metadata.yml",
-    "desiredWorkflowRevision": "f2ea3e98c3cc98dbfcf0e6795c7f00813390125c",
+    "desiredWorkflowRevision": "0b79d2e1e1c920a13cede11d42c72b799cc2310c",
     "requiredStatusCheck": {"context": "azd catalog metadata", "integrationId": 15368}
   },
   "repositories": [
