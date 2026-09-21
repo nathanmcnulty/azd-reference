@@ -1,0 +1,76 @@
+name: Attest release bundle
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+  id-token: write
+  attestations: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Check out the tagged commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Verify signed annotated tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF#refs/tags/}"
+          ref_json="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${tag}")"
+          tag_type="$(jq -r '.object.type' <<<"${ref_json}")"
+          tag_sha="$(jq -r '.object.sha' <<<"${ref_json}")"
+          if [[ "${tag_type}" != "tag" ]]; then
+            echo "Release tag '${tag}' is not an annotated tag." >&2
+            exit 1
+          fi
+          verified="$(gh api "repos/${GITHUB_REPOSITORY}/git/tags/${tag_sha}" --jq '.verification.verified')"
+          if [[ "${verified}" != "true" ]]; then
+            echo "Release tag '${tag}' is not verified by GitHub." >&2
+            exit 1
+          fi
+          tag_commit="$(gh api "repos/${GITHUB_REPOSITORY}/git/tags/${tag_sha}" --jq '.object.sha')"
+          default_branch="$(gh api "repos/${GITHUB_REPOSITORY}" --jq '.default_branch')"
+          git fetch --no-tags origin "refs/heads/${default_branch}:refs/remotes/origin/${default_branch}"
+          if ! git merge-base --is-ancestor "${tag_commit}" "refs/remotes/origin/${default_branch}"; then
+            echo "Release tag '${tag}' does not point to a commit on '${default_branch}'." >&2
+            exit 1
+          fi
+
+      - name: Create deterministic source release bundle
+        id: bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF#refs/tags/}"
+          safe_tag="${tag//\//-}"
+          repository="${GITHUB_REPOSITORY##*/}"
+          archive="${RUNNER_TEMP}/${repository}-${safe_tag}.tar.gz"
+          commit="$(git rev-list -n 1 "${GITHUB_REF}")"
+          git archive --format=tar.gz --prefix="${repository}-${safe_tag}/" "${commit}" > "${archive}"
+          sha256sum "${archive}"
+          echo "path=${archive}" >> "${GITHUB_OUTPUT}"
+          echo "name=${repository}-${safe_tag}" >> "${GITHUB_OUTPUT}"
+
+      - name: Upload source release bundle
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ${{ steps.bundle.outputs.name }}
+          path: ${{ steps.bundle.outputs.path }}
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Generate SLSA provenance attestation
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
+        with:
+          subject-path: ${{ steps.bundle.outputs.path }}

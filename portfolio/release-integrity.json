@@ -1,0 +1,29 @@
+{
+  "$schema": "../schemas/release-integrity.schema.json",
+  "schemaVersion": "1.0",
+  "scope": "public azd repositories",
+  "enforcement": "migration",
+  "securityPolicy": {
+    "path": "SECURITY.md",
+    "requiredHeadings": [
+      "## Reporting a vulnerability",
+      "## Supported versions",
+      "## Response targets",
+      "## Safe disclosure"
+    ]
+  },
+  "releaseTags": {
+    "protectedRequired": true,
+    "signedAnnotatedTagsRequired": true,
+    "verification": "github-tag-object",
+    "defaultPattern": "refs/tags/v*"
+  },
+  "artifacts": {
+    "workflowPath": ".github/workflows/release-attestation.yml",
+    "sourceReleaseBundleAttestationRequired": true,
+    "publishedArtifactAttestationRequired": true,
+    "sbomAttestationRecommended": true,
+    "attestationAction": "actions/attest",
+    "predicateType": "https://slsa.dev/provenance/v1"
+  }
+}
