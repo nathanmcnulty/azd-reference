@@ -49,13 +49,14 @@ test('binds pull request and push events to exact repository identities and SHAs
   const sha = 'a'.repeat(40);
   const pullRequest = resolveEventContext({
     repository: {id: 1, full_name: 'base/repo'},
-    pull_request: {head: {sha, repo: {id: 2, full_name: 'fork/repo'}}},
+    pull_request: {head: {sha, repo: {id: 2, full_name: 'fork/repo', private: false}}},
   }, 'pull_request', {});
   assert.deepEqual(pullRequest, {
     eventKind: 'pull_request',
     baseRepositoryId: '1',
     sourceRepositoryId: '2',
     sourceRepositoryFullName: 'fork/repo',
+    sourceRepositoryPrivate: false,
     validatedCommitSha: sha,
   });
 
@@ -74,10 +75,17 @@ test('fetches the exact repository, path, and full commit', async () => {
   const result = await fetchCatalog({
     apiUrl: 'https://api.github.test',
     token: 'secret',
-    context: {sourceRepositoryFullName: 'fork-owner/example', validatedCommitSha: 'a'.repeat(40)},
+    context: {
+      baseRepositoryId: '1',
+      sourceRepositoryId: '2',
+      sourceRepositoryFullName: 'fork-owner/example',
+      sourceRepositoryPrivate: false,
+      validatedCommitSha: 'a'.repeat(40),
+    },
     catalogPath: '.azd/catalog.json',
     fetchImpl: async (url, options) => {
       calls.push({url, options});
+      if (url.includes('/git/commits/')) return {ok: true, status: 200};
       return {
         ok: true,
         status: 200,
@@ -96,17 +104,20 @@ test('fetches the exact repository, path, and full commit', async () => {
 
   assert.equal(result.text, '{}');
   assert.equal(result.blobSha, 'blob-sha');
-  assert.equal(calls[0].url, `https://api.github.test/repos/fork-owner/example/contents/.azd/catalog.json?ref=${'a'.repeat(40)}`);
-  assert.equal(calls[0].options.headers.Authorization, 'Bearer secret');
+  assert.equal(calls[1].url, `https://api.github.test/repos/fork-owner/example/contents/.azd/catalog.json?ref=${'a'.repeat(40)}`);
+  assert.equal(calls[0].options.headers.Authorization, undefined);
+  assert.equal(calls[1].options.headers.Authorization, undefined);
 });
 
 test('treats a missing enrolled catalog as a validation result', async () => {
   const result = await fetchCatalog({
     apiUrl: 'https://api.github.test',
     token: 'secret',
-    context: {sourceRepositoryFullName: 'owner/example', validatedCommitSha: 'b'.repeat(40)},
+    context: {baseRepositoryId: '1', sourceRepositoryId: '1', sourceRepositoryFullName: 'owner/example', sourceRepositoryPrivate: false, validatedCommitSha: 'b'.repeat(40)},
     catalogPath: '.azd/catalog.json',
-    fetchImpl: async () => ({ok: false, status: 404, statusText: 'Not Found'}),
+    fetchImpl: async (url) => url.includes('/git/commits/')
+      ? ({ok: true, status: 200})
+      : ({ok: false, status: 404, statusText: 'Not Found'}),
   });
   assert.deepEqual(result, {missing: true});
 });
@@ -116,7 +127,7 @@ test('classifies API failures as operational errors', async () => {
     fetchCatalog({
       apiUrl: 'https://api.github.test',
       token: 'secret',
-      context: {sourceRepositoryFullName: 'owner/example', validatedCommitSha: 'c'.repeat(40)},
+      context: {baseRepositoryId: '1', sourceRepositoryId: '1', sourceRepositoryFullName: 'owner/example', sourceRepositoryPrivate: false, validatedCommitSha: 'c'.repeat(40)},
       catalogPath: '.azd/catalog.json',
       fetchImpl: async () => ({ok: false, status: 503, statusText: 'Unavailable'}),
     }),
@@ -128,23 +139,40 @@ test('rejects symlinks and oversized blobs', async () => {
   const base = {
     apiUrl: 'https://api.github.test',
     token: 'secret',
-    context: {sourceRepositoryFullName: 'owner/example', validatedCommitSha: 'd'.repeat(40)},
+    context: {baseRepositoryId: '1', sourceRepositoryId: '1', sourceRepositoryFullName: 'owner/example', sourceRepositoryPrivate: false, validatedCommitSha: 'd'.repeat(40)},
     catalogPath: '.azd/catalog.json',
   };
   await assert.rejects(
-    fetchCatalog({...base, fetchImpl: async () => ({
-      ok: true,
-      status: 200,
-      async json() { return {type: 'file', target: '../elsewhere', size: 2, encoding: 'base64', content: 'e30='}; },
-    })}),
+    fetchCatalog({...base, fetchImpl: async (url) => url.includes('/git/commits/')
+      ? ({ok: true, status: 200})
+      : ({
+        ok: true,
+        status: 200,
+        async json() { return {type: 'file', target: '../elsewhere', size: 2, encoding: 'base64', content: 'e30='}; },
+      })}),
     /ordinary repository blob/,
   );
   await assert.rejects(
-    fetchCatalog({...base, fetchImpl: async () => ({
-      ok: true,
-      status: 200,
-      async json() { return {type: 'file', size: MAX_CATALOG_BYTES + 1, encoding: 'base64', content: ''}; },
-    })}),
+    fetchCatalog({...base, fetchImpl: async (url) => url.includes('/git/commits/')
+      ? ({ok: true, status: 200})
+      : ({
+        ok: true,
+        status: 200,
+        async json() { return {type: 'file', size: MAX_CATALOG_BYTES + 1, encoding: 'base64', content: ''}; },
+      })}),
     /byte limit/,
+  );
+});
+
+test('classifies an unavailable source commit as operational', async () => {
+  await assert.rejects(
+    fetchCatalog({
+      apiUrl: 'https://api.github.test',
+      token: 'secret',
+      context: {baseRepositoryId: '1', sourceRepositoryId: '2', sourceRepositoryFullName: 'fork/example', sourceRepositoryPrivate: false, validatedCommitSha: 'e'.repeat(40)},
+      catalogPath: '.azd/catalog.json',
+      fetchImpl: async () => ({ok: false, status: 404, statusText: 'Not Found'}),
+    }),
+    (error) => error.operational === true && /commit is unavailable/.test(error.message),
   );
 });

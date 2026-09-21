@@ -23,20 +23,41 @@ function Invoke-GhJson {
     catch { return $null }
 }
 
+function Get-GhContentResult {
+    param(
+        [Parameter(Mandatory)][string] $Repository,
+        [Parameter(Mandatory)][string] $Path
+    )
+
+    $encoded = @(& gh api "repos/$Repository/contents/$Path" --jq .content 2>&1)
+    if ($LASTEXITCODE -ne 0) {
+        $detail = $encoded -join "`n"
+        return [pscustomobject]@{
+            status = if ($detail -match '(?i)(HTTP\s+404|404\s+Not\s+Found)') { 'missing' } else { 'unavailable' }
+            content = $null
+        }
+    }
+    if ($encoded.Count -eq 0) {
+        return [pscustomobject]@{ status = 'unavailable'; content = $null }
+    }
+    try {
+        $content = [System.Text.Encoding]::UTF8.GetString(
+            [Convert]::FromBase64String(($encoded -join '' -replace '\s', ''))
+        )
+        return [pscustomobject]@{ status = 'present'; content = $content }
+    }
+    catch { return [pscustomobject]@{ status = 'unavailable'; content = $null } }
+}
+
 function Get-GhContent {
     param(
         [Parameter(Mandatory)][string] $Repository,
         [Parameter(Mandatory)][string] $Path
     )
 
-    $encoded = @(& gh api "repos/$Repository/contents/$Path" --jq .content 2>$null)
-    if ($LASTEXITCODE -ne 0 -or $encoded.Count -eq 0) { return $null }
-    try {
-        return [System.Text.Encoding]::UTF8.GetString(
-            [Convert]::FromBase64String(($encoded -join '' -replace '\s', ''))
-        )
-    }
-    catch { return $null }
+    $result = Get-GhContentResult -Repository $Repository -Path $Path
+    if ($result.status -eq 'present') { return $result.content }
+    $null
 }
 
 function Get-ExpectedCatalogCaller {
@@ -82,7 +103,8 @@ function Get-CatalogValidationSignal {
         [Parameter(Mandatory)][string] $DefaultBranch
     )
 
-    $caller = Get-GhContent -Repository $Repository -Path ([string] $Policy.callerPath)
+    $callerResult = Get-GhContentResult -Repository $Repository -Path ([string] $Policy.callerPath)
+    $caller = $callerResult.content
     $revision = $null
     if ($null -ne $caller) {
         $workflowPattern = [Regex]::Escape([string] $Policy.workflow)
@@ -99,9 +121,10 @@ function Get-CatalogValidationSignal {
     else {
         '.azd/catalog.json'
     }
-    $catalogPresent = $null
+    $catalogStatus = 'notChecked'
     if ([string] $Enrollment.state -in @('pilot', 'required')) {
-        $catalogPresent = $null -ne (Get-GhContent -Repository $Repository -Path $catalogPath)
+        $catalogResult = Get-GhContentResult -Repository $Repository -Path $catalogPath
+        $catalogStatus = $catalogResult.status
     }
     $callerContractValid = $false
     if ($null -ne $caller) {
@@ -115,10 +138,11 @@ function Get-CatalogValidationSignal {
 
     [pscustomobject]@{
         callerPresent = $null -ne $caller
+        callerStatus = $callerResult.status
         callerRevision = $revision
         callerContractValid = $callerContractValid
         catalogPath = $catalogPath
-        catalogPresent = $catalogPresent
+        catalogStatus = $catalogStatus
     }
 }
 
@@ -196,6 +220,7 @@ if (-not ($registryRaw | Test-Json -SchemaFile $registrySchema -ErrorAction Stop
     throw 'The GitHub governance repository registry does not satisfy its schema.'
 }
 $registry = $registryRaw | ConvertFrom-Json
+$canonicalWorkflowRepository = @(([string] $registry.catalogValidationPolicy.workflow -split '/')[0..1]) -join '/'
 $expectedStatusChecks = @{}
 $expectedReleaseTagPatterns = @{}
 $catalogEnrollments = @{}
@@ -302,32 +327,40 @@ foreach ($repositoryName in $Repository) {
 
         switch ($catalogState) {
             'pending' {
-                if ($catalogSignal.callerPresent) { $findings.Add('catalogCallerUnexpected') }
+                if ($catalogSignal.callerStatus -eq 'unavailable') { $findings.Add('catalogCallerAuditUnavailable') }
+                elseif ($catalogSignal.callerPresent) { $findings.Add('catalogCallerUnexpected') }
             }
             'pilot' {
-                if (-not $catalogSignal.callerPresent) { $findings.Add('catalogCallerMissing') }
+                if ($catalogSignal.callerStatus -eq 'unavailable') { $findings.Add('catalogCallerAuditUnavailable') }
+                elseif (-not $catalogSignal.callerPresent) { $findings.Add('catalogCallerMissing') }
                 elseif ($null -eq $catalogRevision) { $findings.Add('catalogCallerPinUnreadable') }
                 elseif ($catalogRevision -ne [string] $registry.catalogValidationPolicy.desiredWorkflowRevision) {
                     $findings.Add("catalogCallerRevision:$catalogRevision")
                 }
                 elseif (-not $catalogSignal.callerContractValid) { $findings.Add('catalogCallerContractMismatch') }
-                if (-not $catalogSignal.catalogPresent) { $findings.Add("catalogMetadataMissing:$($catalogSignal.catalogPath)") }
+                if ($catalogSignal.catalogStatus -eq 'unavailable') { $findings.Add('catalogMetadataAuditUnavailable') }
+                elseif ($catalogSignal.catalogStatus -eq 'missing') { $findings.Add("catalogMetadataMissing:$($catalogSignal.catalogPath)") }
             }
             'required' {
-                if (-not $catalogSignal.callerPresent) { $findings.Add('catalogCallerMissing') }
+                if ($catalogSignal.callerStatus -eq 'unavailable') { $findings.Add('catalogCallerAuditUnavailable') }
+                elseif (-not $catalogSignal.callerPresent) { $findings.Add('catalogCallerMissing') }
                 elseif ($null -eq $catalogRevision) { $findings.Add('catalogCallerPinUnreadable') }
                 elseif ($catalogRevision -ne [string] $registry.catalogValidationPolicy.desiredWorkflowRevision) {
                     $findings.Add("catalogCallerRevision:$catalogRevision")
                 }
                 elseif (-not $catalogSignal.callerContractValid) { $findings.Add('catalogCallerContractMismatch') }
-                if (-not $catalogSignal.catalogPresent) { $findings.Add("catalogMetadataMissing:$($catalogSignal.catalogPath)") }
+                if ($catalogSignal.catalogStatus -eq 'unavailable') { $findings.Add('catalogMetadataAuditUnavailable') }
+                elseif ($catalogSignal.catalogStatus -eq 'missing') { $findings.Add("catalogMetadataMissing:$($catalogSignal.catalogPath)") }
                 $catalogContext = [string] $registry.catalogValidationPolicy.requiredStatusCheck.context
                 if ($catalogContext -notin @($expectedStatusChecks[$repositoryName])) {
                     $findings.Add("catalogRequiredStatusCheckNotDeclared:$catalogContext")
                 }
             }
             'exempt' {
-                if ($catalogSignal.callerPresent) { $findings.Add('catalogCallerUnexpected') }
+                if ($catalogSignal.callerStatus -eq 'unavailable') { $findings.Add('catalogCallerAuditUnavailable') }
+                elseif ($catalogSignal.callerPresent -and $repositoryName -ne $canonicalWorkflowRepository) {
+                    $findings.Add('catalogCallerUnexpected')
+                }
             }
             default { $findings.Add("catalogEnrollmentStateInvalid:$catalogState") }
         }

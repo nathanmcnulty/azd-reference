@@ -168,6 +168,7 @@ function resolveEventContext(payload, eventName, environment) {
       baseRepositoryId,
       sourceRepositoryId: String(head.repo.id),
       sourceRepositoryFullName: String(head.repo.full_name),
+      sourceRepositoryPrivate: Boolean(head.repo.private),
       validatedCommitSha: String(head.sha),
     };
   }
@@ -181,6 +182,7 @@ function resolveEventContext(payload, eventName, environment) {
       baseRepositoryId,
       sourceRepositoryId: baseRepositoryId,
       sourceRepositoryFullName: fullName,
+      sourceRepositoryPrivate: Boolean(repository.private),
       validatedCommitSha: sha,
     };
   }
@@ -206,14 +208,24 @@ async function fetchCatalog({apiUrl, token, context, catalogPath, fetchImpl = fe
   const encodedPath = catalogPath.split('/').map(encodeURIComponent).join('/');
   const encodedRef = encodeURIComponent(context.validatedCommitSha);
   const url = `${apiUrl}/repos/${context.sourceRepositoryFullName}/contents/${encodedPath}?ref=${encodedRef}`;
-  const response = await fetchImpl(url, {
-    headers: {
-      Accept: 'application/vnd.github+json',
-      Authorization: `Bearer ${token}`,
-      'User-Agent': 'azd-catalog-validator',
-      'X-GitHub-Api-Version': '2026-03-10',
-    },
-  });
+  const headers = {
+    Accept: 'application/vnd.github+json',
+    'User-Agent': 'azd-catalog-validator',
+    'X-GitHub-Api-Version': '2026-03-10',
+  };
+  const isExternalPublicFork = context.sourceRepositoryId !== context.baseRepositoryId &&
+    context.sourceRepositoryPrivate === false;
+  if (!isExternalPublicFork) headers.Authorization = `Bearer ${token}`;
+
+  const commitUrl = `${apiUrl}/repos/${context.sourceRepositoryFullName}/git/commits/${encodedRef}`;
+  const commitResponse = await fetchImpl(commitUrl, {headers});
+  if (!commitResponse.ok) {
+    const error = new Error(`The source repository commit is unavailable (${commitResponse.status} ${commitResponse.statusText}).`);
+    error.operational = true;
+    throw error;
+  }
+
+  const response = await fetchImpl(url, {headers});
 
   if (response.status === 404) {
     return {missing: true};

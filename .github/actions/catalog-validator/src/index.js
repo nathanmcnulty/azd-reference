@@ -14,6 +14,7 @@ const {
 const EXPECTED_WORKFLOW_REPOSITORY = 'nathanmcnulty/azd-reference';
 const EXPECTED_WORKFLOW_PATH = '.github/workflows/catalog-metadata.yml';
 const FULL_SHA = /^[0-9a-f]{40}$/i;
+const MAX_DIAGNOSTIC_LENGTH = 1024;
 
 function readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, 'utf8'));
@@ -68,6 +69,14 @@ function annotateIssues(catalogPath, errors) {
   }
 }
 
+function boundIssues(issues) {
+  return issues.slice(0, 100).map((issue) => ({
+    ...issue,
+    message: String(issue.message || '').slice(0, MAX_DIAGNOSTIC_LENGTH),
+    path: String(issue.path || '').slice(0, 512),
+  }));
+}
+
 async function writeSummary(result) {
   const rows = [
     [{data: 'Outcome', header: true}, result.outcome],
@@ -88,16 +97,46 @@ async function writeSummary(result) {
 
 async function run() {
   const started = Date.now();
-  let result;
+  const result = {
+    contractVersion: '1.0',
+    eventKind: null,
+    baseRepositoryId: null,
+    sourceRepositoryId: null,
+    sourceRepositoryFullName: null,
+    validatedCommitSha: null,
+    catalogPath: null,
+    catalogBlobSha: null,
+    workflowRepository: null,
+    workflowPath: null,
+    workflowSha: null,
+    schemaVersion: null,
+    schemaSha256: null,
+    validatorVersion: null,
+    validatorSha256: null,
+    outcome: 'operational_error',
+    errors: [],
+    notices: [],
+    durationMs: 0,
+  };
   try {
     const actionRoot = path.resolve(__dirname, '..');
     const {manifest, schemaPath} = verifyPackage(actionRoot);
+    Object.assign(result, {
+      contractVersion: manifest.contractVersion,
+      schemaVersion: manifest.schemaVersion,
+      schemaSha256: manifest.schemaSha256,
+      validatorVersion: manifest.validatorVersion,
+      validatorSha256: manifest.validatorSha256,
+    });
     const workflowIdentity = assertWorkflowIdentity();
+    Object.assign(result, workflowIdentity);
     const catalogPath = assertCatalogPath(core.getInput('catalog-path') || '.azd/catalog.json');
+    result.catalogPath = catalogPath;
     const token = core.getInput('github-token', {required: true});
     core.setSecret(token);
     const payload = readEventPayload();
     const context = resolveEventContext(payload, process.env.GITHUB_EVENT_NAME, process.env);
+    Object.assign(result, context);
     const catalog = await fetchCatalog({
       apiUrl: process.env.GITHUB_API_URL || 'https://api.github.com',
       token,
@@ -116,26 +155,16 @@ async function run() {
     else {
       validation = parseAndValidateCatalog(catalog.text, readJson(schemaPath));
     }
+    validation.errors = boundIssues(validation.errors);
+    validation.notices = boundIssues(validation.notices);
 
-    result = {
-      contractVersion: manifest.contractVersion,
-      eventKind: context.eventKind,
-      baseRepositoryId: context.baseRepositoryId,
-      sourceRepositoryId: context.sourceRepositoryId,
-      sourceRepositoryFullName: context.sourceRepositoryFullName,
-      validatedCommitSha: context.validatedCommitSha,
-      catalogPath,
+    Object.assign(result, {
       catalogBlobSha: catalog.blobSha || null,
-      ...workflowIdentity,
-      schemaVersion: manifest.schemaVersion,
-      schemaSha256: manifest.schemaSha256,
-      validatorVersion: manifest.validatorVersion,
-      validatorSha256: manifest.validatorSha256,
       outcome: validation.valid ? 'valid' : 'invalid',
       errors: validation.errors,
       notices: validation.notices,
       durationMs: Date.now() - started,
-    };
+    });
 
     core.setOutput('result-json', JSON.stringify(result));
     await writeSummary(result);
@@ -145,13 +174,9 @@ async function run() {
     }
   }
   catch (error) {
-    result = {
-      contractVersion: '1.0',
-      outcome: 'operational_error',
-      errors: [{code: 'operationalError', message: error.message}],
-      notices: [],
-      durationMs: Date.now() - started,
-    };
+    result.outcome = 'operational_error';
+    result.errors = [{code: 'operationalError', message: error.message}];
+    result.durationMs = Date.now() - started;
     core.setOutput('result-json', JSON.stringify(result));
     core.setFailed(`Catalog validator operational error: ${error.message}`);
   }
