@@ -220,6 +220,7 @@ foreach ($consumer in @($registry.consumers)) {
     $lock = $null
     $driftResults = @()
     $solutionRoot = $null
+    $componentFree = @($consumer.components).Count -eq 0
 
     if (-not (Test-Path -LiteralPath $checkoutRoot -PathType Container)) {
         $consumerFindings.Add('checkoutUnavailable')
@@ -259,11 +260,12 @@ foreach ($consumer in @($registry.consumers)) {
             elseif ($consumer.adoption -eq 'adopted') {
                 $consumerFindings.Add('validationNotConfigured')
             }
-            $lockPath = Join-Path $solutionRoot 'azd-components.lock.json'
-            if (-not (Test-Path -LiteralPath $lockPath -PathType Leaf)) {
-                $consumerFindings.Add('lockMissing')
-            }
-            else {
+            if (-not $componentFree) {
+                $lockPath = Join-Path $solutionRoot 'azd-components.lock.json'
+                if (-not (Test-Path -LiteralPath $lockPath -PathType Leaf)) {
+                    $consumerFindings.Add('lockMissing')
+                }
+                else {
                 try {
                     $lockRaw = Get-Content -LiteralPath $lockPath -Raw
                     if (-not ($lockRaw | Test-Json -SchemaFile (Join-Path $referenceRoot 'schemas/azd-components-lock.schema.json') -ErrorAction Stop)) {
@@ -280,8 +282,29 @@ foreach ($consumer in @($registry.consumers)) {
                     $consumerFindings.Add('invalidLock')
                     $lock = $null
                 }
+                }
             }
         }
+    }
+
+    if ($componentFree) {
+        $state = if ('checkoutUnavailable' -in $consumerFindings -or 'solutionUnavailable' -in $consumerFindings) {
+            'checkoutUnavailable'
+        }
+        else {
+            'current'
+        }
+        $results += [pscustomobject] [ordered]@{
+            consumer = [string] $consumer.id
+            repository = [string] $consumer.repository
+            rolloutRing = [string] $consumer.rolloutRing
+            component = $null
+            desiredVersion = $null
+            installedVersion = $null
+            state = $state
+            findings = @($consumerFindings)
+        }
+        continue
     }
 
     foreach ($desired in @($consumer.components)) {

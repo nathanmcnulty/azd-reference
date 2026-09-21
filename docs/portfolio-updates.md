@@ -14,6 +14,10 @@ example, PIM registers `.github/workflows/validate-azd-pim.yml` and
 `azd-pim/scripts/Test-Repository.ps1`, while validation still runs with the
 solution root as its working directory.
 
+A component-free standalone solution registers an empty `components` array.
+This keeps its validation and governance contract visible without claiming a
+vendored component dependency that does not exist.
+
 Use [`standards/standalone-promotion.md`](../standards/standalone-promotion.md)
 when a registered consumer is moving out of `azd-work-in-progress`. Component
 rollout automation updates an existing consumer; it does not replace the
