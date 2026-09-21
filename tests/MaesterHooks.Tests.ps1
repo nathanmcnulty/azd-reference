@@ -11,4 +11,12 @@ Describe 'Maester Azure DevOps cleanup' {
     $cleanup | Should -Match '(?s)for \(\$attempt = 1; \$attempt -le \$maxDeleteAttempts; \$attempt\+\+\).*?Invoke-AdoRest.*?-Method DELETE.*?Invoke-AdoRest.*?-Method GET'
     $cleanup | Should -Match 'Reissue DELETE'
   }
+
+  It 'supports subscription-scoped Azure CLI access tokens' {
+    $helpersPath = Join-Path $repoRoot 'components/powershell/maester-azd-hooks/Maester-SetupHelpers.psm1'
+    $helpers = Get-Content -LiteralPath $helpersPath -Raw
+
+    $helpers | Should -Match '\[string\]\$SubscriptionId'
+    $helpers | Should -Match 'tokenArgs\s*\+=\s*@\(.+--subscription.+\$SubscriptionId'
+  }
 }
