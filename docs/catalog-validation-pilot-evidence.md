@@ -42,6 +42,52 @@ does not immediately make the event commit inaccessible to GitHub. It does not
 prove behavior after deleting or privatizing the fork repository. That remains
 an explicit operational-error test gap.
 
+## App Control staged-path proof
+
+Date: 2026-09-21
+
+Evidence:
+
+- repository: private staging repository `nathanmcnulty/azd-work-in-progress`;
+- staged solution path: `azd-app-control`;
+- merged pull request: `nathanmcnulty/azd-work-in-progress#27`;
+- exact default-branch merge SHA:
+  `b9e39265df8d59e83ba77bb88a12030178cad6c1`;
+- catalog path: `azd-app-control/.azd/catalog.json`;
+- caller pin: `0b79d2e1e1c920a13cede11d42c72b799cc2310c`;
+- pull-request catalog run `35657460248` completed successfully in five
+  seconds;
+- default-branch catalog run `35657592915` completed successfully and its
+  manual rerun remained bound to the merge SHA;
+- observed check name:
+  `azd App Control catalog metadata / azd catalog metadata`;
+- observed source integration ID: `15368`;
+- the existing App Control Phase 0 workflow also passed independently, keeping
+  static catalog validation separate from repository-defined tests.
+
+The staged metadata intentionally omits `quickstartCommands`. The Phase 0
+scaffold has no supported deployment quickstart, so adding one would turn
+display metadata into an unsupported behavioral claim.
+
+## Runtime and maintenance sample
+
+Fourteen completed jobs were sampled across Emergency Access, Risk-Based
+Conditional Access, Santa, and staged App Control. They covered pull requests,
+default-branch pushes, and manual reruns.
+
+- all 14 completed successfully;
+- observed job duration ranged from four to six seconds, with a 4.5-second
+  median;
+- no accepted catalog file produced an unexpected validation failure;
+- callers required only an immutable workflow pin and, for staged App Control,
+  an explicit catalog path;
+- the only observed approval friction was GitHub's expected
+  `first_time_contributors` gate for the public fork.
+
+This is a small pilot sample, not an availability service-level objective.
+Continue monitoring operational errors and false positives during broader
+non-required use.
+
 ## Current assessment
 
 - The reusable workflow can validate a public-fork commit without secrets or
@@ -54,13 +100,12 @@ an explicit operational-error test gap.
   delay or changes the repository approval policy through a separate decision.
 - This evidence does not justify a GitHub App. The Actions-first design remains
   sufficient for the current pilot.
+- Two standalone repositories and one explicit staged path now exercise the
+  same immutable validator release without repository-specific validator code.
 
 ## Remaining pilot evidence
 
 - exercise an inaccessible or deleted fork repository without deleting a fork
   that contains user work;
-- validate a committed staged-solution path in `azd-work-in-progress`;
-- record measured runtime and false-positive observations across at least two
-  standalone pilots and the staged pilot;
 - obtain an explicit maintainer decision on the first-time contributor delay
   before any required-check proposal.
