@@ -1,12 +1,19 @@
 {
   "$schema": "../schemas/github-governance-repositories.schema.json",
-  "schemaVersion": "1.0",
+  "schemaVersion": "2.0",
+  "catalogValidationPolicy": {
+    "workflow": "nathanmcnulty/azd-reference/.github/workflows/catalog-metadata.yml",
+    "callerPath": ".github/workflows/catalog-metadata.yml",
+    "desiredWorkflowRevision": "0b79d2e1e1c920a13cede11d42c72b799cc2310c",
+    "requiredStatusCheck": {"context": "azd catalog metadata / azd catalog metadata", "integrationId": 15368}
+  },
   "repositories": [
     {
       "id": "consumer-one",
       "repository": "https://github.com/example/consumer-one",
       "defaultBranch": "main",
       "requiredStatusChecks": ["validate", "dependency-review"],
+      "catalogValidation": {"state": "pending"},
       "releaseTagPattern": "refs/tags/v*"
     }
   ]

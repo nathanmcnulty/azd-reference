@@ -1,0 +1,35 @@
+name: Reusable azd catalog metadata validation
+
+on:
+  workflow_call:
+    inputs:
+      catalog-path:
+        description: Repository-relative path to the catalog metadata file.
+        required: false
+        type: string
+        default: .azd/catalog.json
+    outputs:
+      result-json:
+        description: Versioned machine-readable validation result.
+        value: ${{ jobs.validate.outputs.result-json }}
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: azd catalog metadata
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      result-json: ${{ steps.validate.outputs.result-json }}
+    steps:
+      - name: Validate catalog metadata
+        id: validate
+        uses: $/.github/actions/catalog-validator
+        with:
+          github-token: ${{ github.token }}
+          catalog-path: ${{ inputs.catalog-path }}
+          workflow-repository: ${{ job.workflow_repository }}
+          workflow-file-path: ${{ job.workflow_file_path }}
+          workflow-sha: ${{ job.workflow_sha }}

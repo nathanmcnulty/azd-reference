@@ -89,8 +89,10 @@ the source repository.
 
 See [`docs/nomenclature.md`](docs/nomenclature.md),
 [`docs/architecture.md`](docs/architecture.md), and the
-[catalog validation GitHub App proposal](docs/catalog-validation-app-proposal.md)
-before designing cross-repository catalog automation. For component lifecycle,
+[catalog validation implementation plan](docs/catalog-validation-implementation-plan.md)
+before designing cross-repository catalog automation. The
+[GitHub App proposal](docs/catalog-validation-app-proposal.md) is the deferred
+alternative. For component lifecycle,
 see [`standards/component-lifecycle.md`](standards/component-lifecycle.md).
 For template discovery and concise repository-owned copy, see
 [`standards/catalog-metadata.md`](standards/catalog-metadata.md). For GUI
