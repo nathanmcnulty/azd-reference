@@ -18,5 +18,6 @@ Describe 'Maester Azure DevOps cleanup' {
 
     $helpers | Should -Match '\[string\]\$SubscriptionId'
     $helpers | Should -Match 'tokenArgs\s*\+=\s*@\(.+--subscription.+\$SubscriptionId'
+    $helpers | Should -Match '(?s)if \([^\r\n]*SubscriptionId[^\r\n]*\).*?--subscription.*?elseif \([^\r\n]*TenantId[^\r\n]*\).*?--tenant'
   }
 }

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.5 - 2026-09-20
+
+- Avoid passing mutually exclusive tenant and subscription selectors to Azure CLI token acquisition.
+
 ## 0.1.4 - 2026-09-20
 
 - Allow Azure CLI access-token requests to target an explicit subscription.
