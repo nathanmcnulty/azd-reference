@@ -1,6 +1,12 @@
 name: Audit catalog validation governance
 
 on:
+  pull_request:
+    paths:
+      - .github/workflows/catalog-governance-audit.yml
+      - portfolio/github-governance-repositories.json
+      - schemas/github-governance-repositories.schema.json
+      - tooling/Get-AzdGitHubGovernanceStatus.ps1
   schedule:
     - cron: '47 13 * * *'
   workflow_dispatch:
