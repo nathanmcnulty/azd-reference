@@ -42,6 +42,27 @@ does not immediately make the event commit inaccessible to GitHub. It does not
 prove behavior after deleting or privatizing the fork repository. That remains
 an explicit operational-error test gap.
 
+### Missing enrolled file
+
+A second disposable fork pull request proved the hosted deterministic-failure
+path:
+
+- closed, unmerged pull request: `nathanmcnulty/azd-santa#6`;
+- exact fork head SHA: `d48ed7b6263867d25387afe63b46c570ab97a710`;
+- catalog workflow run: `35662758412`;
+- the first attempt again concluded `action_required` and only the catalog
+  workflow was approved;
+- the job failed in four seconds with a `catalogMissing` failure annotation on
+  `.azd/catalog.json`;
+- the result retained the stable catalog check name and integration ID `15368`;
+- after closing the pull request and deleting its branch, a manual rerun failed
+  identically at the same repository and SHA;
+- repository-defined validation and dependency-review workflows were not
+  approved for this proof.
+
+The fork's `main` branch was synchronized to the upstream commit before the
+test, and the test branch was deleted afterward. No fork change was merged.
+
 ## App Control staged-path proof
 
 Date: 2026-09-21
@@ -105,7 +126,8 @@ non-required use.
 
 ## Remaining pilot evidence
 
-- exercise an inaccessible or deleted fork repository without deleting a fork
-  that contains user work;
+- delete the verified disposable `patriot-nmcnulty/azd-santa` fork and rerun a
+  stored event to observe genuinely inaccessible-repository behavior. The
+  scoped CLI token cannot perform this step because it lacks `delete_repo`;
 - obtain an explicit maintainer decision on the first-time contributor delay
   before any required-check proposal.
