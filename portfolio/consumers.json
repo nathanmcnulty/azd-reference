@@ -127,7 +127,7 @@
       "components": [
         {
           "id": "maester-azd-hooks",
-          "desiredVersion": "0.1.4"
+          "desiredVersion": "0.1.5"
         },
         {
           "id": "maester-report-webapp",
@@ -152,7 +152,7 @@
       "components": [
         {
           "id": "maester-azd-hooks",
-          "desiredVersion": "0.1.4"
+          "desiredVersion": "0.1.5"
         },
         {
           "id": "maester-report-webapp",
@@ -177,7 +177,7 @@
       "components": [
         {
           "id": "maester-azd-hooks",
-          "desiredVersion": "0.1.4"
+          "desiredVersion": "0.1.5"
         },
         {
           "id": "maester-report-webapp",
@@ -202,7 +202,7 @@
       "components": [
         {
           "id": "maester-azd-hooks",
-          "desiredVersion": "0.1.4"
+          "desiredVersion": "0.1.5"
         },
         {
           "id": "maester-report-webapp",
