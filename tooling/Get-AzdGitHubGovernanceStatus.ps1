@@ -39,6 +39,43 @@ function Get-GhContent {
     catch { return $null }
 }
 
+function Get-CatalogValidationSignal {
+    param(
+        [Parameter(Mandatory)][string] $Repository,
+        [Parameter(Mandatory)] $Policy,
+        [Parameter(Mandatory)] $Enrollment
+    )
+
+    $caller = Get-GhContent -Repository $Repository -Path ([string] $Policy.callerPath)
+    $revision = $null
+    if ($null -ne $caller) {
+        $workflowPattern = [Regex]::Escape([string] $Policy.workflow)
+        $match = [Regex]::Match(
+            $caller,
+            "(?im)^\s*uses:\s*$workflowPattern@([0-9a-f]{40})\s*(?:#.*)?$"
+        )
+        if ($match.Success) { $revision = $match.Groups[1].Value.ToLowerInvariant() }
+    }
+
+    $catalogPath = if ($Enrollment.PSObject.Properties.Name -contains 'catalogPath') {
+        [string] $Enrollment.catalogPath
+    }
+    else {
+        '.azd/catalog.json'
+    }
+    $catalogPresent = $null
+    if ([string] $Enrollment.state -in @('pilot', 'required')) {
+        $catalogPresent = $null -ne (Get-GhContent -Repository $Repository -Path $catalogPath)
+    }
+
+    [pscustomobject]@{
+        callerPresent = $null -ne $caller
+        callerRevision = $revision
+        catalogPath = $catalogPath
+        catalogPresent = $catalogPresent
+    }
+}
+
 function Get-WorkflowSignal {
     param(
         [Parameter(Mandatory)][string] $Repository,
@@ -115,10 +152,12 @@ if (-not ($registryRaw | Test-Json -SchemaFile $registrySchema -ErrorAction Stop
 $registry = $registryRaw | ConvertFrom-Json
 $expectedStatusChecks = @{}
 $expectedReleaseTagPatterns = @{}
+$catalogEnrollments = @{}
 foreach ($entry in @($registry.repositories)) {
     $repositoryUrl = [string] $entry.repository
     $repositoryName = $repositoryUrl -replace '^https://github\.com/', ''
     $expectedStatusChecks[$repositoryName] = @($entry.requiredStatusChecks)
+    $catalogEnrollments[$repositoryName] = $entry.catalogValidation
     $expectedReleaseTagPatterns[$repositoryName] = if ($entry.PSObject.Properties.Name -contains 'releaseTagPattern') {
         [string] $entry.releaseTagPattern
     }
@@ -201,6 +240,48 @@ foreach ($repositoryName in $Repository) {
     $signals = Get-WorkflowSignal -Repository $repositoryName -Metadata $metadata
     if (-not $signals.available) { $findings.Add('workflowInventoryUnavailable') }
 
+    $catalogState = 'unregistered'
+    $catalogRevision = $null
+    if ($catalogEnrollments.ContainsKey($repositoryName)) {
+        $enrollment = $catalogEnrollments[$repositoryName]
+        $catalogState = [string] $enrollment.state
+        $catalogSignal = Get-CatalogValidationSignal `
+            -Repository $repositoryName `
+            -Policy $registry.catalogValidationPolicy `
+            -Enrollment $enrollment
+        $catalogRevision = $catalogSignal.callerRevision
+
+        switch ($catalogState) {
+            'pending' {
+                if ($catalogSignal.callerPresent) { $findings.Add('catalogCallerUnexpected') }
+            }
+            'pilot' {
+                if (-not $catalogSignal.callerPresent) { $findings.Add('catalogCallerMissing') }
+                elseif ($null -eq $catalogRevision) { $findings.Add('catalogCallerPinUnreadable') }
+                elseif ($catalogRevision -ne [string] $registry.catalogValidationPolicy.desiredWorkflowRevision) {
+                    $findings.Add("catalogCallerRevision:$catalogRevision")
+                }
+                if (-not $catalogSignal.catalogPresent) { $findings.Add("catalogMetadataMissing:$($catalogSignal.catalogPath)") }
+            }
+            'required' {
+                if (-not $catalogSignal.callerPresent) { $findings.Add('catalogCallerMissing') }
+                elseif ($null -eq $catalogRevision) { $findings.Add('catalogCallerPinUnreadable') }
+                elseif ($catalogRevision -ne [string] $registry.catalogValidationPolicy.desiredWorkflowRevision) {
+                    $findings.Add("catalogCallerRevision:$catalogRevision")
+                }
+                if (-not $catalogSignal.catalogPresent) { $findings.Add("catalogMetadataMissing:$($catalogSignal.catalogPath)") }
+                $catalogContext = [string] $registry.catalogValidationPolicy.requiredStatusCheck.context
+                if ($catalogContext -notin @($expectedStatusChecks[$repositoryName])) {
+                    $findings.Add("catalogRequiredStatusCheckNotDeclared:$catalogContext")
+                }
+            }
+            'exempt' {
+                if ($catalogSignal.callerPresent) { $findings.Add('catalogCallerUnexpected') }
+            }
+            default { $findings.Add("catalogEnrollmentStateInvalid:$catalogState") }
+        }
+    }
+
     $isPublic = -not [bool] $metadata.private
     $security = if ($metadata.PSObject.Properties.Name -contains 'security_and_analysis') {
         $metadata.security_and_analysis
@@ -265,6 +346,23 @@ foreach ($repositoryName in $Repository) {
                     }
                 }
             }
+            if ($catalogEnrollments.ContainsKey($repositoryName)) {
+                $catalogContext = [string] $registry.catalogValidationPolicy.requiredStatusCheck.context
+                $catalogIntegrationId = [int64] $registry.catalogValidationPolicy.requiredStatusCheck.integrationId
+                $actualCatalogChecks = @($statusRule.parameters.required_status_checks | Where-Object {
+                        [string] $_.context -eq $catalogContext
+                    })
+                if ($catalogState -eq 'required') {
+                    if (@($actualCatalogChecks | Where-Object {
+                                [int64] $_.integration_id -eq $catalogIntegrationId
+                            }).Count -eq 0) {
+                        $findings.Add("catalogRequiredStatusCheckSourceMismatch:$catalogContext@$catalogIntegrationId")
+                    }
+                }
+                elseif ($actualCatalogChecks.Count -gt 0) {
+                    $findings.Add("catalogStatusCheckUnexpectedlyRequired:$catalogContext")
+                }
+            }
         }
         if ([string] $mainRuleset.current_user_can_bypass -ne 'always') {
             $findings.Add('defaultBranchRecoveryBypassMissing')
@@ -295,6 +393,8 @@ foreach ($repositoryName in $Repository) {
     $results += [pscustomobject] [ordered]@{
         repository = $repositoryName
         visibility = [string] $metadata.visibility
+        catalogValidationState = $catalogState
+        catalogWorkflowRevision = $catalogRevision
         state = if ($findings.Count -eq 0) { 'current' } else { 'findings' }
         findings = @($findings)
     }
