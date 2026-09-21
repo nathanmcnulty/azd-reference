@@ -28,14 +28,16 @@ central while leaving each solution independently deployable:
 
 `portfolio/github-governance-repositories.json` remains the authoritative list
 of independently supported repositories, including `azd-reference` itself.
-Extend that registry to version 2 with catalog validation desired state instead
-of introducing another repository inventory. Version 2 defines one top-level
+Extend that registry to version 2.1 with catalog validation desired state and
+an explicit enforcement gate instead of introducing another repository
+inventory. Version 2.1 defines one top-level
 catalog validator policy:
 
 ```text
 reusable workflow repository and path
 desired full workflow commit SHA
 stable check context and source integration ID
+portfolio-wide enforcement mode
 ```
 
 Each repository defines `catalogValidation.state`:
@@ -50,8 +52,9 @@ The planned version-2 shape is:
 
 ```json
 {
-  "schemaVersion": "2.0",
+  "schemaVersion": "2.1",
   "catalogValidationPolicy": {
+    "enforcementMode": "non-required",
     "workflow": "nathanmcnulty/azd-reference/.github/workflows/catalog-metadata.yml",
     "desiredWorkflowRevision": "<40-character commit C SHA>",
     "requiredStatusCheck": {
@@ -86,6 +89,13 @@ validator versions are derived from the
 manifest at the one desired workflow revision rather than repeated in every
 repository entry. An optional non-root catalog path is allowed only for an
 explicitly supported repository shape.
+
+`enforcementMode` remains `non-required` throughout staging and pilot rollout.
+Changing it to `required-enabled` is a separate portfolio-wide approval. Each
+`required` repository must also record `requiredApproval` with the approving
+`nathanmcnulty` identity, an approval timestamp, and an `azd-reference` issue or
+pull request containing the evidence. Publishing or promoting a standalone
+repository never implies approval to make the catalog check required.
 
 A read-only audit compares desired state with the exact workflow pin committed
 in each repository. The caller pin is authoritative; standalone consumers do

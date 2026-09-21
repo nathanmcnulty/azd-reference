@@ -54,7 +54,7 @@ Describe 'Catalog validation package and governance' {
         $pilots = @($script:registry.repositories | Where-Object {
                 [string] $_.catalogValidation.state -eq 'pilot'
             } | ForEach-Object { [string] $_.id })
-        $pilots | Should -Be @('azd-emergency-access', 'azd-risk-based-ca')
+        $pilots | Should -Be @('azd-emergency-access', 'azd-risk-based-ca', 'azd-santa')
     }
 
     It 'does not declare the catalog check required before pilot observation' {
@@ -63,6 +63,20 @@ Describe 'Catalog validation package and governance' {
                     [string] $_.catalogValidation.state -ne 'required'
                 })) {
             @($repository.requiredStatusChecks) | Should -Not -Contain $context
+        }
+    }
+
+    It 'requires separate portfolio and repository approvals before enforcement' {
+        $required = @($script:registry.repositories | Where-Object {
+                [string] $_.catalogValidation.state -eq 'required'
+            })
+        if ([string] $script:registry.catalogValidationPolicy.enforcementMode -eq 'non-required') {
+            $required.Count | Should -Be 0
+        }
+        foreach ($repository in $required) {
+            [string] $repository.catalogValidation.requiredApproval.approvedBy | Should -Be 'nathanmcnulty'
+            [string] $repository.catalogValidation.requiredApproval.evidence |
+                Should -Match '^https://github\.com/nathanmcnulty/azd-reference/(issues|pull)/[1-9][0-9]*$'
         }
     }
 

@@ -1,7 +1,8 @@
 {
   "$schema": "../schemas/github-governance-repositories.schema.json",
-  "schemaVersion": "2.0",
+  "schemaVersion": "2.1",
   "catalogValidationPolicy": {
+    "enforcementMode": "non-required",
     "workflow": "nathanmcnulty/azd-reference/.github/workflows/catalog-metadata.yml",
     "callerPath": ".github/workflows/catalog-metadata.yml",
     "desiredWorkflowRevision": "0b79d2e1e1c920a13cede11d42c72b799cc2310c",
@@ -149,8 +150,8 @@
       "id": "azd-santa",
       "repository": "https://github.com/nathanmcnulty/azd-santa",
       "defaultBranch": "main",
-      "requiredStatusChecks": ["validate (ubuntu-latest)", "validate (windows-latest)", "Analyze (actions)", "Analyze (python)", "dependency-review", "azd catalog metadata / azd catalog metadata"],
-      "catalogValidation": {"state": "required"}
+      "requiredStatusChecks": ["validate (ubuntu-latest)", "validate (windows-latest)", "Analyze (actions)", "Analyze (python)", "dependency-review"],
+      "catalogValidation": {"state": "pilot"}
     },
     {
       "id": "azd-sysmon",
