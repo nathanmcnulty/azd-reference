@@ -1,6 +1,6 @@
 @{
     RootModule = 'Azd.DeploymentReceipt.psm1'
-    ModuleVersion = '0.1.1'
+    ModuleVersion = '0.2.0'
     GUID = 'a5137cb8-7f77-4584-9d8c-a7f9eb9a3fb5'
     Author = 'Nathan McNulty'
     CompanyName = 'Community'

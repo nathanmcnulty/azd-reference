@@ -98,11 +98,96 @@ function Assert-AzdReceiptArtifactPath {
     }
 }
 
+function Get-AzdReceiptEvidenceProperty {
+    param([Parameter(Mandatory)][object] $Object, [Parameter(Mandatory)][string] $Name)
+
+    if ($Object -is [System.Collections.IDictionary]) {
+        if (-not $Object.Contains($Name)) { throw "Evidence binding must contain $Name." }
+        return $Object[$Name]
+    }
+    $property = $Object.PSObject.Properties[$Name]
+    if ($null -eq $property) { throw "Evidence binding must contain $Name." }
+    return $property.Value
+}
+
+function Assert-AzdReceiptEvidenceShape {
+    param([Parameter(Mandatory)][object] $Object, [Parameter(Mandatory)][string[]] $Required, [string[]] $Optional = @())
+
+    $names = if ($Object -is [System.Collections.IDictionary]) { @($Object.Keys | ForEach-Object { [string] $_ }) } else { @($Object.PSObject.Properties.Name) }
+    foreach ($name in $Required) { if ($name -notin $names) { throw "Evidence binding must contain $name." } }
+    $unknown = @($names | Where-Object { $_ -notin @($Required + $Optional) })
+    if ($unknown.Count -gt 0) { throw "Evidence binding contains an unknown property: $($unknown[0])." }
+}
+
+function Assert-AzdReceiptEvidenceText {
+    param([Parameter(Mandatory)][object] $Value, [Parameter(Mandatory)][string] $Label)
+
+    if ($Value -isnot [string] -or [string]::IsNullOrWhiteSpace($Value) -or $Value.Length -gt 128 -or $Value -match '[\x00-\x1F]') {
+        throw "$Label must be a bounded nonempty string without control characters."
+    }
+}
+
+function New-AzdReceiptManagementEvidence {
+    param(
+        [Parameter(Mandatory)][ValidateSet('resourceMutation', 'cleanup')][string] $EvidenceClass,
+        [Parameter(Mandatory)][System.Collections.IDictionary] $Binding,
+        [object[]] $NextActions = @()
+    )
+
+    Assert-AzdReceiptEvidenceShape -Object $Binding -Required @('project', 'target', 'source', 'operation')
+    $project = Get-AzdReceiptEvidenceProperty $Binding project
+    $target = Get-AzdReceiptEvidenceProperty $Binding target
+    $source = Get-AzdReceiptEvidenceProperty $Binding source
+    $operation = Get-AzdReceiptEvidenceProperty $Binding operation
+    Assert-AzdReceiptEvidenceShape $project @('id', 'environment')
+    Assert-AzdReceiptEvidenceShape $target @('azureCloud', 'tenantId', 'subscriptionId') @('resourceGroup')
+    Assert-AzdReceiptEvidenceShape $source @('templateId', 'revision') @('contractDigest')
+    Assert-AzdReceiptEvidenceShape $operation @('id', 'kind')
+
+    foreach ($pair in @(
+            @((Get-AzdReceiptEvidenceProperty $project id), 'Project ID'),
+            @((Get-AzdReceiptEvidenceProperty $project environment), 'Environment'),
+            @((Get-AzdReceiptEvidenceProperty $target azureCloud), 'Azure cloud'),
+            @((Get-AzdReceiptEvidenceProperty $source templateId), 'Template ID')
+        )) { Assert-AzdReceiptEvidenceText -Value $pair[0] -Label $pair[1] }
+    if (($target -is [System.Collections.IDictionary] -and $target.Contains('resourceGroup')) -or $target.PSObject.Properties['resourceGroup']) {
+        Assert-AzdReceiptEvidenceText -Value (Get-AzdReceiptEvidenceProperty $target resourceGroup) -Label 'Resource group'
+    }
+    foreach ($name in 'tenantId', 'subscriptionId') {
+        $value = [string] (Get-AzdReceiptEvidenceProperty $target $name)
+        if ($value -notmatch '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$') { throw "$name must be a UUID." }
+    }
+    $revision = [string] (Get-AzdReceiptEvidenceProperty $source revision)
+    if ($revision -ne 'local' -and $revision -notmatch '^[0-9a-f]{40}$') { throw 'Source revision must be a lowercase Git SHA or local.' }
+    if (($source -is [System.Collections.IDictionary] -and $source.Contains('contractDigest')) -or $source.PSObject.Properties['contractDigest']) {
+        if ([string] (Get-AzdReceiptEvidenceProperty $source contractDigest) -notmatch '^[0-9a-f]{64}$') { throw 'Contract digest must be lowercase SHA-256.' }
+    }
+    $operationId = [string] (Get-AzdReceiptEvidenceProperty $operation id)
+    if ($operationId -notmatch '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$') { throw 'Operation ID must be a UUID.' }
+    $operationKind = [string] (Get-AzdReceiptEvidenceProperty $operation kind)
+    $allowedKinds = if ($EvidenceClass -eq 'cleanup') { @('down', 'cleanup') } else { @('provision', 'deploy', 'up') }
+    if ($operationKind -notin $allowedKinds) { throw 'Operation kind does not match the receipt evidence class.' }
+
+    if ($NextActions.Count -gt 20) { throw 'Management next actions are limited to 20 items.' }
+    $normalizedActions = @($NextActions | ForEach-Object {
+            Assert-AzdReceiptEvidenceShape $_ @('code', 'owner', 'priority')
+            $code = [string] (Get-AzdReceiptEvidenceProperty $_ code)
+            $owner = [string] (Get-AzdReceiptEvidenceProperty $_ owner)
+            $priority = [string] (Get-AzdReceiptEvidenceProperty $_ priority)
+            if ($code -notin @('reviewWarnings', 'retryOperation', 'verifyResources', 'verifyPermissions', 'proveDelivery', 'completeCleanup')) { throw 'Management next-action code is not registered.' }
+            if ($owner -notin @('operator', 'subscriptionOwner', 'identityAdmin', 'messagingAdmin', 'applicationOwner', 'templateMaintainer')) { throw 'Management next-action owner is not registered.' }
+            if ($priority -notin @('required', 'recommended')) { throw 'Management next-action priority is invalid.' }
+            [ordered]@{ code = $code; owner = $owner; priority = $priority }
+        })
+    $normalizedBinding = $Binding | ConvertTo-Json -Depth 10 -Compress | ConvertFrom-Json -AsHashtable
+    [ordered]@{ version = '1'; evidenceClass = $EvidenceClass; binding = $normalizedBinding; nextActions = $normalizedActions }
+}
+
 function Assert-AzdReceiptShape {
     param([Parameter(Mandatory)][object] $Receipt)
 
     $schemaVersion = Get-AzdReceiptProperty -Object $Receipt -Name 'schemaVersion'
-    if ($schemaVersion -isnot [string] -or $schemaVersion -ne '1.0') { throw 'Receipt schemaVersion must be 1.0.' }
+    if ($schemaVersion -isnot [string] -or $schemaVersion -notin @('1.0', '1.1')) { throw 'Receipt schemaVersion is unsupported.' }
     $template = Get-AzdReceiptProperty -Object $Receipt -Name 'template'
     if ($template -isnot [string]) { throw 'Template must be a string.' }
     Assert-AzdReceiptText -Value $template -Label 'Template' -MaximumLength 128
@@ -117,8 +202,11 @@ function Assert-AzdReceiptShape {
     if ($mode -eq 'plan' -and [int64] $applied -ne 0) {
         throw 'Plan receipts cannot report applied actions.'
     }
+    $details = Get-AzdReceiptProperty -Object $Receipt -Name 'details'
+    $hasEvidence = if ($details -is [System.Collections.IDictionary]) { $details.Contains('azdManagementEvidence') } else { $null -ne $details.PSObject.Properties['azdManagementEvidence'] }
+    if (($schemaVersion -eq '1.1') -ne $hasEvidence) { throw 'Receipt schemaVersion 1.1 requires management evidence and 1.0 forbids it.' }
     $itemCount = 0
-    Assert-AzdReceiptSafeValue -Value (Get-AzdReceiptProperty -Object $Receipt -Name 'details') -ItemCount ([ref] $itemCount)
+    Assert-AzdReceiptSafeValue -Value $details -ItemCount ([ref] $itemCount)
     $artifacts = @(Get-AzdReceiptProperty -Object $Receipt -Name 'artifacts')
     $actions = @(Get-AzdReceiptProperty -Object $Receipt -Name 'operationalActions')
     if ($artifacts.Count -gt $script:MaxCollectionItems -or $actions.Count -gt $script:MaxCollectionItems) {
@@ -179,7 +267,10 @@ function New-AzdDeploymentReceipt {
         [ValidateRange(0, [int]::MaxValue)][int] $Failed = 0,
         [string[]] $Artifacts = @(),
         [string[]] $OperationalActions = @(),
-        [hashtable] $Details = @{}
+        [hashtable] $Details = @{},
+        [ValidateSet('resourceMutation', 'cleanup')][string] $EvidenceClass,
+        [System.Collections.IDictionary] $EvidenceBinding,
+        [object[]] $ManagementNextActions = @()
     )
 
     Assert-AzdReceiptText -Value $Template -Label 'Template' -MaximumLength 128
@@ -189,8 +280,18 @@ function New-AzdDeploymentReceipt {
     if ($Artifacts.Count -gt $script:MaxCollectionItems -or $OperationalActions.Count -gt $script:MaxCollectionItems) {
         throw 'Receipt artifacts and operational actions are limited to 500 items each.'
     }
+    $evidenceRequested = $PSBoundParameters.ContainsKey('EvidenceClass') -or $PSBoundParameters.ContainsKey('EvidenceBinding') -or $PSBoundParameters.ContainsKey('ManagementNextActions')
+    if ($evidenceRequested -and (-not $PSBoundParameters.ContainsKey('EvidenceClass') -or -not $PSBoundParameters.ContainsKey('EvidenceBinding'))) {
+        throw 'EvidenceClass and EvidenceBinding are both required for bound receipts.'
+    }
+    $normalizedDetails = [ordered]@{}
+    foreach ($key in $Details.Keys) { $normalizedDetails[[string] $key] = $Details[$key] }
+    if ($normalizedDetails.Contains('azdManagementEvidence')) { throw 'Details cannot define reserved azdManagementEvidence.' }
+    if ($evidenceRequested) {
+        $normalizedDetails.azdManagementEvidence = New-AzdReceiptManagementEvidence -EvidenceClass $EvidenceClass -Binding $EvidenceBinding -NextActions $ManagementNextActions
+    }
     $receipt = [pscustomobject] [ordered]@{
-        schemaVersion = '1.0'
+        schemaVersion = if ($evidenceRequested) { '1.1' } else { '1.0' }
         generatedAt = $GeneratedAt.UtcDateTime.ToString('o')
         template = $Template
         templateVersion = $TemplateVersion
@@ -204,7 +305,7 @@ function New-AzdDeploymentReceipt {
         }
         artifacts = @($Artifacts)
         operationalActions = @($OperationalActions)
-        details = $Details
+        details = $normalizedDetails
     }
     Assert-AzdReceiptShape -Receipt $receipt
     return $receipt

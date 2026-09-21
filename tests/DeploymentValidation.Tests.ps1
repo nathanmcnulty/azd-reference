@@ -3,20 +3,17 @@ Describe 'Deployment validation engine' {
         $script:repoRoot = Split-Path $PSScriptRoot -Parent
         $modulePath = Join-Path $script:repoRoot 'components/powershell/deployment-validation/Azd.DeploymentValidation.psd1'
         Import-Module $modulePath -Force
-    }
-    It 'is a stable 1.0.0 metadata-only promotion from 0.3.3' {
-        $manifest = Get-Content -LiteralPath (Join-Path $script:repoRoot 'components/powershell/deployment-validation/component.json') -Raw | ConvertFrom-Json
-        $manifest.version | Should -Be '1.0.0'
-        $manifest.status | Should -Be 'stable'
-
-        foreach ($unchangedPath in @(
-                'components/powershell/deployment-validation/Azd.DeploymentValidation.psm1',
-                'schemas/deployment-validation.schema.json'
-            )) {
-            $currentBlob = (& git -C $script:repoRoot hash-object -- $unchangedPath).Trim()
-            $pilotBlob = (& git -C $script:repoRoot rev-parse "component/deployment-validation/v0.3.3:$unchangedPath").Trim()
-            $currentBlob | Should -Be $pilotBlob
+        $script:evidenceBinding = @{
+            project = @{ id = 'project-example'; environment = 'dev' }
+            target = @{ azureCloud = 'AzureCloud'; tenantId = '00000000-0000-0000-0000-000000000000'; subscriptionId = '11111111-1111-1111-1111-111111111111'; resourceGroup = 'rg-example-dev' }
+            source = @{ templateId = 'example'; revision = '0123456789abcdef0123456789abcdef01234567'; contractDigest = ('a' * 64) }
+            operation = @{ id = '22222222-2222-2222-2222-222222222222'; kind = 'validate' }
         }
+    }
+    It 'publishes the stable 1.1.0 evidence-binding contract' {
+        $manifest = Get-Content -LiteralPath (Join-Path $script:repoRoot 'components/powershell/deployment-validation/component.json') -Raw | ConvertFrom-Json
+        $manifest.version | Should -Be '1.1.0'
+        $manifest.status | Should -Be 'stable'
     }
     It 'does not invoke actions while planning' {
         $script:actionInvoked = $false
@@ -213,6 +210,28 @@ Describe 'Deployment validation engine' {
         $output = Join-Path $TestDrive 'reports/result.json'
         Test-Path -LiteralPath $output | Should -BeTrue
         (Get-Content -LiteralPath $output -Raw | Test-Json -SchemaFile $schemaPath -ErrorAction Stop) | Should -BeTrue
+    }
+
+    It 'emits bounded schema 1.1 validation evidence and preserves environment metadata' {
+        $check = Invoke-AzdValidationCheck -Id 'context.bound' -Phase context -Title 'Bound' -Summary 'Bound' -Action {}
+        $report = New-AzdValidationReport -TemplateName example -TemplateVersion 1.1.0 -Mode verify `
+            -StartedAt ([datetimeoffset]::UtcNow) -Checks @($check) -Environment @{ name = 'dev'; metadata = @{ producer = 'kept' } } `
+            -EvidenceClass validation -EvidenceBinding $script:evidenceBinding `
+            -ManagementNextActions @(@{ code = 'reviewWarnings'; owner = 'operator'; priority = 'recommended' })
+        $report.schemaVersion | Should -Be '1.1'
+        $report.environment.metadata.producer | Should -Be 'kept'
+        $report.environment.metadata.azdManagementEvidence.evidenceClass | Should -Be 'validation'
+        $schemaPath = Join-Path $script:repoRoot 'schemas/deployment-validation.schema.json'
+        Write-AzdValidationReport -Report $report -OutputPath 'reports/bound.json' -RepositoryRoot $TestDrive -SchemaPath $schemaPath | Should -Be 'reports/bound.json'
+
+        $report.mode = 'delivery'
+        { Write-AzdValidationReport -Report $report -OutputPath 'reports/mismatched.json' -RepositoryRoot $TestDrive -SchemaPath $schemaPath } | Should -Throw '*does not satisfy*'
+    }
+
+    It 'rejects partial and mode-mismatched validation evidence' {
+        $check = Invoke-AzdValidationCheck -Id 'context.bound' -Phase context -Title 'Bound' -Summary 'Bound' -Action {}
+        { New-AzdValidationReport -TemplateName example -TemplateVersion 1.1.0 -Mode verify -StartedAt ([datetimeoffset]::UtcNow) -Checks @($check) -EvidenceClass validation } | Should -Throw '*both required*'
+        { New-AzdValidationReport -TemplateName example -TemplateVersion 1.1.0 -Mode delivery -StartedAt ([datetimeoffset]::UtcNow) -Checks @($check) -EvidenceClass validation -EvidenceBinding $script:evidenceBinding } | Should -Throw '*must agree*'
     }
 
     It 'sanitizes the complete report before writing and rendering' {
