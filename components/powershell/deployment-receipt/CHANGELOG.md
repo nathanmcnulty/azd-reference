@@ -1,5 +1,12 @@
 # Deployment receipt changelog
 
+## 0.2.1
+
+- Reissue the unchanged 0.2 evidence-binding contract at a new immutable patch
+  version so maintainers can create a signed, GitHub-verified release tag.
+- The published 0.2.0 tag remains immutable but is not an attested release because
+  its annotated tag object was unsigned.
+
 ## 0.2.0
 
 - Add optional schema 1.1 management evidence binding for project, target,
