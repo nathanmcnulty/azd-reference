@@ -114,10 +114,17 @@ if (-not ($registryRaw | Test-Json -SchemaFile $registrySchema -ErrorAction Stop
 }
 $registry = $registryRaw | ConvertFrom-Json
 $expectedStatusChecks = @{}
+$expectedReleaseTagPatterns = @{}
 foreach ($entry in @($registry.repositories)) {
     $repositoryUrl = [string] $entry.repository
     $repositoryName = $repositoryUrl -replace '^https://github\.com/', ''
     $expectedStatusChecks[$repositoryName] = @($entry.requiredStatusChecks)
+    $expectedReleaseTagPatterns[$repositoryName] = if ($entry.PSObject.Properties.Name -contains 'releaseTagPattern') {
+        [string] $entry.releaseTagPattern
+    }
+    else {
+        [string] $policy.releaseTags.pattern
+    }
 }
 if (-not $Repository -or $Repository.Count -eq 0) {
     $Repository = @($expectedStatusChecks.Keys | Sort-Object)
@@ -140,6 +147,13 @@ foreach ($repositoryName in $Repository) {
             findings = @($findings)
         }
         continue
+    }
+
+    if ($metadata.PSObject.Properties.Name -notcontains 'is_template') {
+        $findings.Add('githubTemplateRepositoryMetadataUnavailable')
+    }
+    elseif ([string] $policy.repositoryMetadata.githubTemplateRepository -eq 'disabled' -and [bool] $metadata.is_template) {
+        $findings.Add('githubTemplateRepositoryEnabled')
     }
 
     $actions = Invoke-GhJson "repos/$repositoryName/actions/permissions"
@@ -261,7 +275,13 @@ foreach ($repositoryName in $Repository) {
     if ($null -ne $legacyProtection) { $findings.Add('legacyBranchProtectionPresent') }
 
     if ($isPublic) {
-        $tagRuleset = Get-ActiveRuleset -Repository $repositoryName -Target tag -Include ([string] $policy.releaseTags.pattern)
+        $tagPattern = if ($expectedReleaseTagPatterns.ContainsKey($repositoryName)) {
+            [string] $expectedReleaseTagPatterns[$repositoryName]
+        }
+        else {
+            [string] $policy.releaseTags.pattern
+        }
+        $tagRuleset = Get-ActiveRuleset -Repository $repositoryName -Target tag -Include $tagPattern
         if ($null -eq $tagRuleset) {
             $findings.Add('releaseTagRulesetMissing')
         }

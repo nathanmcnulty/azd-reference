@@ -1,7 +1,10 @@
 {
   "$schema": "../schemas/github-governance.schema.json",
-  "schemaVersion": "1.0",
+  "schemaVersion": "1.1",
   "scope": "independently supported azd repositories",
+  "repositoryMetadata": {
+    "githubTemplateRepository": "disabled"
+  },
   "actions": {
     "allowedActions": "selected",
     "githubOwnedAllowed": true,

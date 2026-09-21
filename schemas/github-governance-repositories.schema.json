@@ -54,6 +54,10 @@
             "type": "string",
             "minLength": 1
           }
+        },
+        "releaseTagPattern": {
+          "type": "string",
+          "pattern": "^refs/tags/.+"
         }
       }
     }

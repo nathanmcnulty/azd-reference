@@ -3,6 +3,13 @@
   "schemaVersion": "1.0",
   "repositories": [
     {
+      "id": "azd-reference",
+      "repository": "https://github.com/nathanmcnulty/azd-reference",
+      "defaultBranch": "main",
+      "requiredStatusChecks": ["validate (ubuntu-latest)", "validate (windows-latest)", "Analyze (actions)", "dependency-review"],
+      "releaseTagPattern": "refs/tags/component/**/*"
+    },
+    {
       "id": "azd-advanced-auditing",
       "repository": "https://github.com/nathanmcnulty/azd-advanced-auditing",
       "defaultBranch": "main",

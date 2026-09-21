@@ -6,6 +6,7 @@
   "required": [
     "schemaVersion",
     "scope",
+    "repositoryMetadata",
     "actions",
     "workflow",
     "dependabot",
@@ -20,11 +21,23 @@
       "type": "string"
     },
     "schemaVersion": {
-      "const": "1.0"
+      "const": "1.1"
     },
     "scope": {
       "type": "string",
       "minLength": 1
+    },
+    "repositoryMetadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "githubTemplateRepository"
+      ],
+      "properties": {
+        "githubTemplateRepository": {
+          "const": "disabled"
+        }
+      }
     },
     "actions": {
       "type": "object",
