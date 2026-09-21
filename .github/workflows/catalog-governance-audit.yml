@@ -1,0 +1,64 @@
+name: Audit catalog validation governance
+
+on:
+  schedule:
+    - cron: '47 13 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: catalog-validation-governance
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out reference repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Audit enrolled catalog validation repositories
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $registryRaw = Get-Content -LiteralPath ./portfolio/github-governance-repositories.json -Raw
+          $registry = $registryRaw | ConvertFrom-Json
+          $repositories = @(
+            $registry.repositories |
+              Where-Object { $_.catalogValidation.state -in @('pilot', 'required') } |
+              ForEach-Object {
+                $uri = [uri]$_.repository
+                if ($uri.Scheme -ne 'https' -or $uri.Host -ne 'github.com') {
+                  throw "Catalog governance only audits public GitHub repositories: '$($_.repository)'."
+                }
+                $uri.AbsolutePath.Trim('/')
+              }
+          )
+
+          if ($repositories.Count -eq 0) {
+            throw 'The catalog governance registry has no pilot or required repositories to audit.'
+          }
+
+          $reportJson = ./tooling/Get-AzdGitHubGovernanceStatus.ps1 `
+            -Repository $repositories `
+            -AsJson
+          $reportJson | Set-Content -LiteralPath ./catalog-governance-status.json -Encoding utf8NoBOM
+
+          $report = @($reportJson | ConvertFrom-Json)
+          $report | Format-Table repository, catalogValidationState, catalogWorkflowRevision, state -AutoSize
+          if (@($report | Where-Object state -ne 'current').Count -gt 0) {
+            throw 'Catalog validation governance findings were detected.'
+          }
+
+      - name: Upload catalog governance report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: catalog-governance-status
+          path: catalog-governance-status.json
+          if-no-files-found: error
+          retention-days: 30
