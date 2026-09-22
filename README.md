@@ -87,10 +87,12 @@ the updated `azd-components.lock.json` in the consumer repository.
 The lock file is metadata. It is never executable and deployment must not fetch
 the source repository.
 
+For the everyday catalog process, start with the
+[catalog validation maintainer guide](docs/catalog-validation-operations.md).
 See [`docs/nomenclature.md`](docs/nomenclature.md),
 [`docs/architecture.md`](docs/architecture.md), and the
 [catalog validation implementation plan](docs/catalog-validation-implementation-plan.md)
-before designing cross-repository catalog automation. The
+before changing cross-repository catalog automation. The
 [GitHub App proposal](docs/catalog-validation-app-proposal.md) is the deferred
 alternative. For component lifecycle,
 see [`standards/component-lifecycle.md`](standards/component-lifecycle.md).
