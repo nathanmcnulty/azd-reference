@@ -9,8 +9,21 @@ while this contract checks live GitHub repository settings.
 registry for these controls. It records the exact required status-check names
 for every supported repository, including matrix job suffixes. This prevents a
 workflow rename from silently leaving an obsolete branch-protection context.
-It also records a repository-specific release-tag pattern when a repository
-publishes a different kind of artifact.
+It also records each repository's expected visibility and exact selected-action
+allowlist, plus a repository-specific release-tag pattern when needed. The
+live auditor compares the allowlist as a complete set, scans every workflow
+and local action manifest for full-SHA references, and checks each action
+outside the repository owner's account against that repository's declared
+allowlist. Same-owner reusable workflows remain in the first-party trust
+boundary; their references must still use a full commit SHA. It reports unused
+visibility changes and default-branch changes until the registry is
+deliberately updated.
+
+The registry's `publicRepositoryDiscovery` contract defines the GitHub owner
+and `azd-` name prefix. The scheduled governance audit enumerates that owner's
+public repositories and fails if any matching repository is missing from the
+registry. It also checks each registered repository's live default branch
+against the registry.
 
 The registry requires only status contexts that the repository actually
 produces. A public repository using GitHub CodeQL default setup may have no
@@ -34,9 +47,10 @@ be used to hide a missing or stale check.
 
 ## Required controls
 
-- GitHub Actions are selected-only. GitHub-owned actions are allowed; verified
-  marketplace actions are not implicitly trusted; every third-party action has
-  an explicit owner/repository pattern.
+- GitHub Actions are selected-only. GitHub-owned actions and actions or
+  reusable workflows owned by the repository account are allowed; verified
+  marketplace actions are not implicitly trusted; every other action has an
+  explicit owner/repository pattern.
 - Every external action reference uses a full 40-character commit SHA with a
   readable release comment.
 - The repository default `GITHUB_TOKEN` permission is read-only. A workflow
@@ -71,3 +85,20 @@ The live audit is intentionally read-only. It reports private-repository
 features that require a GitHub plan or a repository-administration credential
 as unavailable rather than silently treating them as enabled. It does not
 change settings, approve pull requests, or merge branches.
+
+The scheduled cross-repository audit requires an Actions secret named
+`AZD_GOVERNANCE_READ_TOKEN`. Use a fine-grained personal access token scoped to
+the repositories listed in the governance registry, including its private
+entry. Grant only these repository permissions:
+
+- `Administration: read`
+- `Contents: read`
+- `Metadata: read`
+
+Do not use a write token. The workflow fails with setup guidance when the
+secret is missing. GitHub's
+`GITHUB_TOKEN` is limited to the repository running the workflow, so it cannot
+read the settings of the other repositories; see GitHub's
+[token scope documentation](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/about-authentication-to-github#authenticating-with-the-api-in-a-github-actions-workflow).
+Give the fine-grained token an expiry and rotate the repository secret before
+it expires.

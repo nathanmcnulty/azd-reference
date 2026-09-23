@@ -10,11 +10,14 @@ param(
 
     [switch] $FailOnFindings,
 
-    [switch] $CatalogValidationOnly
+    [switch] $CatalogValidationOnly,
+
+    [switch] $CheckPublicRegistryCoverage
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+Import-Module (Join-Path $PSScriptRoot 'Azd.GitHubGovernance.psm1') -Force
 
 function Invoke-GhJson {
     param([Parameter(Mandatory)][string] $Endpoint)
@@ -49,17 +52,6 @@ function Get-GhContentResult {
         return [pscustomobject]@{ status = 'present'; content = $content }
     }
     catch { return [pscustomobject]@{ status = 'unavailable'; content = $null } }
-}
-
-function Get-GhContent {
-    param(
-        [Parameter(Mandatory)][string] $Repository,
-        [Parameter(Mandatory)][string] $Path
-    )
-
-    $result = Get-GhContentResult -Repository $Repository -Path $Path
-    if ($result.status -eq 'present') { return $result.content }
-    $null
 }
 
 function Get-ExpectedCatalogCaller {
@@ -151,7 +143,10 @@ function Get-CatalogValidationSignal {
 function Get-WorkflowSignal {
     param(
         [Parameter(Mandatory)][string] $Repository,
-        [Parameter(Mandatory)] $Metadata
+        [Parameter(Mandatory)] $Metadata,
+        [Parameter(Mandatory)][AllowNull()][AllowEmptyCollection()][string[]] $AllowedActionPatterns,
+        [Parameter(Mandatory)][string] $RepositoryOwner,
+        [Parameter(Mandatory)][bool] $GitHubOwnedActionsAllowed
     )
 
     $tree = Invoke-GhJson "repos/$Repository/git/trees/$($Metadata.default_branch)?recursive=1"
@@ -160,29 +155,52 @@ function Get-WorkflowSignal {
             available = $false
             codeql = $false
             dependencyReview = $false
+            actionInventoryComplete = $false
+            actionReferencesScanned = 0
+            actionFindings = @()
         }
     }
 
     $codeql = $false
     $dependencyReview = $false
+    $workflowContents = [System.Collections.Generic.List[object]]::new()
+    $actionFindings = [System.Collections.Generic.List[string]]::new()
+    $actionInventoryComplete = -not [bool] $tree.truncated
+    if (-not $actionInventoryComplete) { $actionFindings.Add('workflowInventoryTruncated') }
     foreach ($path in @(
             $tree.tree |
                 Where-Object {
                     $_.type -eq 'blob' -and
-                    $_.path -match '^\.github/workflows/.*\.(?:yml|yaml)$'
+                    ($_.path -match '^\.github/workflows/.*\.(?:yml|yaml)$' -or
+                    $_.path -match '(^|/)action\.(?:yml|yaml)$')
                 } |
                 ForEach-Object { [string] $_.path }
         )) {
-        $content = Get-GhContent -Repository $Repository -Path $path
-        if ($null -eq $content) { continue }
+        $contentResult = Get-GhContentResult -Repository $Repository -Path $path
+        if ($contentResult.status -ne 'present') {
+            $actionFindings.Add("workflowContentUnavailable:$path")
+            $actionInventoryComplete = $false
+            continue
+        }
+        $content = [string] $contentResult.content
+        $workflowContents.Add([pscustomobject]@{ path = $path; content = $content })
         if ($content -match '(?i)github/codeql-action/') { $codeql = $true }
         if ($content -match '(?i)actions/dependency-review-action@') { $dependencyReview = $true }
     }
+    $actionPolicy = Test-AzdGitHubWorkflowActionPolicy `
+        -WorkflowContents @($workflowContents) `
+        -AllowedActionPatterns $AllowedActionPatterns `
+        -RepositoryOwner $RepositoryOwner `
+        -GitHubOwnedActionsAllowed $GitHubOwnedActionsAllowed
+    foreach ($finding in @($actionPolicy.findings)) { $actionFindings.Add([string] $finding) }
 
     [pscustomobject]@{
         available = $true
         codeql = $codeql
         dependencyReview = $dependencyReview
+        actionInventoryComplete = $actionInventoryComplete
+        actionReferencesScanned = [int] $actionPolicy.actionReferenceCount
+        actionFindings = @($actionFindings)
     }
 }
 
@@ -265,6 +283,8 @@ foreach ($repositoryName in $Repository) {
         $results += [pscustomobject]@{
             repository = $repositoryName
             state = 'unavailable'
+            actionInventoryComplete = $false
+            actionReferencesScanned = 0
             findings = @($findings)
         }
         continue
@@ -275,6 +295,14 @@ foreach ($repositoryName in $Repository) {
     }
     elseif ([string] $policy.repositoryMetadata.githubTemplateRepository -eq 'disabled' -and [bool] $metadata.is_template) {
         $findings.Add('githubTemplateRepositoryEnabled')
+    }
+    if ($registryEntries.ContainsKey($repositoryName) -and
+        [string] $metadata.visibility -ne [string] $registryEntries[$repositoryName].visibility) {
+        $findings.Add("repositoryVisibilityMismatch:$($metadata.visibility)")
+    }
+    if ($registryEntries.ContainsKey($repositoryName) -and
+        [string] $metadata.default_branch -ne [string] $registryEntries[$repositoryName].defaultBranch) {
+        $findings.Add("defaultBranchMismatch:$($metadata.default_branch)")
     }
 
     $actions = Invoke-GhJson "repos/$repositoryName/actions/permissions"
@@ -304,6 +332,28 @@ foreach ($repositoryName in $Repository) {
         if (@($selected.patterns_allowed | Where-Object { [string] $_ -match '(^|/)\*@\*$' }).Count -gt 0) {
             $findings.Add('thirdPartyWildcardPattern')
         }
+        if ($registryEntries.ContainsKey($repositoryName)) {
+            $expectedPatterns = @($registryEntries[$repositoryName].allowedActionPatterns | ForEach-Object { [string] $_ })
+            $actualPatterns = @($selected.patterns_allowed | ForEach-Object { [string] $_ })
+            foreach ($expectedPattern in $expectedPatterns) {
+                if ($expectedPattern -notin $actualPatterns) {
+                    $findings.Add("selectedActionAllowlistEntryMissing:$expectedPattern")
+                }
+            }
+            foreach ($actualPattern in $actualPatterns) {
+                if ($actualPattern -notin $expectedPatterns) {
+                    $findings.Add("selectedActionAllowlistEntryUnexpected:$actualPattern")
+                }
+            }
+            $seenPatterns = [System.Collections.Generic.HashSet[string]]::new(
+                [System.StringComparer]::OrdinalIgnoreCase
+            )
+            foreach ($actualPattern in $actualPatterns) {
+                if (-not $seenPatterns.Add($actualPattern)) {
+                    $findings.Add("selectedActionAllowlistEntryDuplicate:$actualPattern")
+                }
+            }
+        }
     }
 
     $workflowPermissions = Invoke-GhJson "repos/$repositoryName/actions/permissions/workflow"
@@ -319,8 +369,20 @@ foreach ($repositoryName in $Repository) {
         $findings.Add('dependabotSecurityUpdatesDisabled')
     }
 
-    $signals = Get-WorkflowSignal -Repository $repositoryName -Metadata $metadata
+    $allowedActionPatterns = if ($registryEntries.ContainsKey($repositoryName)) {
+        @($registryEntries[$repositoryName].allowedActionPatterns | ForEach-Object { [string] $_ })
+    }
+    else {
+        @()
+    }
+    $signals = Get-WorkflowSignal `
+        -Repository $repositoryName `
+        -Metadata $metadata `
+        -AllowedActionPatterns $allowedActionPatterns `
+        -RepositoryOwner (($repositoryName -split '/', 2)[0]) `
+        -GitHubOwnedActionsAllowed ([bool] $policy.actions.githubOwnedAllowed)
     if (-not $signals.available) { $findings.Add('workflowInventoryUnavailable') }
+    foreach ($actionFinding in @($signals.actionFindings)) { $findings.Add([string] $actionFinding) }
 
     $catalogState = 'unregistered'
     $catalogRevision = $null
@@ -498,11 +560,25 @@ foreach ($repositoryName in $Repository) {
     $results += [pscustomobject] [ordered]@{
         repository = $repositoryName
         visibility = [string] $metadata.visibility
+        actionInventoryComplete = [bool] $signals.actionInventoryComplete
+        actionReferencesScanned = [int] $signals.actionReferencesScanned
         catalogValidationState = $catalogState
         catalogWorkflowRevision = $catalogRevision
         state = if ($findings.Count -eq 0) { 'current' } else { 'findings' }
         findings = @($findings)
     }
+}
+
+if ($CheckPublicRegistryCoverage) {
+    $discoveryOwner = [string] $registry.publicRepositoryDiscovery.owner
+    $endpoint = "users/$discoveryOwner/repos?type=owner&per_page=100"
+    $publicRepositoryNames = @(& gh api --paginate --jq '.[].name' $endpoint 2>&1)
+    if ($LASTEXITCODE -ne 0) {
+        throw "Unable to enumerate public repositories for '$discoveryOwner'."
+    }
+    $results += Compare-AzdGitHubPublicRepositoryRegistry `
+        -Registry $registry `
+        -PublicRepositoryNames $publicRepositoryNames
 }
 
 if ($AsJson) { $results | ConvertTo-Json -Depth 10 }

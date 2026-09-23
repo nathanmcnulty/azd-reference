@@ -52,14 +52,21 @@ Each repository defines `catalogValidation.state`:
 - `exempt`: reviewed `exemptionReason` recorded for a repository that is not a
   deployable solution or cannot participate.
 
-The planned version-2 shape is:
+The current version-2.2 shape also declares the public repository discovery
+scope and each repository's visibility, branch, status checks, and Actions
+allowlist:
 
 ```json
 {
-  "schemaVersion": "2.1",
+  "schemaVersion": "2.2",
+  "publicRepositoryDiscovery": {
+    "owner": "nathanmcnulty",
+    "namePrefix": "azd-"
+  },
   "catalogValidationPolicy": {
     "enforcementMode": "non-required",
     "workflow": "nathanmcnulty/azd-reference/.github/workflows/catalog-metadata.yml",
+    "callerPath": ".github/workflows/catalog-metadata.yml",
     "desiredWorkflowRevision": "<40-character commit C SHA>",
     "requiredStatusCheck": {
       "context": "azd catalog metadata / azd catalog metadata",
@@ -69,6 +76,11 @@ The planned version-2 shape is:
   "repositories": [
     {
       "id": "azd-example",
+      "repository": "https://github.com/nathanmcnulty/azd-example",
+      "visibility": "public",
+      "defaultBranch": "main",
+      "requiredStatusChecks": ["validate", "dependency-review"],
+      "allowedActionPatterns": [],
       "catalogValidation": {
         "state": "pending",
         "catalogPath": ".azd/catalog.json"
