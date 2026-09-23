@@ -1,5 +1,6 @@
 {
-  "schemaVersion": "2.1",
+  "schemaVersion": "2.2",
+  "publicRepositoryDiscovery": {"owner": "example", "namePrefix": "azd-"},
   "catalogValidationPolicy": {
     "enforcementMode": "non-required",
     "workflow": "nathanmcnulty/azd-reference/.github/workflows/catalog-metadata.yml",
@@ -9,10 +10,12 @@
   },
   "repositories": [
     {
-      "id": "consumer-one",
-      "repository": "https://github.com/example/consumer-one",
+      "id": "azd-consumer-one",
+      "repository": "https://github.com/example/azd-consumer-one",
+      "visibility": "public",
       "defaultBranch": "main",
       "requiredStatusChecks": [],
+      "allowedActionPatterns": ["example/*@*"],
       "catalogValidation": {"state": "exempt"}
     }
   ]

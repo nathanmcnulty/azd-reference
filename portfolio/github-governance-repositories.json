@@ -1,6 +1,10 @@
 {
   "$schema": "../schemas/github-governance-repositories.schema.json",
-  "schemaVersion": "2.1",
+  "schemaVersion": "2.2",
+  "publicRepositoryDiscovery": {
+    "owner": "nathanmcnulty",
+    "namePrefix": "azd-"
+  },
   "catalogValidationPolicy": {
     "enforcementMode": "non-required",
     "workflow": "nathanmcnulty/azd-reference/.github/workflows/catalog-metadata.yml",
@@ -15,156 +19,200 @@
     {
       "id": "azd-reference",
       "repository": "https://github.com/nathanmcnulty/azd-reference",
+      "visibility": "public",
       "defaultBranch": "main",
       "requiredStatusChecks": ["validate (ubuntu-latest)", "validate (windows-latest)", "Analyze (actions)", "dependency-review"],
+      "allowedActionPatterns": [],
       "catalogValidation": {"state": "exempt", "exemptionReason": "This repository owns the canonical validator and cannot consume the revision that contains itself."},
       "releaseTagPattern": "refs/tags/component/**/*"
     },
     {
       "id": "azd-advanced-auditing",
       "repository": "https://github.com/nathanmcnulty/azd-advanced-auditing",
+      "visibility": "public",
       "defaultBranch": "main",
       "requiredStatusChecks": ["validate", "Analyze (actions)", "dependency-review"],
+      "allowedActionPatterns": [],
       "catalogValidation": {"state": "pending"}
     },
     {
       "id": "azd-auth-notifications",
       "repository": "https://github.com/nathanmcnulty/azd-auth-notifications",
+      "visibility": "public",
       "defaultBranch": "main",
       "requiredStatusChecks": ["validate", "Analyze (actions)", "dependency-review"],
+      "allowedActionPatterns": [],
       "catalogValidation": {"state": "pending"}
     },
     {
       "id": "azd-cloud-pc-recommendations",
       "repository": "https://github.com/nathanmcnulty/azd-cloud-pc-recommendations",
+      "visibility": "public",
       "defaultBranch": "main",
       "requiredStatusChecks": ["validate", "Analyze (actions)", "dependency-review"],
+      "allowedActionPatterns": [],
       "catalogValidation": {"state": "pending"}
     },
     {
       "id": "azd-defender-reporting",
       "repository": "https://github.com/nathanmcnulty/azd-defender-reporting",
+      "visibility": "public",
       "defaultBranch": "main",
       "requiredStatusChecks": ["validate", "Analyze (actions)", "dependency-review"],
+      "allowedActionPatterns": ["azure/login@*", "Azure/setup-azd@*"],
       "catalogValidation": {"state": "pending"}
     },
     {
       "id": "azd-device-cleanup",
       "repository": "https://github.com/nathanmcnulty/azd-device-cleanup",
+      "visibility": "public",
       "defaultBranch": "main",
       "requiredStatusChecks": ["validate", "Analyze (actions)", "dependency-review"],
+      "allowedActionPatterns": [],
       "catalogValidation": {"state": "pending"}
     },
     {
       "id": "azd-device-notifications",
       "repository": "https://github.com/nathanmcnulty/azd-device-notifications",
+      "visibility": "public",
       "defaultBranch": "main",
       "requiredStatusChecks": ["validate", "Analyze (javascript-typescript)", "dependency-review"],
+      "allowedActionPatterns": [],
       "catalogValidation": {"state": "pending"}
     },
     {
       "id": "azd-emergency-access",
       "repository": "https://github.com/nathanmcnulty/azd-emergency-access",
+      "visibility": "public",
       "defaultBranch": "main",
       "requiredStatusChecks": ["validate", "Analyze (actions)", "dependency-review"],
+      "allowedActionPatterns": [],
       "catalogValidation": {"state": "pilot"}
     },
     {
       "id": "azd-entra-health-monitoring",
       "repository": "https://github.com/nathanmcnulty/azd-entra-health-monitoring",
+      "visibility": "public",
       "defaultBranch": "main",
       "requiredStatusChecks": ["validate", "Analyze (actions)", "dependency-review"],
+      "allowedActionPatterns": [],
       "catalogValidation": {"state": "pending"}
     },
     {
       "id": "azd-entra-iga",
       "repository": "https://github.com/nathanmcnulty/azd-entra-iga",
+      "visibility": "private",
       "defaultBranch": "main",
       "requiredStatusChecks": ["test"],
+      "allowedActionPatterns": ["azure/CLI@*"],
       "catalogValidation": {"state": "pending"}
     },
     {
       "id": "azd-global-secure-access",
       "repository": "https://github.com/nathanmcnulty/azd-global-secure-access",
+      "visibility": "public",
       "defaultBranch": "main",
       "requiredStatusChecks": ["validate", "Analyze (actions)", "dependency-review"],
+      "allowedActionPatterns": ["Azure/setup-azd@*"],
       "catalogValidation": {"state": "pending"}
     },
     {
       "id": "azd-maester",
       "repository": "https://github.com/nathanmcnulty/azd-maester",
+      "visibility": "public",
       "defaultBranch": "main",
       "requiredStatusChecks": ["validate", "dependency-review"],
+      "allowedActionPatterns": [],
       "catalogValidation": {"state": "pending"}
     },
     {
       "id": "azd-maester-azureautomation",
       "repository": "https://github.com/nathanmcnulty/azd-maester-azureautomation",
+      "visibility": "public",
       "defaultBranch": "main",
       "requiredStatusChecks": ["validate", "Analyze (actions)", "dependency-review"],
+      "allowedActionPatterns": [],
       "catalogValidation": {"state": "pending"}
     },
     {
       "id": "azd-maester-azuredevops",
       "repository": "https://github.com/nathanmcnulty/azd-maester-azuredevops",
+      "visibility": "public",
       "defaultBranch": "main",
       "requiredStatusChecks": ["validate", "Analyze (actions)", "dependency-review"],
+      "allowedActionPatterns": [],
       "catalogValidation": {"state": "pending"}
     },
     {
       "id": "azd-maester-containerappjob",
       "repository": "https://github.com/nathanmcnulty/azd-maester-containerappjob",
+      "visibility": "public",
       "defaultBranch": "main",
       "requiredStatusChecks": ["validate", "Analyze (actions)", "dependency-review"],
+      "allowedActionPatterns": [],
       "catalogValidation": {"state": "pending"}
     },
     {
       "id": "azd-maester-functionapp",
       "repository": "https://github.com/nathanmcnulty/azd-maester-functionapp",
+      "visibility": "public",
       "defaultBranch": "main",
       "requiredStatusChecks": ["validate", "Analyze (actions)", "dependency-review"],
+      "allowedActionPatterns": [],
       "catalogValidation": {"state": "pending"}
     },
     {
       "id": "azd-myworkid",
       "repository": "https://github.com/nathanmcnulty/azd-myworkid",
+      "visibility": "public",
       "defaultBranch": "main",
       "requiredStatusChecks": ["run tests", "analyze", "dependency-review"],
+      "allowedActionPatterns": ["dorny/test-reporter@*"],
       "catalogValidation": {"state": "pending"}
     },
     {
       "id": "azd-pim",
       "repository": "https://github.com/nathanmcnulty/azd-pim",
+      "visibility": "public",
       "defaultBranch": "main",
       "requiredStatusChecks": ["validate", "analyze", "dependency-review"],
+      "allowedActionPatterns": ["anchore/sbom-action@*"],
       "catalogValidation": {"state": "pending"}
     },
     {
       "id": "azd-risk-based-ca",
       "repository": "https://github.com/nathanmcnulty/azd-risk-based-ca",
+      "visibility": "public",
       "defaultBranch": "main",
       "requiredStatusChecks": ["Validate (ubuntu-latest)", "Validate (windows-latest)", "analyze", "dependency-review"],
+      "allowedActionPatterns": [],
       "catalogValidation": {"state": "pilot"}
     },
     {
       "id": "azd-santa",
       "repository": "https://github.com/nathanmcnulty/azd-santa",
+      "visibility": "public",
       "defaultBranch": "main",
       "requiredStatusChecks": ["validate (ubuntu-latest)", "validate (windows-latest)", "Analyze (actions)", "Analyze (python)", "dependency-review"],
+      "allowedActionPatterns": ["actions/checkout@*"],
       "catalogValidation": {"state": "pilot"}
     },
     {
       "id": "azd-sysmon",
       "repository": "https://github.com/nathanmcnulty/azd-sysmon",
+      "visibility": "public",
       "defaultBranch": "main",
       "requiredStatusChecks": ["validate", "Analyze (actions)", "dependency-review"],
+      "allowedActionPatterns": [],
       "catalogValidation": {"state": "pending"}
     },
     {
       "id": "azd-verified-id",
       "repository": "https://github.com/nathanmcnulty/azd-verified-id",
+      "visibility": "public",
       "defaultBranch": "main",
       "requiredStatusChecks": ["validate", "Analyze (actions)", "dependency-review"],
+      "allowedActionPatterns": ["azure/setup-azd@*"],
       "catalogValidation": {"state": "pending"}
     }
   ]

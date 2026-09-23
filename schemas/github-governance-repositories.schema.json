@@ -5,12 +5,22 @@
   "additionalProperties": false,
   "required": [
     "schemaVersion",
+    "publicRepositoryDiscovery",
     "catalogValidationPolicy",
     "repositories"
   ],
   "properties": {
     "$schema": {"type": "string"},
-    "schemaVersion": {"const": "2.1"},
+    "schemaVersion": {"const": "2.2"},
+    "publicRepositoryDiscovery": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["owner", "namePrefix"],
+      "properties": {
+        "owner": {"type": "string", "pattern": "^[A-Za-z0-9_.-]+$"},
+        "namePrefix": {"const": "azd-"}
+      }
+    },
     "catalogValidationPolicy": {
       "type": "object",
       "additionalProperties": false,
@@ -89,7 +99,7 @@
     "repository": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "repository", "defaultBranch", "requiredStatusChecks", "catalogValidation"],
+      "required": ["id", "repository", "visibility", "defaultBranch", "requiredStatusChecks", "allowedActionPatterns", "catalogValidation"],
       "properties": {
         "id": {
           "type": "string",
@@ -99,6 +109,7 @@
           "type": "string",
           "pattern": "^https://github\\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
         },
+        "visibility": {"enum": ["public", "private"]},
         "defaultBranch": {
           "type": "string",
           "pattern": "^[A-Za-z0-9][A-Za-z0-9._/-]*$"
@@ -108,6 +119,14 @@
           "minItems": 1,
           "uniqueItems": true,
           "items": {"type": "string", "minLength": 1}
+        },
+        "allowedActionPatterns": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+@\\*$"
+          }
         },
         "releaseTagPattern": {
           "type": "string",
