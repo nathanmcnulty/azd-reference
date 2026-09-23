@@ -14,6 +14,8 @@ concurrency:
 
 jobs:
   audit:
+    if: github.ref == 'refs/heads/main'
+    environment: github-governance-audit
     runs-on: ubuntu-latest
     timeout-minutes: 45
     defaults:
@@ -22,13 +24,55 @@ jobs:
     steps:
       - name: Check out the governance contract
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Prepare the registered repository scope
+        id: repository-scope
+        run: |
+          $registry = Get-Content -LiteralPath ./portfolio/github-governance-repositories.json -Raw | ConvertFrom-Json
+          $owner = [string] $registry.publicRepositoryDiscovery.owner
+          if ($owner -ne 'nathanmcnulty') {
+            throw "Unexpected governance registry owner '$owner'."
+          }
+
+          $repositories = @(
+            foreach ($entry in @($registry.repositories)) {
+              $uri = [uri] $entry.repository
+              $segments = @($uri.AbsolutePath.Trim('/').Split('/'))
+              if ($uri.Scheme -ne 'https' -or
+                  $uri.Host -ne 'github.com' -or
+                  $segments.Count -ne 2 -or
+                  $segments[0] -ne $owner -or
+                  $segments[1] -ne [string] $entry.id) {
+                throw "Invalid registered repository '$($entry.repository)' for '$($entry.id)'."
+              }
+              $segments[1]
+            }
+          )
+
+          if ($repositories.Count -eq 0 -or 'azd-reference' -notin $repositories) {
+            throw 'The governance registry must include azd-reference and at least one repository.'
+          }
+          "names=$($repositories -join ',')" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+      - name: Mint a registry-scoped, read-only GitHub App token
+        id: governance-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ vars.AZD_GOVERNANCE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.AZD_GOVERNANCE_APP_PRIVATE_KEY }}
+          owner: nathanmcnulty
+          repositories: ${{ steps.repository-scope.outputs.names }}
+          permission-administration: read
+          permission-contents: read
 
       - name: Audit repository settings and public registry coverage
         env:
-          GH_TOKEN: ${{ secrets.AZD_GOVERNANCE_READ_TOKEN }}
+          GH_TOKEN: ${{ steps.governance-token.outputs.token }}
         run: |
           if ([string]::IsNullOrWhiteSpace($env:GH_TOKEN)) {
-            throw 'Add the AZD_GOVERNANCE_READ_TOKEN Actions secret. It must be a fine-grained, read-only token scoped to the repositories in the governance registry.'
+            throw 'The governance App token is empty. Check the App installation, repository variable, and private-key secret.'
           }
 
           $reportJson = ./tooling/Get-AzdGitHubGovernanceStatus.ps1 `

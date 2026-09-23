@@ -86,19 +86,33 @@ features that require a GitHub plan or a repository-administration credential
 as unavailable rather than silently treating them as enabled. It does not
 change settings, approve pull requests, or merge branches.
 
-The scheduled cross-repository audit requires an Actions secret named
-`AZD_GOVERNANCE_READ_TOKEN`. Use a fine-grained personal access token scoped to
-the repositories listed in the governance registry, including its private
-entry. Grant only these repository permissions:
+The scheduled cross-repository audit uses a dedicated personal-account GitHub
+App named `azd-governance-audit`, separate from any App that can publish
+pull requests or otherwise write. Install it only on repositories in the
+governance registry. Grant only `Administration: read` and `Contents: read`;
+GitHub requires `Metadata: read` and includes it automatically. The workflow
+limits each installation token to the current registry entries and requests
+only the two read permissions it needs. It never changes repository settings.
 
-- `Administration: read`
-- `Contents: read`
-- `Metadata: read`
+Store the App's Client ID in the `AZD_GOVERNANCE_APP_CLIENT_ID` repository
+variable and its private key in the `AZD_GOVERNANCE_APP_PRIVATE_KEY` secret
+for the `github-governance-audit` environment in `azd-reference`. Restrict the
+environment to the `main` branch, without a required reviewer, so weekly runs
+remain unattended while non-main runs cannot receive the secret. The private
+key remains a long-lived credential and must be protected and deliberately
+rotated. The workflow uses the SHA-pinned `actions/create-github-app-token`
+action to mint a token for the job; that token expires after one hour and is
+revoked by the action when the job completes. The audit also guards for `main`,
+does not persist checkout credentials, and exposes the installation token only
+to its read-only audit step.
 
-Do not use a write token. The workflow fails with setup guidance when the
-secret is missing. GitHub's
-`GITHUB_TOKEN` is limited to the repository running the workflow, so it cannot
-read the settings of the other repositories; see GitHub's
+Do not reuse the portfolio-updater App or a personal access token for this
+audit. A fine-grained PAT restricted to the same repositories and read
+permissions is a viable fallback if operating an App becomes disproportionate,
+but a recurring cross-repository integration should use the dedicated App.
+GitHub's `GITHUB_TOKEN` is limited to the repository running the workflow, so
+it cannot read the settings of other repositories; see GitHub's
 [token scope documentation](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/about-authentication-to-github#authenticating-with-the-api-in-a-github-actions-workflow).
-Give the fine-grained token an expiry and rotate the repository secret before
-it expires.
+
+For App registration, selected-repository installation, secret rotation, and
+recovery steps, see the [governance audit runbook](../docs/github-governance-audit.md).
