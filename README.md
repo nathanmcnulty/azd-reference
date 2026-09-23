@@ -129,3 +129,8 @@ approve or merge a pull request, force-push, or mutate an active checkout. See
 [`docs/portfolio-updates.md`](docs/portfolio-updates.md). For moving a complete
 solution out of incubation, use the linked standalone promotion standard in
 [`standards/standalone-promotion.md`](standards/standalone-promotion.md).
+
+The cross-repository GitHub settings and Actions-policy audit is read-only.
+Its dedicated App setup and operation are documented in the
+[governance audit runbook](docs/github-governance-audit.md) and
+[GitHub governance standard](standards/github-governance.md).
