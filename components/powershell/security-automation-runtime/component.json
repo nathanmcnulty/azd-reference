@@ -1,0 +1,42 @@
+{
+  "manifestVersion": "1.1",
+  "id": "security-automation-runtime",
+  "version": "0.1.0",
+  "status": "pilot",
+  "description": "PowerShell security evidence review runtime for local, Function, Automation and Logic App orchestration.",
+  "changelog": "components/powershell/security-automation-runtime/CHANGELOG.md",
+  "files": [
+    {
+      "source": "components/powershell/security-automation-runtime/Azd.SecurityAutomation.psm1",
+      "target": "scripts/vendor/Azd.SecurityAutomation/Azd.SecurityAutomation.psm1"
+    },
+    {
+      "source": "components/powershell/security-automation-runtime/Invoke-SecurityRunbook.ps1",
+      "target": "scripts/vendor/Azd.SecurityAutomation/Invoke-SecurityRunbook.ps1"
+    },
+    {
+      "source": "components/powershell/security-automation-runtime/host.json",
+      "target": "host.json"
+    },
+    {
+      "source": "components/powershell/security-automation-runtime/function.json",
+      "target": "SecurityReview/function.json"
+    },
+    {
+      "source": "components/powershell/security-automation-runtime/run.ps1",
+      "target": "SecurityReview/run.ps1"
+    },
+    {
+      "source": "components/powershell/security-automation-runtime/Build-SecurityBundle.ps1",
+      "target": "scripts/vendor/Azd.SecurityAutomation/Build-SecurityBundle.ps1"
+    },
+    {
+      "source": "components/powershell/security-automation-runtime/Publish-SecurityHost.ps1",
+      "target": "scripts/vendor/Azd.SecurityAutomation/Publish-SecurityHost.ps1"
+    },
+    {
+      "source": "components/powershell/security-automation-runtime/Set-SecuritySchedule.ps1",
+      "target": "scripts/vendor/Azd.SecurityAutomation/Set-SecuritySchedule.ps1"
+    }
+  ]
+}
