@@ -63,8 +63,8 @@ The reviewed local consumer lock now pins `deployment-validation@1.1.1` to
 
 ### Deployment-validation 1.1.1 upgrade decisions
 
-Auth Notifications and PIM completed separate local 1.1.1 adoption reviews;
-Device Notifications and Emergency Access retain 1.0.0. Each upgrade needs its
+All four consumers completed separate 1.1.1 adoption reviews and retain
+their unbound schema 1.0 domain validation contracts. Each upgrade needs its
 own consumer review because 1.1.1 adds an
 evidence-binding contract and managed-file changes rather than a metadata-only
 release.
@@ -72,8 +72,8 @@ release.
 | Consumer | Current lock evidence | Decision |
 | --- | --- | --- |
 | Auth Notifications | Reviewed local `deployment-validation@1.1.1` at `0c96cc89c554ffc3b3ca82ceda12da6591e816c1` | Adopted locally after independent review, zero-provider plan smoke and full offline validation. Existing schema 1.0 reports and notification-contracts 1.0.0 remain unchanged. |
-| Device Notifications | `deployment-validation@1.0.0` at `ef60904fa3aa3dee81f36ba7bfed0eed18f72276` | Keep 1.0.0 desired. Prepare a separate consumer update and validate its existing project adapter before changing the registry. |
-| Emergency Access | `deployment-validation@1.0.0` at `ef60904fa3aa3dee81f36ba7bfed0eed18f72276` | Keep 1.0.0 desired. Review evidence-binding semantics in an independent consumer update before changing the registry. |
+| Device Notifications | Reviewed `deployment-validation@1.1.1` at `0c96cc89c554ffc3b3ca82ceda12da6591e816c1` | Adopted in a separate reviewed packet with full offline validation; notification-contracts 1.0.0 and the domain adapter remain unchanged. |
+| Emergency Access | Reviewed `deployment-validation@1.1.1` at `0c96cc89c554ffc3b3ca82ceda12da6591e816c1` | Adopted in a separate reviewed packet with full offline validation; graph-delegated-authentication 0.1.1 and the domain adapter remain unchanged. |
 | PIM | Reviewed local `deployment-validation@1.1.1` at `0c96cc89c554ffc3b3ca82ceda12da6591e816c1` | Adopted locally after independent review and full offline validation. Schema 1.0 output remains explicit; unrelated Flex-host and attribute edits are preserved. |
 
 Remaining promotion order:

@@ -21,6 +21,8 @@ assigned. Canonical checkouts and unrelated worktrees are preserved.
 | AUTH-005 | notification_retention | Optional terminal-payload compaction that preserves deduplication and ambiguous delivery state |
 | AUTH-009 | registry_adoption | Adopt the signed deployment-validation 1.1.1 component in Auth Notifications, retaining its current plan contract |
 | PIM-005 | notification_retention | Adopt the same component in PIM with an explicit schema 1.0 compatibility assertion |
+| EA-004 | registry_adoption | Upgrade Emergency Access using its preserved reviewed backlog branch and retain Graph authentication 0.1.1 |
+| DEVICE-004 | notification_retention | Upgrade Device Notifications from current main and retain notification contracts 1.0.0 |
 | Independent review | independent_reviewer | Frozen source hashes, offline behavior and disposable test/cleanup boundaries |
 
 Claims were serialized in the canonical backlogs before dispatch. Implementation
@@ -55,7 +57,7 @@ reviewed cleanup harness are retained privately outside Git.
 
 ## Completed packets
 
-All four packets are integrated locally into their canonical checkouts. Source
+All six packets are integrated locally into their canonical checkouts. Source
 worktrees remain frozen for preservation and review.
 
 | Packet | Result | Validation |
@@ -64,6 +66,8 @@ worktrees remain frozen for preservation and review.
 | AUTH-005 | Optional terminal payload retention, disabled by default, with permanent deduplication tombstones and a resumable bounded sweep | Independent review; integrated offline wrapper 37/37 tests, audit with zero vulnerabilities, build/typecheck, Bicep and diff checks; real Azure Table test |
 | AUTH-009 | Signed deployment-validation 1.1.1 vendored and locked; existing schema 1.0 plan output preserved | Independent frozen-file review; integrated retention-plus-upgrade wrapper 37/37; three plan checks with provider-call sentinels; managed-file hash parity |
 | PIM-005 | Same immutable component adopted with an explicit schema 1.0 compatibility assertion | Independent frozen-file review; integrated canonical suite 121/121 Pester and 14/14 Node; build, Bicep and component drift checks |
+| EA-004 | Emergency Access adopts the same signed component; Graph authentication 0.1.1 and unbound schema 1.0 remain unchanged | Independent source/staged review; full 114/114 tests, focused 9/9, schema/no-provider smoke 1/1, Bicep and exact drift; canonical focused 9/9 |
+| DEVICE-004 | Device Notifications adopts the same component from current main; notification contracts 1.0.0 remain unchanged | Independent source/staged review; full 104/104 Pester and 109/109 application tests, focused 10/10, build/bundle/Bicep/metadata and zero-vulnerability audit; canonical focused 10/10 |
 
 The reference suite used process-local Git signing overrides for disposable
 fixtures because the inherited signing/editor behavior is tracked separately
@@ -105,10 +109,11 @@ AUTH-009 and PIM-005 are complete locally. Their deployment-validation 1.1.1
 component resolves to signed immutable revision
 `0c96cc89c554ffc3b3ca82ceda12da6591e816c1`. Both retain the existing unbound
 schema 1.0 plan contract; optional management evidence binding is not enabled.
-The central desired-version registry now matches both reviewed consumer locks.
-Its final focused suite passed 47/47 independently and during integration.
-Device Notifications and Emergency Access remain at 1.0.0; their upgrades are
-separate backlog packets. Existing PIM Flex-host drift and lab worktrees were
+At that stage, the central desired-version registry matched those two reviewed
+consumer locks. Its focused suite passed 47/47 independently and during integration.
+Device Notifications and Emergency Access subsequently completed their own
+reviewed adoption packets. All four consumers now pin the same signed 1.1.1
+release; optional evidence binding remains a separate feature decision. Existing PIM Flex-host drift and lab worktrees were
 preserved, as were Auth Notifications permission-tracking changes.
 
 The maintainer subsequently authorized review, commit and push of this batch.
@@ -119,3 +124,18 @@ a new hosted CI result or completion of remaining delivery gates.
 The same fresh main confirms [Graph retry PR #8](https://github.com/nathanmcnulty/azd-auth-notifications/pull/8)
 is merged and issue #7 closed. AUTH-010 records that remote resolution without
 resetting the dirty canonical permission-tracking checkout.
+
+## Reviewed branch preservation
+
+The first batch was independently reviewed across 135 paths, committed in 26
+Git roots and pushed to 25 accessible repositories on
+`codex/backlog-reviewed-20261003`. Exact remote hashes were verified. The retained
+`azd-nathanmcnulty` checkout has an unavailable configured remote; its local
+commit and single-head Git bundle were independently verified instead. Existing
+checkouts, indexes, local environments and unrelated builders were preserved.
+
+EA-004 and DEVICE-004 continue on separate reviewed branches based on their
+recorded source snapshots. Their focused plan tests block provider and delivery
+calls. These component-only updates needed no further lab resource provisioning.
+The final central desired-version follow-up passed 47 focused tests. Branch
+preservation does not change required checks, merge to main or release a template.
