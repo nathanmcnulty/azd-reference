@@ -206,11 +206,23 @@ function Invoke-HostedSecurityBundle {
                 }
             }
         }
+        $inputBindings=@($downloadedPaths | Sort-Object | ForEach-Object {
+            @{path=[IO.Path]::GetRelativePath($inputs,$_).Replace('\','/');sha256=(Get-FileHash -LiteralPath $_ -Algorithm SHA256).Hash.ToLowerInvariant()}
+        })
         $previousEvidenceRoot=$env:SECURITY_EVIDENCE_ROOT
         try {
             $env:SECURITY_EVIDENCE_ROOT=$inputs
             Invoke-SecurityBundle -BundleRoot $BundleRoot -ConfigurationPath $ConfigurationPath -InputDirectory $inputs -OutputDirectory $outputs
         } finally { $env:SECURITY_EVIDENCE_ROOT=$previousEvidenceRoot }
+        $remainingInputs=@(Get-ChildItem -LiteralPath $inputs -File -Recurse)
+        if ($remainingInputs.Count -ne $inputBindings.Count) { throw 'Engine changed the downloaded evidence file set.' }
+        foreach ($binding in $inputBindings) {
+            $path=Resolve-SecurityBundlePath -Root $inputs -RelativePath $binding.path
+            if (-not (Test-Path -LiteralPath $path -PathType Leaf) -or
+                (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant() -cne $binding.sha256) {
+                throw 'Engine changed downloaded evidence; reports were not published.'
+            }
+        }
         $runId = [DateTime]::UtcNow.ToString('yyyyMMddTHHmmssZ')+'-'+[guid]::NewGuid().ToString('N')
         foreach ($file in Get-ChildItem -LiteralPath $outputs -File -Recurse) {
             $relative = [IO.Path]::GetRelativePath($outputs,$file.FullName).Replace('\','/')
@@ -220,9 +232,7 @@ function Invoke-HostedSecurityBundle {
         $manifest = @{
             schemaVersion='1.0';runId=$runId;status='complete';completedAt=[DateTimeOffset]::UtcNow.ToString('o')
             bundleManifestSha256=$provenance.manifestSha256;sourceCommits=$provenance.sourceCommits
-            inputs=@(Get-ChildItem -LiteralPath $inputs -File -Recurse | ForEach-Object {
-                @{path=[IO.Path]::GetRelativePath($inputs,$_.FullName).Replace('\','/');sha256=(Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()}
-            })
+            inputs=$inputBindings
             files=@(Get-ChildItem -LiteralPath $outputs -File -Recurse | ForEach-Object {
                 @{path=[IO.Path]::GetRelativePath($outputs,$_.FullName).Replace('\','/');sha256=(Get-FileHash -LiteralPath $_.FullName).Hash.ToLowerInvariant()}
             })

@@ -100,6 +100,8 @@ alongside the output hashes. Compare the manifest hash with the approved package
 to associate a report with its source. These are content bindings; they do not
 authenticate evidence authors, establish reviewer identity, or prove endpoint
 delivery. A package ZIP hash remains separate deployment/transport evidence.
+Input bindings are captured before engine execution. If an engine alters or
+removes downloaded evidence, processing fails before uploading any reports.
 
 For a combined deployment, select one independently deployable solution's host,
 then invoke its vendored `Deploy-SecuritySource.ps1 -SolutionRoot <roots>`.

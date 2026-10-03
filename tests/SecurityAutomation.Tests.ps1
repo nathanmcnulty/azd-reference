@@ -141,6 +141,17 @@ Describe 'Hosted provenance and completion' {
             $script:completed.files.Count|Should -Be 1
         }
     }
+    It 'withholds every upload when an engine changes downloaded evidence: <Kind>' -ForEach @(@{Kind='overwrite'},@{Kind='delete'}) {
+        $runner=if($Kind -eq 'overwrite'){'param($InputPath,$OutputDirectory) Set-Content $InputPath "changed"'}else{'param($InputPath,$OutputDirectory) Remove-Item -LiteralPath $InputPath'}
+        Set-Content "$root/runner.ps1" $runner
+        Write-TestBundleManifest $root
+        InModuleScope Azd.SecurityAutomation -Parameters @{Root=$root} {
+            param($Root)
+            Mock Invoke-SecurityBlobTransfer {param($Direction,$Path) if($Direction -ne 'Upload'){Set-Content $Path '{}'}}
+            {Invoke-HostedSecurityBundle -BundleRoot $Root -ConfigurationPath "$Root/config.json" -Account teststorage}|Should -Throw '*changed*evidence*'
+            Should -Invoke Invoke-SecurityBlobTransfer -Times 0 -Exactly -ParameterFilter {$Direction -eq 'Upload'}
+        }
+    }
 }
 
 Describe 'Immutable package republication' {
