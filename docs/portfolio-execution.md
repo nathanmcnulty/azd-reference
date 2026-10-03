@@ -193,3 +193,24 @@ quality worktrees are preserved. Live Automation/Container status propagation,
 real DevOps pipelines and Function invocation/Graph/HTML/queue acceptance remain
 separate integration evidence gaps. These fixes add no new component adoption;
 the reviewed snapshots retain Maester hooks 0.1.5 and report-webapp 0.1.1.
+
+
+## Health source reconciliation and assessment preparation
+
+HEALTH-001 is saved at [b341445](https://github.com/nathanmcnulty/azd-entra-health-monitoring/commit/b341445138f8df5f1c1ba3c8d84fe558f5803879),
+based on main `7bdae8bad4497331bf50083d8614053348a998b3` (merged PR #9).
+PowerShell and JSON parsing, 14/14 Pester tests and Bicep compilation passed at
+that source; the existing connection-kind BCP187 warning remains. This packet
+changes only three tracking files and operations documentation. All 31 portfolio
+backlogs and generated views passed after the reviewed tracking integration.
+
+The protected random client-state implementation is recorded, while HEALTH-003
+retains its broader receiver, removed-subscription, duplicate-delivery and
+transient/renewal-failure fixture gaps. HEALTH-004 retains live Graph/Teams gates.
+HEALTH-006 now has value-safe assessment and callback-key rotation preparation,
+but remains proposed: no target-bound environment/history assessment, key
+regeneration, Graph mutation, cleanup or delivery was performed. The instructions
+retrieve all subscription pages and identify provisioning as the lifecycle
+workflow's state-Enabled release point. The old canonical runtime checkout and
+its local environments were preserved; the new operations text is saved only
+in the separately reviewed source branch.
