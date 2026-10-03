@@ -92,6 +92,15 @@ escaping paths, missing files, and hash mismatches stop processing before report
 publication. The package builder preserves the reviewed artifact declarations.
 Changing an artifact requires a new reviewed configuration and package.
 
+Hosted processing requires the builder's `bundle-manifest.json`. It verifies
+listed file hashes and configuration/runner coverage before downloading evidence.
+The final `completed.json` records that manifest's SHA-256, exact source/runtime
+revisions, and hashes of the actual downloaded inputs and companion artifacts,
+alongside the output hashes. Compare the manifest hash with the approved package
+to associate a report with its source. These are content bindings; they do not
+authenticate evidence authors, establish reviewer identity, or prove endpoint
+delivery. A package ZIP hash remains separate deployment/transport evidence.
+
 For a combined deployment, select one independently deployable solution's host,
 then invoke its vendored `Deploy-SecuritySource.ps1 -SolutionRoot <roots>`.
 It packages every selected engine, publishes once, and refreshes Automation job

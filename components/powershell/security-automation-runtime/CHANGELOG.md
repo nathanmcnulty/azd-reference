@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.5
+
+- Validate packaged file hashes, configuration coverage, runner coverage, and exact source revisions before hosted evidence processing.
+- Bind completed reports to the package manifest hash, source commits, and hashes of the downloaded inputs and companion artifacts.
+- Missing manifests and changed package files fail before evidence downloads or engine execution. These bindings do not authenticate evidence authors or reviewers.
+
 ## 0.1.0
 
 - Pilot PowerShell evidence processing runtime for local, Function and Automation hosts.

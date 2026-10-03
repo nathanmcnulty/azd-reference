@@ -140,6 +140,45 @@ function Invoke-SecurityBlobTransfer {
     }
 }
 
+function Get-SecurityBundleProvenance {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)][string]$BundleRoot,[Parameter(Mandatory)][string]$ConfigurationPath)
+    $manifestPath = Resolve-SecurityBundlePath -Root $BundleRoot -RelativePath 'bundle-manifest.json'
+    if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) { throw 'Hosted package requires bundle-manifest.json.' }
+    $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+    if ($manifest.schemaVersion -ne '1.0' -or @($manifest.files).Count -eq 0) { throw 'Invalid hosted package manifest.' }
+    $paths = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    foreach ($file in $manifest.files) {
+        $path = Resolve-SecurityBundlePath -Root $BundleRoot -RelativePath $file.path
+        if (-not $paths.Add($path) -or $file.sha256 -cnotmatch '^[a-f0-9]{64}$' -or
+            -not (Test-Path -LiteralPath $path -PathType Leaf) -or
+            (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant() -cne $file.sha256) {
+            throw 'Hosted package manifest has duplicate, missing, or changed files.'
+        }
+    }
+    $configuration = Resolve-SecurityBundlePath -Root $BundleRoot -RelativePath ([IO.Path]::GetRelativePath([IO.Path]::GetFullPath($BundleRoot),[IO.Path]::GetFullPath($ConfigurationPath)))
+    if (-not $paths.Contains($configuration)) { throw 'Hosted configuration is absent from the package manifest.' }
+    $config = Get-Content -LiteralPath $configuration -Raw | ConvertFrom-Json
+    $ids = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+    foreach ($solution in $config.solutions) {
+        if (-not $ids.Add($solution.id) -or -not $paths.Contains((Resolve-SecurityBundlePath -Root $BundleRoot -RelativePath $solution.runner))) {
+            throw 'Hosted runner is missing from the package manifest or engine IDs are duplicated.'
+        }
+    }
+    $sources = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+    foreach ($source in $manifest.sourceCommits) {
+        if (-not $ids.Contains($source.solutionId) -or -not $sources.Add($source.solutionId) -or
+            $source.sourceRevision -cnotmatch '^[a-f0-9]{40}$' -or $source.runtimeRevision -cnotmatch '^[a-f0-9]{40}$') {
+            throw 'Hosted package source provenance is invalid.'
+        }
+    }
+    if ($ids.Count -eq 0 -or -not $ids.SetEquals($sources)) { throw 'Hosted package source provenance is incomplete.' }
+    [pscustomobject]@{
+        manifestSha256=(Get-FileHash -LiteralPath $manifestPath -Algorithm SHA256).Hash.ToLowerInvariant()
+        sourceCommits=@($manifest.sourceCommits)
+    }
+}
+
 function Invoke-HostedSecurityBundle {
     [CmdletBinding()]
     param([Parameter(Mandatory)][string]$BundleRoot,[Parameter(Mandatory)][string]$ConfigurationPath,
@@ -148,6 +187,7 @@ function Invoke-HostedSecurityBundle {
     $inputs = Join-Path $temporary 'inputs'; $outputs = Join-Path $temporary 'outputs'
     New-Item -ItemType Directory -Path $inputs,$outputs -Force | Out-Null
     try {
+        $provenance = Get-SecurityBundleProvenance -BundleRoot $BundleRoot -ConfigurationPath $ConfigurationPath
         $config = Get-Content -LiteralPath $ConfigurationPath -Raw | ConvertFrom-Json
         $downloadedPaths=[Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
         foreach ($solution in $config.solutions) {
@@ -179,6 +219,10 @@ function Invoke-HostedSecurityBundle {
         $manifestPath = Join-Path $temporary 'completed.json'
         $manifest = @{
             schemaVersion='1.0';runId=$runId;status='complete';completedAt=[DateTimeOffset]::UtcNow.ToString('o')
+            bundleManifestSha256=$provenance.manifestSha256;sourceCommits=$provenance.sourceCommits
+            inputs=@(Get-ChildItem -LiteralPath $inputs -File -Recurse | ForEach-Object {
+                @{path=[IO.Path]::GetRelativePath($inputs,$_.FullName).Replace('\','/');sha256=(Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()}
+            })
             files=@(Get-ChildItem -LiteralPath $outputs -File -Recurse | ForEach-Object {
                 @{path=[IO.Path]::GetRelativePath($outputs,$_.FullName).Replace('\','/');sha256=(Get-FileHash -LiteralPath $_.FullName).Hash.ToLowerInvariant()}
             })
