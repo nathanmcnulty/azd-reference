@@ -24,3 +24,7 @@
 ## 0.1.3
 
 - Normalize template EOF for clean consumer whitespace validation; runtime behavior is unchanged.
+
+## 0.1.4
+
+- Add workspace-backed Function diagnostics with 30-day retention and a 0.1 GB daily ingestion cap so invocation and deployment failures can be investigated.

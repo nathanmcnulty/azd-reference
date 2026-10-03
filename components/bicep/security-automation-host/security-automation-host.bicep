@@ -96,6 +96,26 @@ resource plan 'Microsoft.Web/serverfarms@2024-04-01' = if (useFunction) {
   sku: { name: 'FC1', tier: 'FlexConsumption' }
   properties: { reserved: true }
 }
+resource diagnosticsWorkspace 'Microsoft.OperationalInsights/workspaces@2023-09-01' = if (useFunction) {
+  name: 'log-${resourceToken}'
+  location: location
+  tags: tags
+  properties: {
+    sku: { name: 'PerGB2018' }
+    retentionInDays: 30
+    workspaceCapping: { dailyQuotaGb: json('0.1') }
+  }
+}
+resource diagnostics 'Microsoft.Insights/components@2020-02-02' = if (useFunction) {
+  name: 'appi-${resourceToken}'
+  location: location
+  tags: tags
+  kind: 'web'
+  properties: {
+    Application_Type: 'web'
+    WorkspaceResourceId: diagnosticsWorkspace.id
+  }
+}
 resource function 'Microsoft.Web/sites@2024-04-01' = if (useFunction) {
   name: 'func-${resourceToken}'
   location: location
@@ -109,6 +129,7 @@ resource function 'Microsoft.Web/sites@2024-04-01' = if (useFunction) {
       minTlsVersion: '1.2'
       ftpsState: 'Disabled'
       appSettings: [
+        { name: 'APPLICATIONINSIGHTS_CONNECTION_STRING', value: diagnostics!.properties.ConnectionString }
         { name: 'AzureWebJobsStorage__accountName', value: functionStorage.name }
         { name: 'AzureWebJobsStorage__credential', value: 'managedidentity' }
         { name: 'SECURITY_STORAGE_ACCOUNT', value: storage.name }

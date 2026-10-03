@@ -1,7 +1,7 @@
 {
   "manifestVersion": "1.1",
   "id": "security-automation-host",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "status": "pilot",
   "description": "Optional PowerShell Function, Automation and Logic App evidence review hosts with managed identities.",
   "changelog": "components/bicep/security-automation-host/CHANGELOG.md",
