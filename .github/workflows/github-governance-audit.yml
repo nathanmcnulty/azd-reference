@@ -81,7 +81,14 @@ jobs:
           $reportJson | Set-Content -LiteralPath ./github-governance-status.json -Encoding utf8NoBOM
 
           $report = @($reportJson | ConvertFrom-Json)
-          $report | Format-Table repository, visibility, state -AutoSize
+          $report | Format-Table repository, visibility, state, ownerRecoveryVerification -AutoSize
+          $manualRecovery = @($report | Where-Object {
+            $_.PSObject.Properties.Name -contains 'ownerRecoveryVerification' -and
+            $_.ownerRecoveryVerification -eq 'manual-required'
+          })
+          if ($manualRecovery.Count -gt 0) {
+            Write-Warning "Owner recovery bypass needs separate owner-authenticated verification for $($manualRecovery.Count) repositories; the read-only App cannot observe that setting."
+          }
           $findings = @($report | Where-Object state -ne 'current')
           if ($findings.Count -gt 0) {
             throw "GitHub governance drift was found in $($findings.Count) audit result(s)."
