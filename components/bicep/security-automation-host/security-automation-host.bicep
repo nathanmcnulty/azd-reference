@@ -15,13 +15,20 @@ param bundleSha256 string = ''
 @description('Required future ISO 8601 UTC start time when enabling the Automation schedule.')
 param automationScheduleStartTime string = '2030-01-01T00:00:00Z'
 param tags object = {}
+@description('Optional explicitly selected source publisher object ID; receives write access only to the package container.')
+param sourcePublisherPrincipalId string = ''
+@allowed(['User', 'ServicePrincipal', 'Group'])
+param sourcePublisherPrincipalType string = 'User'
 
 var hosted = computeMode != 'none'
 var useFunction = computeMode == 'function'
 var useAutomation = computeMode == 'automation' || computeMode == 'logic-app'
 var blobContributor = 'ba92f5b4-2d11-453d-a403-e96b0029c9fe'
+var blobReader = '2a2b9908-6ea1-4ae2-8e65-a410df84e7d1'
 var blobOwner = 'b7e6dc6d-f1e8-4753-8033-0f276bb0955b'
 var jobOperator = '4fe576fe-1146-4730-92eb-48519fa6bf9f'
+// Direct template callers also fail closed when an enabled package has not been configured.
+var effectiveScheduleEnabled = scheduleEnabled && length(bundleSha256) == 64 && bundleBlob == '${bundleSha256}.zip'
 
 resource storage 'Microsoft.Storage/storageAccounts@2023-05-01' = if (hosted) {
   name: 'st${resourceToken}'
@@ -42,11 +49,44 @@ resource blobs 'Microsoft.Storage/storageAccounts/blobServices@2023-05-01' = if 
   name: 'default'
   properties: { deleteRetentionPolicy: { enabled: true, days: 7 } }
 }
-resource containers 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = [for name in ['evidence', 'reports', 'packages', 'function-releases']: if (hosted) {
+resource containers 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = [for name in ['evidence', 'reports', 'packages']: if (hosted) {
   parent: blobs
   name: name
   properties: { publicAccess: 'None' }
 }]
+resource functionStorage 'Microsoft.Storage/storageAccounts@2023-05-01' = if (useFunction) {
+  name: 'stf${resourceToken}'
+  location: location
+  tags: tags
+  kind: 'StorageV2'
+  sku: { name: 'Standard_LRS' }
+  properties: {
+    allowBlobPublicAccess: false
+    allowSharedKeyAccess: false
+    defaultToOAuthAuthentication: true
+    minimumTlsVersion: 'TLS1_2'
+    supportsHttpsTrafficOnly: true
+  }
+}
+resource functionBlobs 'Microsoft.Storage/storageAccounts/blobServices@2023-05-01' = if (useFunction) {
+  parent: functionStorage
+  name: 'default'
+  properties: { deleteRetentionPolicy: { enabled: true, days: 7 } }
+}
+resource functionReleases 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = if (useFunction) {
+  parent: functionBlobs
+  name: 'function-releases'
+  properties: { publicAccess: 'None' }
+}
+resource sourcePublisher 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (hosted && !empty(sourcePublisherPrincipalId)) {
+  scope: containers[2]
+  name: guid(containers[2].id, sourcePublisherPrincipalId, blobContributor)
+  properties: {
+    principalId: sourcePublisherPrincipalId
+    principalType: sourcePublisherPrincipalType
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', blobContributor)
+  }
+}
 resource plan 'Microsoft.Web/serverfarms@2024-04-01' = if (useFunction) {
   name: 'plan-${resourceToken}'
   location: location
@@ -68,11 +108,11 @@ resource function 'Microsoft.Web/sites@2024-04-01' = if (useFunction) {
       minTlsVersion: '1.2'
       ftpsState: 'Disabled'
       appSettings: [
-        { name: 'AzureWebJobsStorage__accountName', value: storage.name }
+        { name: 'AzureWebJobsStorage__accountName', value: functionStorage.name }
         { name: 'AzureWebJobsStorage__credential', value: 'managedidentity' }
         { name: 'SECURITY_STORAGE_ACCOUNT', value: storage.name }
         { name: 'SECURITY_SCHEDULE', value: schedule }
-        { name: 'AzureWebJobs.SecurityReview.Disabled', value: string(!scheduleEnabled) }
+        { name: 'AzureWebJobs.SecurityReview.Disabled', value: string(!effectiveScheduleEnabled) }
       ]
     }
     functionAppConfig: {
@@ -81,17 +121,17 @@ resource function 'Microsoft.Web/sites@2024-04-01' = if (useFunction) {
       deployment: {
         storage: {
           type: 'blobContainer'
-          value: '${storage!.properties.primaryEndpoints.blob}function-releases'
+          value: '${functionStorage!.properties.primaryEndpoints.blob}function-releases'
           authentication: { type: 'SystemAssignedIdentity' }
         }
       }
     }
   }
-  dependsOn: [containers]
+  dependsOn: [containers, functionReleases]
 }
 resource functionRoles 'Microsoft.Authorization/roleAssignments@2022-04-01' = [for role in [blobOwner]: if (useFunction) {
-  scope: storage
-  name: guid(storage.id, function.id, role)
+  scope: functionStorage
+  name: guid(functionStorage.id, function.id, role)
   properties: {
     principalId: function!.identity.principalId
     principalType: 'ServicePrincipal'
@@ -124,16 +164,43 @@ resource runbook 'Microsoft.Automation/automationAccounts/runbooks@2024-10-23' =
     draft: {}
   }
 }
-resource automationStorage 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (useAutomation) {
-  scope: storage
-  name: guid(storage.id, automation.id, blobContributor)
+resource functionEvidenceReader 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (useFunction) {
+  scope: containers[0]
+  name: guid(containers[0].id, function.id, blobReader)
+  properties: {
+    principalId: function!.identity.principalId
+    principalType: 'ServicePrincipal'
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', blobReader)
+  }
+}
+resource functionReportWriter 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (useFunction) {
+  scope: containers[1]
+  name: guid(containers[1].id, function.id, blobContributor)
+  properties: {
+    principalId: function!.identity.principalId
+    principalType: 'ServicePrincipal'
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', blobContributor)
+  }
+}
+resource automationReaders 'Microsoft.Authorization/roleAssignments@2022-04-01' = [for index in [0, 2]: if (useAutomation) {
+  scope: containers[index]
+  name: guid(containers[index].id, automation.id, blobReader)
+  properties: {
+    principalId: automation!.identity.principalId
+    principalType: 'ServicePrincipal'
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', blobReader)
+  }
+}]
+resource automationReportWriter 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (useAutomation) {
+  scope: containers[1]
+  name: guid(containers[1].id, automation.id, blobContributor)
   properties: {
     principalId: automation!.identity.principalId
     principalType: 'ServicePrincipal'
     roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', blobContributor)
   }
 }
-resource automationSchedule 'Microsoft.Automation/automationAccounts/schedules@2024-10-23' = if (computeMode == 'automation' && scheduleEnabled) {
+resource automationSchedule 'Microsoft.Automation/automationAccounts/schedules@2024-10-23' = if (computeMode == 'automation' && effectiveScheduleEnabled) {
   parent: automation
   name: 'SecurityReviewSixHourly'
   properties: {
@@ -144,7 +211,7 @@ resource automationSchedule 'Microsoft.Automation/automationAccounts/schedules@2
     description: 'Set a future start time and approved package hash before enabling.'
   }
 }
-resource jobSchedule 'Microsoft.Automation/automationAccounts/jobSchedules@2024-10-23' = if (computeMode == 'automation' && scheduleEnabled) {
+resource jobSchedule 'Microsoft.Automation/automationAccounts/jobSchedules@2024-10-23' = if (computeMode == 'automation' && effectiveScheduleEnabled) {
   parent: automation
   name: guid(automation.id, runbook.name, automationSchedule.name)
   properties: {
@@ -159,7 +226,7 @@ resource workflow 'Microsoft.Logic/workflows@2019-05-01' = if (computeMode == 'l
   tags: tags
   identity: { type: 'SystemAssigned' }
   properties: {
-    state: scheduleEnabled ? 'Enabled' : 'Disabled'
+    state: effectiveScheduleEnabled ? 'Enabled' : 'Disabled'
     definition: {
       '$schema': 'https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#'
       contentVersion: '1.0.0.0'
@@ -205,5 +272,6 @@ output runbookName string = useAutomation ? runbook.name : ''
 output workflowName string = computeMode == 'logic-app' ? workflow.name : ''
 output principalId string = useFunction ? function!.identity.principalId : (useAutomation ? automation!.identity.principalId : '')
 output solution string = solutionName
+output scheduledProcessingEnabled bool = effectiveScheduleEnabled && hosted
 
 

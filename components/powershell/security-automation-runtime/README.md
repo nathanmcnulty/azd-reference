@@ -14,24 +14,29 @@ immutable reference revision. A solution's main Bicep selects `none` (default),
 are private, storage shared keys are disabled, and hosted access uses managed
 identity. This initial implementation supports Azure public cloud only.
 
-Build an immutable package with `Build-SecurityBundle.ps1 -SolutionRoot <paths>
+Commit reviewed source, then build an immutable package with `Build-SecurityBundle.ps1 -SolutionRoot <paths>
 -OutputPath <new.zip>`. Multiple roots produce a combined host package; each
 engine and its local dependencies are copied into the package. No sibling repo
 or private reference repository is contacted at runtime. The package contains
-a SHA256 file inventory. The Automation runbook verifies the full ZIP SHA256
+a SHA256 file inventory and exact source commits. Dirty tracked source, component
+drift and mixed runtime revisions are rejected. The Automation runbook verifies the full ZIP SHA256
 before extraction. Rollback means redeploying a retained approved ZIP/hash.
 
 `Publish-SecurityHost.ps1` uploads the package using cached Azure CLI credentials
 and publishes Function source or an Automation runbook. It supports `-WhatIf`.
 Publishing does not enable scheduling or grant permissions. Upload each explicit
 snapshot as `<solution-id>.json` to the evidence container; hosted runs place
-artifacts in a unique run directory in reports. Evidence writers can influence
+artifacts in a unique run directory in reports. A run is complete only when its
+final `completed.json` marker exists and every listed artifact hash matches;
+partial prefixes are never accepted as completed runs. Evidence writers can influence
 the review result and must be trusted administrators. Use retention controls for
 endpoint names, paths and identifiers; no input or token values are logged by
 the transport.
 
-For Automation and Logic App modes, redeploy `bundleBlob` and `bundleSha256`
-using publication output. Set a future `automationScheduleStartTime` for the
+For Automation and Logic App modes, the azd postdeploy hook records the published
+blob/hash and refreshes provisioned job parameters without republishing another
+package. Manual source publication requires a parameter refresh with its output.
+Set a future `automationScheduleStartTime` for the
 Automation schedule. Only then enable scheduling. Logic App mode is an independent
 deployment which invokes its own PowerShell runbook every six hours; it adds
 Automation Job Operator for its identity at the Automation account scope. It does
@@ -45,11 +50,14 @@ listed in each solution's permission manifest. Combined collectors need the exac
 union of selected features; this does not imply all engines should share a broadly
 privileged publishing identity. Separate discovery and approved publishing identities.
 
-Function timer hosts use Storage Blob Data Owner on their storage account for host
-coordination and deployment. Automation uses Storage Blob Data Contributor for
-approved package/evidence reads and report writes. Deployment requires Azure resource
+Function timer hosts use Storage Blob Data Owner on a separate host/deployment
+storage account. Both compute identities have only Blob Data Reader on evidence;
+Automation also has Reader on approved packages. Reports use Blob Data Contributor
+at the reports container scope. Deployment requires Azure resource
 write and scoped role-assignment permissions; source upload additionally requires
-Blob Data Contributor. Container-level separation is a future hardening option.
+Blob Data Contributor on packages. Pass an explicitly selected publisher object ID
+to assign that container role during provisioning, or use an existing approved
+assignment. The evidence writer is a separate administrator/collection identity.
 
 ## Verification limits
 
@@ -60,8 +68,10 @@ policy enforcement. Those remain tenant pilot gates. See Microsoft's
 [timer storage permissions](https://learn.microsoft.com/azure/azure-functions/functions-bindings-timer),
 and [Automation managed identity guidance](https://learn.microsoft.com/azure/automation/enable-managed-identity-for-automation).
 
-Automation schedules are created only when scheduleEnabled is true. To pause an
-existing Automation schedule, use Set-SecuritySchedule.ps1 -Enabled:$false.
-Incremental ARM deployment with scheduleEnabled=false does not remove a schedule
-that was created earlier. Logic App and Function schedules have explicit disabled
-settings and can be paused by redeploying with scheduleEnabled=false.
+Automation schedules are created only with an enabled, configured package. The azd
+preprovision hook explicitly pauses and verifies any existing Automation schedule
+when the flag is false. Direct ARM callers must use Set-SecuritySchedule.ps1 to
+pause a retained schedule; incremental ARM omission does not remove it. Direct
+template callers cannot enable a default/empty package hash. Logic App and Function
+schedules have explicit disabled settings. Use separate azd environments for compute
+alternatives; the hook rejects changing the compute kind of an existing deployment.

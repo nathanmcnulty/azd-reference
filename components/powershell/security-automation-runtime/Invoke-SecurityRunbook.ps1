@@ -11,7 +11,7 @@ try {
     $endpoint = [uri]$env:IDENTITY_ENDPOINT
     if (-not $endpoint.IsLoopback) { throw 'Identity endpoint must be local.' }
     $uri = "$endpoint`?resource=https%3A%2F%2Fstorage.azure.com%2F&api-version=2019-08-01"
-    $identity = Invoke-RestMethod -Uri $uri -Headers @{ 'X-IDENTITY-HEADER'=$env:IDENTITY_HEADER; Metadata='true' } -TimeoutSec 30
+    $identity = Invoke-RestMethod -Uri $uri -Headers @{ 'X-IDENTITY-HEADER'=$env:IDENTITY_HEADER; Metadata='true' } -TimeoutSec 30 -MaximumRedirection 0
     $zip = Join-Path $temporary 'bundle.zip'
     Invoke-WebRequest -Uri "https://$StorageAccount.blob.core.windows.net/packages/$BundleBlob" -Headers @{Authorization="Bearer $($identity.access_token)";'x-ms-version'='2023-11-03'} -OutFile $zip -MaximumRedirection 0 -TimeoutSec 120
     if ((Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash -ne $BundleSha256) { throw 'Approved bundle hash mismatch.' }

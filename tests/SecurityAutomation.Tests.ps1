@@ -32,4 +32,29 @@ Describe 'Security evidence runtime boundaries' {
             { Invoke-SecurityGraphRead -Uri 'https://graph.microsoft.com/v1.0/devices' } | Should -Throw '*pagination*'
         }
     }
+    It 'rejects same-host POST pagination to write endpoints' {
+        InModuleScope Azd.SecurityAutomation {
+            Mock Get-SecurityAccessToken { 'test-token' }
+            Mock Invoke-RestMethod { [pscustomobject]@{value=@();'@odata.nextLink'='https://graph.microsoft.com/v1.0/groups'} }
+            { Invoke-SecurityGraphRead -Uri 'https://graph.microsoft.com/v1.0/security/runHuntingQuery' -Method POST -Body @{Query='DeviceEvents | take 1'} } | Should -Throw '*POST pagination*'
+            Should -Invoke Invoke-RestMethod -Times 1 -Exactly
+        }
+    }
+    It 'does not publish a completion marker after a partial upload failure' {
+        $root=Join-Path $TestDrive 'partial'
+        New-Item -ItemType Directory $root | Out-Null
+        Set-Content "$root/runner.ps1" 'param($InputPath,$OutputDirectory) Set-Content (Join-Path $OutputDirectory "one.json") "{}"; Set-Content (Join-Path $OutputDirectory "two.json") "{}"'
+        @{schemaVersion='1.0';solutions=@(@{id='azd-partial';runner='runner.ps1';input='input.json'})} | ConvertTo-Json -Depth 10 | Set-Content "$root/config.json"
+        InModuleScope Azd.SecurityAutomation -Parameters @{Root=$root} {
+            param($Root)
+            $script:uploadCount=0
+            Mock Invoke-SecurityBlobTransfer {
+                param($Direction,$Path)
+                if ($Direction -eq 'Upload') { $script:uploadCount++; if ($script:uploadCount -eq 2) { throw 'Upload failed' } }
+                else { Set-Content -LiteralPath $Path '{}' }
+            }
+            { Invoke-HostedSecurityBundle -BundleRoot $Root -ConfigurationPath "$Root/config.json" -Account 'teststorage' } | Should -Throw '*Upload failed*'
+            Should -Invoke Invoke-SecurityBlobTransfer -Times 0 -Exactly -ParameterFilter { $Blob -like '*/completed.json' }
+        }
+    }
 }

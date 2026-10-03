@@ -19,7 +19,7 @@ function Get-SecurityAccessToken {
     if (-not $endpoint.IsLoopback) { throw 'Managed identity endpoint must be local.' }
     $separator = if ($endpoint.Query) { '&' } else { '?' }
     $uri = "$endpoint${separator}resource=$([uri]::EscapeDataString($Resource))&api-version=2019-08-01"
-    $result = Invoke-RestMethod -Uri $uri -Headers @{ 'X-IDENTITY-HEADER'=$env:IDENTITY_HEADER; Metadata='true' } -TimeoutSec 30
+    $result = Invoke-RestMethod -Uri $uri -Headers @{ 'X-IDENTITY-HEADER'=$env:IDENTITY_HEADER; Metadata='true' } -TimeoutSec 30 -MaximumRedirection 0
     if (-not $result.access_token) { throw 'Managed identity did not return a token.' }
     if ($TenantId) {
         try {
@@ -48,6 +48,7 @@ function Invoke-SecurityGraphRead {
         if ($page -ge $MaximumPages) { throw 'Graph page limit exceeded; evidence is incomplete.' }
         $pageUri = [uri]$next
         if ($pageUri.Scheme -ne 'https' -or $pageUri.Host -ne $Uri.Host -or $pageUri.UserInfo -or $pageUri.Port -ne 443 -or $pageUri.AbsolutePath -notmatch '^/(v1\.0|beta)/') { throw 'Unsafe Graph pagination URL.' }
+        if ($Method -eq 'POST' -and $pageUri.AbsolutePath -notmatch '^/(v1\.0|beta)/security/runHuntingQuery$') { throw 'Unsafe POST pagination endpoint.' }
         $response = $null
         for ($attempt=0; $attempt -lt 4; $attempt++) {
             try {
@@ -116,7 +117,11 @@ function Invoke-SecurityBlobTransfer {
     $headers = @{ Authorization="Bearer $token"; 'x-ms-version'='2023-11-03'; 'x-ms-date'=[DateTime]::UtcNow.ToString('R') }
     try {
         if ($Direction -eq 'Download') { Invoke-WebRequest -Uri $uri -Headers $headers -OutFile $Path -TimeoutSec 120 -MaximumRedirection 0 | Out-Null }
-        else { $headers['x-ms-blob-type']='BlockBlob'; Invoke-WebRequest -Uri $uri -Headers $headers -Method Put -InFile $Path -TimeoutSec 120 -MaximumRedirection 0 | Out-Null }
+        else {
+            $headers['x-ms-blob-type']='BlockBlob'
+            if ($Container -eq 'packages') { $headers['If-None-Match']='*' }
+            Invoke-WebRequest -Uri $uri -Headers $headers -Method Put -InFile $Path -TimeoutSec 120 -MaximumRedirection 0 | Out-Null
+        }
     } catch { throw "Evidence blob $Direction failed; output is incomplete." }
 }
 
@@ -140,6 +145,16 @@ function Invoke-HostedSecurityBundle {
             $relative = [IO.Path]::GetRelativePath($outputs,$file.FullName).Replace('\','/')
             Invoke-SecurityBlobTransfer -Account $Account -Container $OutputContainer -Blob "$runId/$relative" -Path $file.FullName -Direction Upload
         }
+        $manifestPath = Join-Path $temporary 'completed.json'
+        $manifest = @{
+            schemaVersion='1.0';runId=$runId;status='complete';completedAt=[DateTimeOffset]::UtcNow.ToString('o')
+            files=@(Get-ChildItem -LiteralPath $outputs -File -Recurse | ForEach-Object {
+                @{path=[IO.Path]::GetRelativePath($outputs,$_.FullName).Replace('\','/');sha256=(Get-FileHash -LiteralPath $_.FullName).Hash.ToLowerInvariant()}
+            })
+        }
+        $manifest | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $manifestPath -Encoding utf8NoBOM
+        # A run is consumable only when this final marker exists and all listed hashes match.
+        Invoke-SecurityBlobTransfer -Account $Account -Container $OutputContainer -Blob "$runId/completed.json" -Path $manifestPath -Direction Upload
         return [pscustomobject]@{runId=$runId;status='review-produced';solutionCount=@($config.solutions).Count}
     } finally { Remove-Item -LiteralPath $temporary -Recurse -Force }
 }
