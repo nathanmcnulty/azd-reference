@@ -16,7 +16,10 @@ function Get-SecurityAccessToken {
     }
     if (-not $env:IDENTITY_ENDPOINT -or -not $env:IDENTITY_HEADER) { throw 'Managed identity endpoint is unavailable.' }
     $endpoint = [uri]$env:IDENTITY_ENDPOINT
-    if (-not $endpoint.IsLoopback) { throw 'Managed identity endpoint must be local.' }
+    $flexEndpoint = $endpoint.Scheme -ceq 'http' -and $endpoint.Host -ceq '169.254.255.2' -and $endpoint.Port -eq 8081 -and $endpoint.AbsolutePath -ceq '/msi/token'
+    if ($endpoint.Scheme -notin @('http','https') -or $endpoint.UserInfo -or $endpoint.Fragment -or (-not $endpoint.IsLoopback -and -not $flexEndpoint)) {
+        throw 'Managed identity endpoint must be loopback or the Azure Flex identity endpoint.'
+    }
     $separator = if ($endpoint.Query) { '&' } else { '?' }
     $uri = "$endpoint${separator}resource=$([uri]::EscapeDataString($Resource))&api-version=2019-08-01"
     $result = Invoke-RestMethod -Uri $uri -Headers @{ 'X-IDENTITY-HEADER'=$env:IDENTITY_HEADER; Metadata='true' } -TimeoutSec 30 -MaximumRedirection 0

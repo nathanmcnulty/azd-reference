@@ -26,3 +26,7 @@
 ## 0.1.3
 
 - Require the configured engine entry point to be tracked in the reviewed source commit.
+
+## 0.1.4
+
+- Support the Azure Flex link-local managed identity endpoint while retaining strict destination and redirect checks.

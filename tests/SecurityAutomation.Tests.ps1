@@ -3,6 +3,22 @@ BeforeAll {
     Import-Module $modulePath -Force
 }
 Describe 'Security evidence runtime boundaries' {
+    It 'accepts the Flex platform identity endpoint while rejecting unrelated or decorated endpoints' {
+        InModuleScope Azd.SecurityAutomation {
+            $oldEndpoint=$env:IDENTITY_ENDPOINT; $oldHeader=$env:IDENTITY_HEADER
+            try {
+                $env:IDENTITY_HEADER='fixture-header'
+                Mock Invoke-RestMethod { @{access_token='fixture-token'} }
+                $env:IDENTITY_ENDPOINT='http://169.254.255.2:8081/msi/token'
+                Get-SecurityAccessToken -Resource 'https://storage.azure.com/' | Should -Be 'fixture-token'
+                foreach ($unsupported in @('http://169.254.255.3:8081/msi/token','http://169.254.255.2:8082/msi/token','http://169.254.255.2:8081/other','https://example.com/msi/token','http://user@localhost/msi/token','http://localhost/msi/token#fragment')) {
+                    $env:IDENTITY_ENDPOINT=$unsupported
+                    { Get-SecurityAccessToken -Resource 'https://storage.azure.com/' } | Should -Throw '*identity endpoint*'
+                }
+                Should -Invoke Invoke-RestMethod -Times 1 -Exactly -ParameterFilter { $MaximumRedirection -eq 0 -and $Headers['X-IDENTITY-HEADER'] -eq 'fixture-header' }
+            } finally { $env:IDENTITY_ENDPOINT=$oldEndpoint; $env:IDENTITY_HEADER=$oldHeader }
+        }
+    }
     It 'rejects write-oriented Graph endpoints before requesting a token' {
         { Invoke-SecurityGraphRead -Uri 'https://graph.microsoft.com/beta/deviceManagement/configurationPolicies' -Method POST -Body @{} } | Should -Throw '*read-only*'
     }
