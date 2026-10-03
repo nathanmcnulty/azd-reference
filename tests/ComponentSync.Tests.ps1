@@ -14,6 +14,10 @@ Describe 'Component synchronization' {
         Copy-Item -LiteralPath (Join-Path $script:repoRoot '.gitattributes') -Destination $reference
         & git -C $reference init --initial-branch main | Out-Null
         & git -C $reference config core.autocrlf false
+        foreach ($setting in @('commit.gpgsign', 'tag.gpgsign')) {
+            & git -C $reference config --local $setting false
+            if ($LASTEXITCODE -ne 0) { throw "Unable to disable $setting in the Git reference fixture." }
+        }
         & git -C $reference config user.name 'azd-reference tests'
         & git -C $reference config user.email 'azd-reference-tests@example.invalid'
         & git -C $reference remote add origin 'https://github.com/example/azd-reference.git'
@@ -188,6 +192,10 @@ Describe 'Component synchronization' {
     It 'accepts CRLF representation only under an explicit text eol=lf policy' {
         & git -C $consumer init --initial-branch main | Out-Null
         & git -C $consumer config core.autocrlf false
+        foreach ($setting in @('commit.gpgsign', 'tag.gpgsign')) {
+            & git -C $consumer config --local $setting false
+            if ($LASTEXITCODE -ne 0) { throw "Unable to disable $setting in the Git consumer fixture." }
+        }
         Set-Content -LiteralPath (Join-Path $consumer '.gitattributes') -Encoding utf8NoBOM -Value 'scripts/vendor/** text eol=lf'
         & git -C $consumer add .gitattributes
         & git -C $consumer -c user.name=test -c user.email=test@example.invalid commit -m 'Consumer attributes' | Out-Null
