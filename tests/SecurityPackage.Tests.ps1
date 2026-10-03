@@ -108,3 +108,12 @@ Describe 'Reviewed package metadata' {
         { & $builder -SolutionRoot $root -OutputPath "$TestDrive/untracked-lock.zip" } | Should -Throw '*metadata must be tracked*'
     }
 }
+
+Describe 'Reviewed package runner' {
+    It 'rejects an untracked runner rather than publishing a missing entrypoint' {
+        $root=Join-Path $TestDrive 'untracked-runner'; New-PackageTestSource $root 'azd-untracked-runner'
+        & git -C $root rm --cached --quiet scripts/Invoke-Solution.ps1
+        & git -C $root -c user.name='Package Test' -c user.email='test@example.invalid' commit --quiet -m 'Remove tracked runner fixture'
+        { & $builder -SolutionRoot $root -OutputPath "$TestDrive/untracked-runner.zip" } | Should -Throw '*runner must be tracked*'
+    }
+}

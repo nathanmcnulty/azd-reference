@@ -22,3 +22,7 @@
 - Constrain hosted file references to the downloaded evidence root.
 
 - Reuse an already uploaded immutable package only after verifying its downloaded content hash; never overwrite it.
+
+## 0.1.3
+
+- Require the configured engine entry point to be tracked in the reviewed source commit.

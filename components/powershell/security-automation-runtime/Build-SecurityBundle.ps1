@@ -72,6 +72,8 @@ try {
         $ids[$id]=$true
         $provenance+=@{solutionId=$id;sourceRevision=$revision;runtimeRevision=$runtimeRevision}
         if (-not (Test-Path -LiteralPath (Join-Path $root 'scripts/Invoke-Solution.ps1'))) { throw "No evidence runner for $id." }
+        & git -C $root ls-files --error-unmatch -- scripts/Invoke-Solution.ps1 2>$null | Out-Null
+        if ($LASTEXITCODE -ne 0) { throw 'Package runner must be tracked in the reviewed commit.' }
         $tracked = @(& git -C $root ls-files -- scripts data schemas config modules queries policies remediations)
         if ($LASTEXITCODE -ne 0 -or $tracked.Count -eq 0) { throw 'Package sources must be tracked in Git.' }
         $approvedPaths = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
