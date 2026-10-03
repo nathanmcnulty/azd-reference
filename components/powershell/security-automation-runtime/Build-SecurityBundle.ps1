@@ -6,27 +6,67 @@ $temporary = Join-Path ([IO.Path]::GetTempPath()) ('security-package-'+[guid]::N
 New-Item -ItemType Directory -Path $temporary | Out-Null
 try {
     $solutions = @(); $ids = @{}; $runtimeRevision=$null; $provenance=@()
+    $requiredRuntimeTargets = @(
+        'scripts/vendor/Azd.SecurityAutomation/Azd.SecurityAutomation.psm1'
+        'scripts/vendor/Azd.SecurityAutomation/Invoke-SecurityRunbook.ps1'
+        'host.json'
+        'SecurityReview/function.json'
+        'SecurityReview/run.ps1'
+        'scripts/vendor/Azd.SecurityAutomation/Build-SecurityBundle.ps1'
+        'scripts/vendor/Azd.SecurityAutomation/Publish-SecurityHost.ps1'
+        'scripts/vendor/Azd.SecurityAutomation/Set-SecuritySchedule.ps1'
+        'scripts/vendor/Azd.SecurityAutomation/Initialize-SecurityEnvironment.ps1'
+        'scripts/vendor/Azd.SecurityAutomation/Deploy-SecuritySource.ps1'
+        'scripts/vendor/Azd.SecurityAutomation/azd-components-lock.schema.json'
+        'scripts/vendor/Azd.SecurityAutomation/permission-requirements.schema.json'
+    )
     foreach ($root in $SolutionRoot) {
         $root = (Resolve-Path -LiteralPath $root).Path
-        & git -C $root diff --quiet HEAD -- scripts data schemas config modules queries policies remediations host.json SecurityReview azd-components.lock.json azd-permissions.json
+        & git -C $root diff --quiet HEAD -- scripts data schemas config modules queries policies remediations host.json SecurityReview security-bundle.json azd-components.lock.json azd-permissions.json
         if ($LASTEXITCODE -ne 0) { throw 'Package sources have dirty tracked changes. Commit the reviewed source first.' }
         $revision = (& git -C $root rev-parse HEAD).Trim()
         if ($LASTEXITCODE -ne 0 -or $revision -notmatch '^[a-f0-9]{40}$') { throw 'Package sources require an exact Git commit.' }
+        foreach ($metadataPath in @('azd-components.lock.json','azd-permissions.json')) {
+            & git -C $root ls-files --error-unmatch -- $metadataPath 2>$null | Out-Null
+            if ($LASTEXITCODE -ne 0) { throw "Package metadata must be tracked in the reviewed commit: $metadataPath" }
+        }
         $lockPath=Join-Path $root 'azd-components.lock.json'
-        $lock=Get-Content -LiteralPath $lockPath -Raw | ConvertFrom-Json
+        $schemaPath=Join-Path $PSScriptRoot 'azd-components-lock.schema.json'
+        if (-not (Test-Path -LiteralPath $schemaPath)) { $schemaPath=Join-Path $PSScriptRoot '../../../schemas/azd-components-lock.schema.json' }
+        $lockJson=Get-Content -LiteralPath $lockPath -Raw
+        if (-not (Test-Json -Json $lockJson -SchemaFile $schemaPath -ErrorAction Stop)) { throw 'Invalid canonical component lock.' }
+        $lock=$lockJson | ConvertFrom-Json
         $runtimeLocks=@($lock.components | Where-Object id -eq 'security-automation-runtime')
         if ($runtimeLocks.Count -ne 1) { throw 'Each package source requires one security runtime component lock.' }
         $runtimeLock=$runtimeLocks[0]
+        foreach ($requiredTarget in $requiredRuntimeTargets) {
+            if (@($runtimeLock.files | Where-Object target -eq $requiredTarget).Count -ne 1) { throw "Security runtime lock must include $requiredTarget exactly once." }
+        }
+        if (@($runtimeLock.files).Count -ne $requiredRuntimeTargets.Count) { throw 'Security runtime lock must match the complete reviewed runtime target set.' }
         if ($runtimeRevision -and $runtimeRevision -ne $runtimeLock.sourceRevision) { throw 'Mixed security runtime revisions cannot be combined.' }
         $runtimeRevision=$runtimeLock.sourceRevision
-        foreach ($lockedFile in $runtimeLock.files) {
-            $path=[IO.Path]::GetFullPath((Join-Path $root $lockedFile.target))
-            if (-not $path.StartsWith($root.TrimEnd('\','/')+[IO.Path]::DirectorySeparatorChar,[StringComparison]::OrdinalIgnoreCase)) { throw 'Component target escapes its root.' }
-            if ((Get-FileHash -LiteralPath $path).Hash.ToLowerInvariant() -ne $lockedFile.sha256) { throw 'Security runtime component drift detected.' }
+        $lockedTargets=[Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+        foreach ($componentLock in $lock.components) {
+            foreach ($lockedFile in $componentLock.files) {
+                $normalizedTarget=$lockedFile.target.Replace('\','/')
+                if (-not $lockedTargets.Add($normalizedTarget)) { throw "Component target is locked more than once: $normalizedTarget" }
+                $path=[IO.Path]::GetFullPath((Join-Path $root $lockedFile.target))
+                if (-not $path.StartsWith($root.TrimEnd('\','/')+[IO.Path]::DirectorySeparatorChar,[StringComparison]::OrdinalIgnoreCase)) { throw 'Component target escapes its root.' }
+                if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { throw "Locked component file is missing: $normalizedTarget" }
+                $cursor=$root
+                foreach ($part in $normalizedTarget -split '/') {
+                    $cursor=Join-Path $cursor $part
+                    if ((Get-Item -LiteralPath $cursor).Attributes -band [IO.FileAttributes]::ReparsePoint) { throw "Locked component target traverses a link: $normalizedTarget" }
+                }
+                if ((Get-FileHash -LiteralPath $path).Hash.ToLowerInvariant() -ne $lockedFile.sha256) { throw "Locked component file drift detected: $normalizedTarget" }
+            }
         }
         $invokingRuntimeHash=(Get-FileHash -LiteralPath (Join-Path $PSScriptRoot 'Azd.SecurityAutomation.psm1')).Hash.ToLowerInvariant()
         $moduleLocks=@($runtimeLock.files | Where-Object target -eq 'scripts/vendor/Azd.SecurityAutomation/Azd.SecurityAutomation.psm1')
         if ($moduleLocks.Count -ne 1 -or $moduleLocks[0].sha256 -ne $invokingRuntimeHash) { throw 'Invoking runtime does not match the selected package lock.' }
+        $invokingBuilderHash=(Get-FileHash -LiteralPath $PSCommandPath).Hash.ToLowerInvariant()
+        $builderLocks=@($runtimeLock.files | Where-Object target -eq 'scripts/vendor/Azd.SecurityAutomation/Build-SecurityBundle.ps1')
+        if ($builderLocks.Count -ne 1 -or $builderLocks[0].sha256 -ne $invokingBuilderHash) { throw 'Invoking bundle builder does not match the selected package lock.' }
         $id = (Get-Content -LiteralPath (Join-Path $root 'azd-permissions.json') -Raw | ConvertFrom-Json).solutionId
         if ($id -notmatch '^azd-[a-z0-9-]+$' -or $ids.ContainsKey($id)) { throw 'Invalid or duplicate solution id.' }
         $ids[$id]=$true
@@ -54,7 +94,18 @@ try {
                 Copy-Item -LiteralPath $file.FullName -Destination $target
             }
         }
-        $solutions += @{ id=$id; runner="$id/scripts/Invoke-Solution.ps1"; input="$id.json" }
+        $entry=@{ id=$id; runner="$id/scripts/Invoke-Solution.ps1"; input="$id.json" }
+        $configurationPath=Join-Path $root 'security-bundle.json'
+        if (Test-Path -LiteralPath $configurationPath) {
+            & git -C $root ls-files --error-unmatch -- security-bundle.json 2>$null | Out-Null
+            if ($LASTEXITCODE -ne 0) { throw 'Source bundle configuration must be tracked in Git.' }
+            $sourceConfiguration=Get-Content -LiteralPath $configurationPath -Raw | ConvertFrom-Json
+            $sourceEntries=@($sourceConfiguration.solutions | Where-Object id -eq $id)
+            if ($sourceConfiguration.schemaVersion -ne '1.0' -or $sourceEntries.Count -ne 1) { throw 'Invalid source bundle configuration.' }
+            $entry.input=$sourceEntries[0].input
+            if ($sourceEntries[0].PSObject.Properties.Name -contains 'artifactFiles') { $entry.artifactFiles=@($sourceEntries[0].artifactFiles) }
+        }
+        $solutions += $entry
     }
     $runtime = Join-Path $PSScriptRoot 'Azd.SecurityAutomation.psm1'
     $runtimeTarget = Join-Path $temporary 'scripts/vendor/Azd.SecurityAutomation'
@@ -76,4 +127,12 @@ try {
     New-Item -ItemType Directory -Path (Split-Path $OutputPath) -Force | Out-Null
     Compress-Archive -Path (Join-Path $temporary '*') -DestinationPath $OutputPath -CompressionLevel Optimal
     [pscustomobject]@{path=$OutputPath;sha256=(Get-FileHash -LiteralPath $OutputPath -Algorithm SHA256).Hash.ToLowerInvariant();solutionIds=@($ids.Keys | Sort-Object);fileCount=$files.Count}
-} finally { Remove-Item -LiteralPath $temporary -Recurse -Force }
+} finally {
+    $cleanupRoot = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd('\','/') + [IO.Path]::DirectorySeparatorChar
+    $cleanupPath = [IO.Path]::GetFullPath($temporary)
+    if (-not $cleanupPath.StartsWith($cleanupRoot,[StringComparison]::OrdinalIgnoreCase) -or [IO.Path]::GetFileName($cleanupPath) -notmatch '^security-(package|bundle|run)-[a-f0-9]{32}$') { throw 'Refusing cleanup outside the task temporary directory.' }
+    if (Test-Path -LiteralPath $cleanupPath) {
+        if ((Get-Item -LiteralPath $cleanupPath).Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'Refusing recursive cleanup of a reparse point.' }
+        Remove-Item -LiteralPath $cleanupPath -Recurse -Force
+    }
+}

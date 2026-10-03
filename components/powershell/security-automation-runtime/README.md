@@ -75,3 +75,25 @@ pause a retained schedule; incremental ARM omission does not remove it. Direct
 template callers cannot enable a default/empty package hash. Logic App and Function
 schedules have explicit disabled settings. Use separate azd environments for compute
 alternatives; the hook rejects changing the compute kind of an existing deployment.
+
+## Companion evidence files
+
+An engine that references XML or approval JSON files declares each companion in
+its committed `security-bundle.json` solution entry as `artifactFiles`:
+
+```json
+{"blob":"reviews/base.xml","path":"policies/base.xml","sha256":"<64 lowercase hexadecimal characters>"}
+```
+
+Upload the file to that private evidence blob. The host downloads it under the
+input root, verifies its exact hash, and sets `SECURITY_EVIDENCE_ROOT` while the
+engine runs. Input JSON references must resolve beneath that root. Duplicate or
+escaping paths, missing files, and hash mismatches stop processing before report
+publication. The package builder preserves the reviewed artifact declarations.
+Changing an artifact requires a new reviewed configuration and package.
+
+For a combined deployment, select one independently deployable solution's host,
+then invoke its vendored `Deploy-SecuritySource.ps1 -SolutionRoot <roots>`.
+It packages every selected engine, publishes once, and refreshes Automation job
+parameters. Shared permission requirements are the union of selected manifest
+features, not a prerequisite to running credential-free snapshot engines.

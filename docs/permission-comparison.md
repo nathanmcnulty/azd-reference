@@ -16,11 +16,11 @@ Run from the reference checkout with PowerShell 7:
   -BaseSolution azd-defender-asr-rules `
   -AdditionalSolution azd-defender-av-exclusions,azd-defender-firewall -AsJson
 
-# Inspect the optional Intune publisher permissions alongside default collection.
+# Inspect optional host deployment and package publication authority separately.
 ./tooling/Get-AzdPermissionComparison.ps1 -PortfolioRoot E:\ `
   -BaseSolution azd-defender-asr-rules `
   -AdditionalSolution azd-defender-av-exclusions `
-  -Feature azd-defender-asr-rules:policy-publisher,azd-defender-av-exclusions:policy-publisher -AsJson
+  -Phase deployment -Feature azd-defender-asr-rules:azure-host-deployment,azd-defender-av-exclusions:source-publication -AsJson
 
 # Deployment scopes are a separate comparison.
 ./tooling/Get-AzdPermissionComparison.ps1 -PortfolioRoot E:\ `
@@ -43,3 +43,27 @@ To add a solution, author its manifest and register its portfolio-relative path.
 Validate the schema and reconcile declared roles against project configuration.
 Keep the solution usable without access to this repository or tooling. See the
 [tracking standard](../standards/permission-requirements.md).
+
+## Staged security host and collector alternatives
+
+The five staged Defender/App Control snapshot runners default to no cloud access.
+Explicit optional features select `function-host`, `automation-host`, or
+`logic-app-host`. Deployment features `azure-host-deployment` and
+`source-publication` belong to the deployment operator and publisher, respectively;
+they must not be folded into the runtime identity.
+
+ASR and AV read transport supports application and delegated alternatives. Select
+features ending in `-application` for managed identity or an application token,
+and `-delegated` for a signed-in Azure CLI user with delegated consent. These are
+alternatives; `-IncludeOptional` is an inventory union, not a grant recommendation.
+
+```powershell
+./tooling/Get-AzdPermissionComparison.ps1 -PortfolioRoot E:/ `
+  -BaseSolution azd-defender-asr-rules -AdditionalSolution azd-defender-av-exclusions `
+  -Phase runtime,discovery `
+  -Feature azd-defender-asr-rules:function-host,azd-defender-av-exclusions:function-host,azd-defender-asr-rules:intune-contract-discovery-application,azd-defender-asr-rules:mde-collection-application,azd-defender-av-exclusions:intune-contract-discovery-application
+```
+
+Logical host scopes match only when engines really use the same deployed host.
+Resource IDs differ for separate deployments, so a matching logical tuple alone
+cannot justify reusing a live Azure assignment across resource groups.

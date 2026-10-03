@@ -122,7 +122,19 @@ function Invoke-SecurityBlobTransfer {
             if ($Container -eq 'packages') { $headers['If-None-Match']='*' }
             Invoke-WebRequest -Uri $uri -Headers $headers -Method Put -InFile $Path -TimeoutSec 120 -MaximumRedirection 0 | Out-Null
         }
-    } catch { throw "Evidence blob $Direction failed; output is incomplete." }
+    } catch {
+        $status = if ($_.Exception.PSObject.Properties['Response'] -and $_.Exception.Response) { [int]$_.Exception.Response.StatusCode } else { 0 }
+        if ($Direction -eq 'Upload' -and $Container -eq 'packages' -and $status -in 409,412) {
+            $existing = Join-Path ([IO.Path]::GetTempPath()) ('security-existing-'+[guid]::NewGuid().ToString('N')+'.zip')
+            try {
+                Invoke-SecurityBlobTransfer -Account $Account -Container $Container -Blob $Blob -Path $existing -Direction Download -AuthMode $AuthMode
+                if ((Get-FileHash -LiteralPath $existing).Hash -ne (Get-FileHash -LiteralPath $Path).Hash) { throw 'Existing immutable package differs.' }
+                return
+            } catch { throw 'Immutable package verification failed; publication stopped.' }
+            finally { if (Test-Path -LiteralPath $existing) { Remove-Item -LiteralPath $existing } }
+        }
+        throw "Evidence blob $Direction failed; output is incomplete."
+    }
 }
 
 function Invoke-HostedSecurityBundle {
@@ -134,12 +146,28 @@ function Invoke-HostedSecurityBundle {
     New-Item -ItemType Directory -Path $inputs,$outputs -Force | Out-Null
     try {
         $config = Get-Content -LiteralPath $ConfigurationPath -Raw | ConvertFrom-Json
+        $downloadedPaths=[Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
         foreach ($solution in $config.solutions) {
             $path = Resolve-SecurityBundlePath -Root $inputs -RelativePath $solution.input
+            if (-not $downloadedPaths.Add($path)) { throw 'Evidence input paths must be unique across engines.' }
             New-Item -ItemType Directory -Path (Split-Path $path) -Force | Out-Null
             Invoke-SecurityBlobTransfer -Account $Account -Container $InputContainer -Blob $solution.input -Path $path
+            if ($solution.PSObject.Properties.Name -contains 'artifactFiles') {
+                foreach ($artifact in $solution.artifactFiles) {
+                    if ($artifact.sha256 -notmatch '^[a-f0-9]{64}$') { throw 'Approved evidence artifact requires a SHA256 hash.' }
+                    $artifactPath=Resolve-SecurityBundlePath -Root $inputs -RelativePath $artifact.path
+                    if (-not $downloadedPaths.Add($artifactPath)) { throw 'Evidence artifact paths must be unique.' }
+                    New-Item -ItemType Directory -Path (Split-Path $artifactPath) -Force | Out-Null
+                    Invoke-SecurityBlobTransfer -Account $Account -Container $InputContainer -Blob $artifact.blob -Path $artifactPath
+                    if ((Get-FileHash -LiteralPath $artifactPath).Hash.ToLowerInvariant() -ne $artifact.sha256) { throw 'Approved evidence artifact hash mismatch.' }
+                }
+            }
         }
-        Invoke-SecurityBundle -BundleRoot $BundleRoot -ConfigurationPath $ConfigurationPath -InputDirectory $inputs -OutputDirectory $outputs
+        $previousEvidenceRoot=$env:SECURITY_EVIDENCE_ROOT
+        try {
+            $env:SECURITY_EVIDENCE_ROOT=$inputs
+            Invoke-SecurityBundle -BundleRoot $BundleRoot -ConfigurationPath $ConfigurationPath -InputDirectory $inputs -OutputDirectory $outputs
+        } finally { $env:SECURITY_EVIDENCE_ROOT=$previousEvidenceRoot }
         $runId = [DateTime]::UtcNow.ToString('yyyyMMddTHHmmssZ')+'-'+[guid]::NewGuid().ToString('N')
         foreach ($file in Get-ChildItem -LiteralPath $outputs -File -Recurse) {
             $relative = [IO.Path]::GetRelativePath($outputs,$file.FullName).Replace('\','/')
@@ -156,7 +184,15 @@ function Invoke-HostedSecurityBundle {
         # A run is consumable only when this final marker exists and all listed hashes match.
         Invoke-SecurityBlobTransfer -Account $Account -Container $OutputContainer -Blob "$runId/completed.json" -Path $manifestPath -Direction Upload
         return [pscustomobject]@{runId=$runId;status='review-produced';solutionCount=@($config.solutions).Count}
-    } finally { Remove-Item -LiteralPath $temporary -Recurse -Force }
+    } finally {
+    $cleanupRoot = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd('\','/') + [IO.Path]::DirectorySeparatorChar
+    $cleanupPath = [IO.Path]::GetFullPath($temporary)
+    if (-not $cleanupPath.StartsWith($cleanupRoot,[StringComparison]::OrdinalIgnoreCase) -or [IO.Path]::GetFileName($cleanupPath) -notmatch '^security-(package|bundle|run)-[a-f0-9]{32}$') { throw 'Refusing cleanup outside the task temporary directory.' }
+    if (Test-Path -LiteralPath $cleanupPath) {
+        if ((Get-Item -LiteralPath $cleanupPath).Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'Refusing recursive cleanup of a reparse point.' }
+        Remove-Item -LiteralPath $cleanupPath -Recurse -Force
+    }
+}
 }
 
 Export-ModuleMember -Function Get-SecurityAccessToken,Invoke-SecurityGraphRead,Resolve-SecurityBundlePath,Invoke-SecurityBundle,Invoke-SecurityBlobTransfer,Invoke-HostedSecurityBundle

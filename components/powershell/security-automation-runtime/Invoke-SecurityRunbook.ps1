@@ -27,4 +27,12 @@ try {
     Expand-Archive -LiteralPath $zip -DestinationPath $root
     Import-Module (Join-Path $root 'scripts/vendor/Azd.SecurityAutomation/Azd.SecurityAutomation.psm1') -Force
     Invoke-HostedSecurityBundle -BundleRoot $root -ConfigurationPath (Join-Path $root 'security-bundle.json') -Account $StorageAccount
-} finally { Remove-Item -LiteralPath $temporary -Recurse -Force }
+} finally {
+    $cleanupRoot = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd('\','/') + [IO.Path]::DirectorySeparatorChar
+    $cleanupPath = [IO.Path]::GetFullPath($temporary)
+    if (-not $cleanupPath.StartsWith($cleanupRoot,[StringComparison]::OrdinalIgnoreCase) -or [IO.Path]::GetFileName($cleanupPath) -notmatch '^security-(package|bundle|run)-[a-f0-9]{32}$') { throw 'Refusing cleanup outside the task temporary directory.' }
+    if (Test-Path -LiteralPath $cleanupPath) {
+        if ((Get-Item -LiteralPath $cleanupPath).Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'Refusing recursive cleanup of a reparse point.' }
+        Remove-Item -LiteralPath $cleanupPath -Recurse -Force
+    }
+}

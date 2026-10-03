@@ -57,4 +57,41 @@ Describe 'Security evidence runtime boundaries' {
             Should -Invoke Invoke-SecurityBlobTransfer -Times 0 -Exactly -ParameterFilter { $Blob -like '*/completed.json' }
         }
     }
+    It 'rejects changed declared artifact content before running an engine' {
+        $root=Join-Path $TestDrive 'artifact-change'
+        New-Item -ItemType Directory $root | Out-Null
+        Set-Content "$root/runner.ps1" 'param($InputPath,$OutputDirectory) throw "Engine must not run"'
+        @{schemaVersion='1.0';solutions=@(@{id='azd-artifacts';runner='runner.ps1';input='input.json';artifactFiles=@(@{blob='policy.xml';path='policy.xml';sha256=('0'*64)})})} | ConvertTo-Json -Depth 10 | Set-Content "$root/config.json"
+        InModuleScope Azd.SecurityAutomation -Parameters @{Root=$root} {
+            param($Root)
+            Mock Invoke-SecurityBlobTransfer { param($Path) Set-Content -LiteralPath $Path '{}' }
+            { Invoke-HostedSecurityBundle -BundleRoot $Root -ConfigurationPath "$Root/config.json" -Account 'teststorage' } | Should -Throw '*artifact hash mismatch*'
+            Should -Invoke Invoke-SecurityBlobTransfer -Times 0 -Exactly -ParameterFilter { $Direction -eq 'Upload' }
+        }
+    }
+}
+
+Describe 'Immutable package republication' {
+    It 'reuses existing content only when its downloaded hash matches: <HashMatches>' -ForEach @(@{HashMatches=$true},@{HashMatches=$false}) {
+        $package=Join-Path $TestDrive 'approved.zip'
+        [IO.File]::WriteAllText($package,'approved-content')
+        InModuleScope Azd.SecurityAutomation -Parameters @{Package=$package;HashMatches=$HashMatches} {
+            param($Package,$HashMatches)
+            $script:downloadContent=if($HashMatches){'approved-content'}else{'different-content'}
+            Mock Get-SecurityAccessToken { 'test-token' }
+            Mock Invoke-WebRequest {
+                param($Method,$OutFile)
+                if($Method -eq 'Put') {
+                    $exception=[Exception]::new('already exists')
+                    $exception|Add-Member -NotePropertyName Response -NotePropertyValue ([pscustomobject]@{StatusCode=412})
+                    throw $exception
+                }
+                [IO.File]::WriteAllText($OutFile,$script:downloadContent)
+            }
+            if($HashMatches){ Invoke-SecurityBlobTransfer -Account teststorage -Container packages -Blob approved.zip -Path $Package -Direction Upload }
+            else { { Invoke-SecurityBlobTransfer -Account teststorage -Container packages -Blob approved.zip -Path $Package -Direction Upload } | Should -Throw '*Immutable package verification failed*' }
+            Should -Invoke Invoke-WebRequest -Times 1 -Exactly -ParameterFilter {$Method -eq 'Put'}
+            Should -Invoke Invoke-WebRequest -Times 1 -Exactly -ParameterFilter {$OutFile}
+        }
+    }
 }

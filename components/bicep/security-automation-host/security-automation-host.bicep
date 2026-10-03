@@ -28,7 +28,8 @@ var blobReader = '2a2b9908-6ea1-4ae2-8e65-a410df84e7d1'
 var blobOwner = 'b7e6dc6d-f1e8-4753-8033-0f276bb0955b'
 var jobOperator = '4fe576fe-1146-4730-92eb-48519fa6bf9f'
 // Direct template callers also fail closed when an enabled package has not been configured.
-var effectiveScheduleEnabled = scheduleEnabled && length(bundleSha256) == 64 && bundleBlob == '${bundleSha256}.zip'
+var bundleHashValid = length(bundleSha256) == 64 && empty(filter(range(0, length(bundleSha256)), index => !contains('0123456789abcdef', substring(bundleSha256, index, 1))))
+var effectiveScheduleEnabled = scheduleEnabled && bundleHashValid && bundleBlob == '${bundleSha256}.zip'
 
 resource storage 'Microsoft.Storage/storageAccounts@2023-05-01' = if (hosted) {
   name: 'st${resourceToken}'

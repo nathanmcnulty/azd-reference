@@ -1,7 +1,7 @@
 {
   "manifestVersion": "1.1",
   "id": "security-automation-runtime",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "status": "pilot",
   "description": "PowerShell security evidence review runtime for local, Function, Automation and Logic App orchestration.",
   "changelog": "components/powershell/security-automation-runtime/CHANGELOG.md",
@@ -45,6 +45,14 @@
     {
       "source": "components/powershell/security-automation-runtime/Deploy-SecuritySource.ps1",
       "target": "scripts/vendor/Azd.SecurityAutomation/Deploy-SecuritySource.ps1"
+    },
+    {
+      "source": "schemas/azd-components-lock.schema.json",
+      "target": "scripts/vendor/Azd.SecurityAutomation/azd-components-lock.schema.json"
+    },
+    {
+      "source": "schemas/permission-requirements.schema.json",
+      "target": "scripts/vendor/Azd.SecurityAutomation/permission-requirements.schema.json"
     }
   ]
 }
