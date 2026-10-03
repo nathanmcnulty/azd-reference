@@ -1,5 +1,67 @@
 Set-StrictMode -Version Latest
 
+function Get-AzdGitHubApiResult {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)][string] $Endpoint)
+
+    $raw = @(& gh api --method GET --include $Endpoint 2>$null)
+    $exitCode = $LASTEXITCODE
+    $statusCode = $null
+    $data = $null
+    if ($raw.Count -gt 0 -and [string] $raw[0] -match '^HTTP/\S+\s+(?<status>[0-9]{3})') {
+        $statusCode = [int] $Matches.status
+        $separator = -1
+        for ($index = 1; $index -lt $raw.Count; $index++) {
+            if ([string]::IsNullOrWhiteSpace([string] $raw[$index])) {
+                $separator = $index
+                break
+            }
+        }
+        if ($separator -ge 0 -and $separator + 1 -lt $raw.Count) {
+            try { $data = ($raw[($separator + 1)..($raw.Count - 1)] -join "`n") | ConvertFrom-Json -Depth 100 }
+            catch { $data = $null }
+        }
+    }
+    [pscustomobject]@{
+        statusCode = $statusCode
+        successful = ($exitCode -eq 0 -and $null -ne $statusCode -and $statusCode -ge 200 -and $statusCode -lt 300)
+        data = $data
+    }
+}
+
+function Get-AzdGitHubOwnerRecoveryStatus {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)] $Ruleset)
+
+    # Read-only App responses may omit bypass_actors. current_user_can_bypass
+    # describes the caller (the App), not the personal repository owner.
+    if ($Ruleset.PSObject.Properties.Name -notcontains 'bypass_actors' -or $null -eq $Ruleset.bypass_actors) {
+        return [pscustomobject]@{ state = 'manual-required'; findings = @() }
+    }
+    $administratorBypass = @($Ruleset.bypass_actors | Where-Object {
+        $_.actor_type -eq 'RepositoryRole' -and $_.actor_id -eq 5 -and $_.bypass_mode -eq 'always'
+    })
+    [pscustomobject]@{
+        state = if ($administratorBypass.Count -gt 0) { 'verified' } else { 'findings' }
+        findings = if ($administratorBypass.Count -gt 0) { @() } else { @('defaultBranchRecoveryBypassMissing') }
+    }
+}
+
+function Get-AzdGitHubLegacyProtectionFinding {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)] $ApiResult)
+
+    if ($ApiResult.successful -and $null -ne $ApiResult.data) {
+        return 'legacyBranchProtectionPresent'
+    }
+    if ($ApiResult.statusCode -eq 404 -and $null -ne $ApiResult.data -and
+        $ApiResult.data.PSObject.Properties.Name -contains 'message' -and
+        [string] $ApiResult.data.message -eq 'Branch not protected') {
+        return
+    }
+    'legacyBranchProtectionAuditUnavailable'
+}
+
 function Test-AzdGitHubWorkflowActionPolicy {
     [CmdletBinding()]
     param(
@@ -40,11 +102,11 @@ function Test-AzdGitHubWorkflowActionPolicy {
                 if ($lineIndent -gt $runBlockIndent) { continue }
                 $runBlockIndent = -1
             }
-            if ($line -match '^(?<indent>\s*)run\s*:\s*[|>]') {
+            if ($line -match '^(?<indent>\s*(?:-\s+)?)run\s*:\s*[|>]') {
                 $runBlockIndent = $Matches.indent.Length
                 continue
             }
-            if ($line -notmatch '^\s*uses\s*:\s*(?<reference>.*)$') { continue }
+            if ($line -notmatch '^\s*(?:-\s+)?uses\s*:\s*(?<reference>.*)$') { continue }
             $actionReferenceCount++
 
             $reference = [string] $Matches.reference
@@ -205,4 +267,4 @@ function Compare-AzdGitHubPublicRepositoryRegistry {
     }
 }
 
-Export-ModuleMember -Function Test-AzdGitHubWorkflowActionPolicy, Compare-AzdGitHubPublicRepositoryRegistry
+Export-ModuleMember -Function Test-AzdGitHubWorkflowActionPolicy, Compare-AzdGitHubPublicRepositoryRegistry, Get-AzdGitHubApiResult, Get-AzdGitHubOwnerRecoveryStatus, Get-AzdGitHubLegacyProtectionFinding

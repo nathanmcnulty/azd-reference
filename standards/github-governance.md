@@ -43,7 +43,11 @@ checks, but requires zero approving reviews. Conversation resolution and
 protection from force-push and deletion remain enabled. GitHub currently models
 the owner/administrator bypass as technically available (`always`); the
 single-maintainer policy treats that bypass as emergency-only and it must not
-be used to hide a missing or stale check.
+be used to hide a missing or stale check. The audit verifies the administrator
+role in `bypass_actors` when GitHub exposes it. Read-only App responses can omit
+that field; the report then records `ownerRecoveryVerification: manual-required`
+and requires a separate owner-authenticated inspection. The App's
+`current_user_can_bypass` field does not measure the owner's recovery access.
 
 ## Required controls
 
@@ -88,8 +92,9 @@ change settings, approve pull requests, or merge branches.
 
 The scheduled cross-repository audit uses a dedicated personal-account GitHub
 App named `azd-governance-audit`, separate from any App that can publish
-pull requests or otherwise write. Install it only on repositories in the
-governance registry. Grant only `Administration: read` and `Contents: read`;
+pull requests or otherwise write. Install it on an explicitly approved selected
+list of `azd-*` repositories that includes the governance registry; do not grant
+automatic access to all account repositories. Grant only `Administration: read` and `Contents: read`;
 GitHub requires `Metadata: read` and includes it automatically. The workflow
 limits each installation token to the current registry entries and requests
 only the two read permissions it needs. It never changes repository settings.

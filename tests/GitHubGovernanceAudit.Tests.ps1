@@ -24,7 +24,8 @@ Describe 'Scheduled GitHub governance audit credential' {
     }
 
     It 'documents the selected-repository installation and private-key lifecycle' {
-        $script:runbook | Should -Match 'Install only on the repositories in the governance registry'
+        $script:runbook | Should -Match 'Use \*\*Only select repositories\*\*'
+        $script:runbook | Should -Match 'audit token remains limited'
         $script:runbook | Should -Match 'Environment secret `AZD_GOVERNANCE_APP_PRIVATE_KEY`'
         $script:runbook | Should -Match 'restricted to the `main` branch'
         $script:runbook | Should -Match 'rotate it deliberately'

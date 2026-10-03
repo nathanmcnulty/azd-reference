@@ -22,10 +22,9 @@ Import-Module (Join-Path $PSScriptRoot 'Azd.GitHubGovernance.psm1') -Force
 function Invoke-GhJson {
     param([Parameter(Mandatory)][string] $Endpoint)
 
-    $raw = @(& gh api --method GET $Endpoint 2>$null)
-    if ($LASTEXITCODE -ne 0 -or $raw.Count -eq 0) { return $null }
-    try { return (($raw -join "`n") | ConvertFrom-Json -Depth 100) }
-    catch { return $null }
+    $result = Get-AzdGitHubApiResult -Endpoint $Endpoint
+    if ($result.successful) { return $result.data }
+    $null
 }
 
 function Get-GhContentResult {
@@ -213,6 +212,7 @@ function Get-ActiveRuleset {
 
     $rulesets = @(Invoke-GhJson "repos/$Repository/rulesets")
     foreach ($summary in $rulesets) {
+        if ($null -eq $summary) { continue }
         $detail = Invoke-GhJson "repos/$Repository/rulesets/$($summary.id)"
         if ($null -eq $detail -or $detail.enforcement -ne 'active' -or $detail.target -ne $Target) {
             continue
@@ -460,6 +460,7 @@ foreach ($repositoryName in $Repository) {
         if (-not $signals.dependencyReview) { $findings.Add('dependencyReviewMissing') }
     }
 
+    $ownerRecoveryVerification = 'ruleset-unavailable'
     $mainRuleset = Get-ActiveRuleset -Repository $repositoryName -Target branch -Include '~DEFAULT_BRANCH'
     if ($null -eq $mainRuleset) {
         $findings.Add('defaultBranchRulesetMissing')
@@ -525,13 +526,15 @@ foreach ($repositoryName in $Repository) {
                 }
             }
         }
-        if ([string] $mainRuleset.current_user_can_bypass -ne 'always') {
-            $findings.Add('defaultBranchRecoveryBypassMissing')
-        }
+        $ownerRecovery = Get-AzdGitHubOwnerRecoveryStatus -Ruleset $mainRuleset
+        $ownerRecoveryVerification = $ownerRecovery.state
+        foreach ($recoveryFinding in @($ownerRecovery.findings)) { $findings.Add([string] $recoveryFinding) }
     }
 
-    $legacyProtection = Invoke-GhJson "repos/$repositoryName/branches/$($metadata.default_branch)/protection"
-    if ($null -ne $legacyProtection) { $findings.Add('legacyBranchProtectionPresent') }
+    $legacyProtection = Get-AzdGitHubApiResult -Endpoint "repos/$repositoryName/branches/$($metadata.default_branch)/protection"
+    foreach ($protectionFinding in @(Get-AzdGitHubLegacyProtectionFinding -ApiResult $legacyProtection)) {
+        $findings.Add([string] $protectionFinding)
+    }
 
     if ($isPublic) {
         $tagPattern = if ($expectedReleaseTagPatterns.ContainsKey($repositoryName)) {
@@ -562,6 +565,7 @@ foreach ($repositoryName in $Repository) {
         visibility = [string] $metadata.visibility
         actionInventoryComplete = [bool] $signals.actionInventoryComplete
         actionReferencesScanned = [int] $signals.actionReferencesScanned
+        ownerRecoveryVerification = $ownerRecoveryVerification
         catalogValidationState = $catalogState
         catalogWorkflowRevision = $catalogRevision
         state = if ($findings.Count -eq 0) { 'current' } else { 'findings' }
