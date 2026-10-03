@@ -1,0 +1,145 @@
+{
+  "schemaVersion": "1.0",
+  "solutions": [
+    {
+      "id": "azd-advanced-auditing",
+      "manifest": "azd-advanced-auditing/azd-permissions.json"
+    },
+    {
+      "id": "azd-auth-notifications",
+      "manifest": "azd-auth-notifications/azd-permissions.json"
+    },
+    {
+      "id": "azd-cloud-pc-recommendations",
+      "manifest": "azd-cloud-pc-recommendations/azd-permissions.json"
+    },
+    {
+      "id": "azd-defender-reporting",
+      "manifest": "azd-defender-reporting/azd-permissions.json"
+    },
+    {
+      "id": "azd-device-cleanup",
+      "manifest": "azd-device-cleanup/azd-permissions.json"
+    },
+    {
+      "id": "azd-device-notifications",
+      "manifest": "azd-device-notifications/azd-permissions.json"
+    },
+    {
+      "id": "azd-emergency-access",
+      "manifest": "azd-emergency-access/azd-permissions.json"
+    },
+    {
+      "id": "azd-entra-health-monitoring",
+      "manifest": "azd-entra-health-monitoring/azd-permissions.json"
+    },
+    {
+      "id": "azd-entra-iga",
+      "manifest": "azd-entra-iga/azd-permissions.json"
+    },
+    {
+      "id": "azd-global-secure-access",
+      "manifest": "azd-global-secure-access/azd-permissions.json"
+    },
+    {
+      "id": "azd-maester-azureautomation",
+      "manifest": "azd-maester-azureautomation/azd-permissions.json"
+    },
+    {
+      "id": "azd-maester-azuredevops",
+      "manifest": "azd-maester-azuredevops/azd-permissions.json"
+    },
+    {
+      "id": "azd-maester-containerappjob",
+      "manifest": "azd-maester-containerappjob/azd-permissions.json"
+    },
+    {
+      "id": "azd-maester-functionapp",
+      "manifest": "azd-maester-functionapp/azd-permissions.json"
+    },
+    {
+      "id": "azd-maester",
+      "manifest": "azd-maester/azd-permissions.json"
+    },
+    {
+      "id": "azd-myworkid",
+      "manifest": "azd-myworkid/azd-permissions.json"
+    },
+    {
+      "id": "azd-pim",
+      "manifest": "azd-pim/azd-permissions.json"
+    },
+    {
+      "id": "azd-risk-based-ca",
+      "manifest": "azd-risk-based-ca/azd-permissions.json"
+    },
+    {
+      "id": "azd-santa",
+      "manifest": "azd-santa/azd-permissions.json"
+    },
+    {
+      "id": "azd-sysmon",
+      "manifest": "azd-sysmon/azd-permissions.json"
+    },
+    {
+      "id": "azd-verified-id",
+      "manifest": "azd-verified-id/azd-permissions.json"
+    },
+    {
+      "id": "azd-defender-asr-rules",
+      "manifest": "azd-work-in-progress/azd-defender-asr-rules/azd-permissions.json"
+    },
+    {
+      "id": "azd-defender-av-exclusions",
+      "manifest": "azd-work-in-progress/azd-defender-av-exclusions/azd-permissions.json"
+    },
+    {
+      "id": "azd-defender-firewall",
+      "manifest": "azd-work-in-progress/azd-defender-firewall/azd-permissions.json"
+    },
+    {
+      "id": "azd-app-control",
+      "manifest": "azd-work-in-progress/azd-app-control/azd-permissions.json"
+    },
+    {
+      "id": "azd-app-control-for-business",
+      "manifest": "azd-work-in-progress/azd-app-control-for-business/azd-permissions.json"
+    },
+    {
+      "id": "azd-reference-deployment-check",
+      "manifest": "azd-reference/examples/deployment-check/azd-permissions.json"
+    },
+    {
+      "id": "azd-reference-skeleton",
+      "manifest": "azd-reference/skeleton/azd-permissions.json"
+    }
+  ],
+  "legacyCopies": [
+    {
+      "path": "azd-work-in-progress/azd-pim",
+      "canonicalSolution": "azd-pim",
+      "reason": "Retained staging history; standalone repository is the authoring source."
+    },
+    {
+      "path": "azd-maester/automation-account",
+      "canonicalSolution": "azd-maester-azureautomation",
+      "reason": "Legacy variant retained; use the standalone manifest for current requirements."
+    },
+    {
+      "path": "azd-maester/azure-devops",
+      "canonicalSolution": "azd-maester-azuredevops",
+      "reason": "Legacy variant retained; use the standalone manifest for current requirements."
+    },
+    {
+      "path": "azd-maester/container-app-job",
+      "canonicalSolution": "azd-maester-containerappjob",
+      "reason": "Legacy variant retained; use the standalone manifest for current requirements."
+    },
+    {
+      "path": "azd-maester/function-app",
+      "canonicalSolution": "azd-maester-functionapp",
+      "reason": "Legacy variant retained; use the standalone manifest for current requirements."
+    }
+  ],
+  "scope": "Owned azd deployment solutions, staged designs, and reference templates. GUI, website, profile repositories, and Microsoft training examples are outside this solution inventory."
+}

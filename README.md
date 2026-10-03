@@ -54,6 +54,11 @@ multiple solutions.
 
 ## Layout
 
+Track each solution's declared permissions with `azd-permissions.json`. See the
+[permission tracking standard](standards/permission-requirements.md) and
+[comparison tool guide](docs/permission-comparison.md) to inspect shared runtime
+permissions and the exact additions introduced by another solution or feature.
+
 ```text
 components/   Versioned component source and component manifests
 docs/         Architecture and extraction decisions
