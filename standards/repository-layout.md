@@ -15,6 +15,9 @@ scripts/
 src/
 tests/
 docs/
+  backlog.json               # canonical agent task records
+  backlog.md                 # generated review view
+BACKLOG.md                   # discoverable backlog entry point
 azd-components.lock.json
 LICENSE
 README.md
@@ -23,6 +26,10 @@ SECURITY.md
 
 Requirements:
 
+- Keep proposed features, selected local work, dependencies, authorization
+  boundaries, and completion evidence in the repo-local backlog according to
+  [the agent backlog standard](agent-backlogs.md). Preserve detailed roadmaps
+  as source material; do not maintain a second independently editable task list.
 - `azure.yaml` is at the template root.
 - The portfolio registry names the repository's validation workflow explicitly;
   independently supported repositories commonly use `validate.yml`, while a

@@ -4,6 +4,30 @@
   "referenceRepository": "https://github.com/nathanmcnulty/azd-reference",
   "consumers": [
     {
+      "id": "azd-auth-notifications",
+      "repository": "https://github.com/nathanmcnulty/azd-auth-notifications",
+      "checkoutDirectory": "azd-auth-notifications",
+      "solutionRoot": ".",
+      "defaultBranch": "main",
+      "repositoryValidationWorkflow": ".github/workflows/validate.yml",
+      "rolloutRing": "pilot",
+      "adoption": "adopted",
+      "components": [
+        {
+          "id": "deployment-validation",
+          "desiredVersion": "1.1.1"
+        },
+        {
+          "id": "notification-contracts",
+          "desiredVersion": "1.0.0"
+        }
+      ],
+      "validation": {
+        "entryPoint": "scripts/Test-Repository.ps1",
+        "timeoutMinutes": 15
+      }
+    },
+    {
       "id": "azd-emergency-access",
       "repository": "https://github.com/nathanmcnulty/azd-emergency-access",
       "checkoutDirectory": "azd-emergency-access",
@@ -45,7 +69,7 @@
         },
         {
           "id": "deployment-validation",
-          "desiredVersion": "1.0.0"
+          "desiredVersion": "1.1.1"
         },
         {
           "id": "flex-scheduled-poller-host",

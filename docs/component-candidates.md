@@ -45,11 +45,36 @@ proves a stable boundary.
 
 ## Promotion order after the validation pilot
 
-`deployment-validation@1.0.0` is the first stable component. Its three adopted
-consumer shapes proved managed-file ownership, drift detection, isolated update
-preparation, repository-owned validation, and commit-only rollback. The stable
-promotion changes release metadata only; its runtime implementation and report
-schema are byte-identical to 0.3.3.
+`deployment-validation@1.1.1` is the current stable component. Version 1.0.0 was
+the first stable release; its initial three adopted consumer shapes proved
+managed-file ownership, drift detection, isolated update preparation,
+repository-owned validation, and commit-only rollback. Version 1.1.1 adds the
+optional 1.1 management-evidence binding while retaining schema 1.0 output.
+
+Auth Notifications was the fourth adopted 1.0.0 consumer and also adopts
+`notification-contracts@1.0.0`. Its registered pilot remains independently
+deployable and uses a repository-owned offline adapter for the same npm, Bicep,
+and Git checks as its validation workflow. Registration does not make catalog
+validation required or authorize a component upgrade.
+The reviewed local consumer lock now pins `deployment-validation@1.1.1` to
+`0c96cc89c554ffc3b3ca82ceda12da6591e816c1` and
+`notification-contracts@1.0.0` to
+`bc2cf2aad4ff5ebadabe8fd0f0efcf71d94d0e0f`.
+
+### Deployment-validation 1.1.1 upgrade decisions
+
+Auth Notifications and PIM completed separate local 1.1.1 adoption reviews;
+Device Notifications and Emergency Access retain 1.0.0. Each upgrade needs its
+own consumer review because 1.1.1 adds an
+evidence-binding contract and managed-file changes rather than a metadata-only
+release.
+
+| Consumer | Current lock evidence | Decision |
+| --- | --- | --- |
+| Auth Notifications | Reviewed local `deployment-validation@1.1.1` at `0c96cc89c554ffc3b3ca82ceda12da6591e816c1` | Adopted locally after independent review, zero-provider plan smoke and full offline validation. Existing schema 1.0 reports and notification-contracts 1.0.0 remain unchanged. |
+| Device Notifications | `deployment-validation@1.0.0` at `ef60904fa3aa3dee81f36ba7bfed0eed18f72276` | Keep 1.0.0 desired. Prepare a separate consumer update and validate its existing project adapter before changing the registry. |
+| Emergency Access | `deployment-validation@1.0.0` at `ef60904fa3aa3dee81f36ba7bfed0eed18f72276` | Keep 1.0.0 desired. Review evidence-binding semantics in an independent consumer update before changing the registry. |
+| PIM | Reviewed local `deployment-validation@1.1.1` at `0c96cc89c554ffc3b3ca82ceda12da6591e816c1` | Adopted locally after independent review and full offline validation. Schema 1.0 output remains explicit; unrelated Flex-host and attribute edits are preserved. |
 
 Remaining promotion order:
 
@@ -75,7 +100,7 @@ through the initial pilots.
 The four Maester hosting shapes share two pilot components while retaining their
 host-specific runners and provisioning behavior:
 
-- `maester-azd-hooks@0.1.0` carries the shared azd lifecycle hooks, target-context
+- `maester-azd-hooks@0.1.5` carries the shared azd lifecycle hooks, target-context
   helpers, and optional Graph permission setup.
 - `maester-report-webapp@0.1.1` carries the optional report web app resources,
   publishing controls, host identity permission, tags, and delete lock.
