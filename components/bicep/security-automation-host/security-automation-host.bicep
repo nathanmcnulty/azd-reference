@@ -274,5 +274,3 @@ output workflowName string = computeMode == 'logic-app' ? workflow.name : ''
 output principalId string = useFunction ? function!.identity.principalId : (useAutomation ? automation!.identity.principalId : '')
 output solution string = solutionName
 output scheduledProcessingEnabled bool = effectiveScheduleEnabled && hosted
-
-
