@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.6
+
+- Capture downloaded input bindings before engine execution, and reject changed or removed inputs before uploading any report.
+- Correct the input binding timing found during independent review of 0.1.5; consumers must advance to this version.
+
 ## 0.1.5
 
 - Validate packaged file hashes, configuration coverage, runner coverage, and exact source revisions before hosted evidence processing.
