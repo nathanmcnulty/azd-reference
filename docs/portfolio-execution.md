@@ -23,6 +23,8 @@ assigned. Canonical checkouts and unrelated worktrees are preserved.
 | PIM-005 | notification_retention | Adopt the same component in PIM with an explicit schema 1.0 compatibility assertion |
 | EA-004 | registry_adoption | Upgrade Emergency Access using its preserved reviewed backlog branch and retain Graph authentication 0.1.1 |
 | DEVICE-004 | notification_retention | Upgrade Device Notifications from current main and retain notification contracts 1.0.0 |
+| AUTH-004 | registry_adoption | Operator-only ambiguous-send review with conditional atomic decision auditing; root owns disposable Table testing and cleanup |
+| REF-008 | root | Complete PortfolioStatus fixture-local signing isolation after the upstream ComponentSync fix |
 | Independent review | independent_reviewer | Frozen source hashes, offline behavior and disposable test/cleanup boundaries |
 
 Claims were serialized in the canonical backlogs before dispatch. Implementation
@@ -57,8 +59,9 @@ reviewed cleanup harness are retained privately outside Git.
 
 ## Completed packets
 
-All six packets are integrated locally into their canonical checkouts. Source
-worktrees remain frozen for preservation and review.
+The eight implementation packets below are independently reviewed and their
+owned files are integrated into canonical checkouts. Their reviewed branches
+are committed, pushed and verified; unrelated checkout work is preserved.
 
 | Packet | Result | Validation |
 | --- | --- | --- |
@@ -68,6 +71,8 @@ worktrees remain frozen for preservation and review.
 | PIM-005 | Same immutable component adopted with an explicit schema 1.0 compatibility assertion | Independent frozen-file review; integrated canonical suite 121/121 Pester and 14/14 Node; build, Bicep and component drift checks |
 | EA-004 | Emergency Access adopts the same signed component; Graph authentication 0.1.1 and unbound schema 1.0 remain unchanged | Independent source/staged review; full 114/114 tests, focused 9/9, schema/no-provider smoke 1/1, Bicep and exact drift; canonical focused 9/9 |
 | DEVICE-004 | Device Notifications adopts the same component from current main; notification contracts 1.0.0 remain unchanged | Independent source/staged review; full 104/104 Pester and 109/109 application tests, focused 10/10, build/bundle/Bicep/metadata and zero-vulnerability audit; canonical focused 10/10 |
+| AUTH-004 | Bounded paginated operator review; explicit accept/suppress/requeue decisions preserve delivery identity and atomically append a minimal audit | Independent source/staged review; 55/55 tests, focused 23/23, independent review 14/14, build/Bicep/schema/drift and audit 0; nine real Table assertions; exact resource and role cleanup |
+| REF-008 | Both PortfolioStatus fixture repositories disable inherited signing locally, complementing merged ComponentSync PR #66 | Independent source/staged review; 12/12 tests with global signing enabled and an unavailable signer/key; zero new analyzer findings |
 
 The reference suite used process-local Git signing overrides for disposable
 fixtures because the inherited signing/editor behavior is tracked separately
@@ -139,3 +144,52 @@ recorded source snapshots. Their focused plan tests block provider and delivery
 calls. These component-only updates needed no further lab resource provisioning.
 The final central desired-version follow-up passed 47 focused tests. Branch
 preservation does not change required checks, merge to main or release a template.
+
+
+## Operator review and subsequent reconciliation
+
+AUTH-004 is saved at [8254348](https://github.com/nathanmcnulty/azd-auth-notifications/commit/8254348637b7ca8b952ce49dfa98a071503fb934).
+The read-only default CLI uses the cached subscription-bound Storage token,
+validates the tenant and records that token's actor. Decisions require an exact
+delivery row, current ETag and stable decision UUID. Provider evidence is an
+operator assertion; the tool does not contact a provider to verify it. Requeue
+preserves the original payload and delivery identity, and normal dispatch checks
+current eligibility before sending. Decision audits omit event, recipient,
+audience and channel identities; terminal transitions refresh the retention clock.
+
+The synthetic lab account proved bounded redacted pagination, stable decision
+replay, accept/suppress payload and creation-time preservation, a real stale-ETag
+transaction conflict with no partial audit, retention exclusions and the actual
+Windows read-only CLI. No notification transport was invoked. The private result
+is hash-bound to the reviewed source, harness, infrastructure and cleanup receipts.
+
+The first provisioning preflight stopped before mutation because the directory
+CLI command rejected its subscription argument. The reviewed replacement used
+cached Storage-token identity. Receipt readers were then qualified against actual
+PowerShell timestamp formats and JSON date coercion before their live actions.
+The test account-scoped role and group were removed. Independent checks confirmed
+the group absent, zero target resources, zero matching role-assignment GUIDs and
+zero direct account assignments. The final receipt is `deleted-and-verified`.
+
+REF-008 is saved at [ddee016](https://github.com/nathanmcnulty/azd-reference/commit/ddee016cf5f0231a9d9a59e86a48257c586d95d0).
+Its eight-line change affects only disposable PortfolioStatus fixtures. The
+host's Git signing configuration was preserved; the regression temporarily
+supplied unusable global signing settings and restored its process environment.
+
+Five Maester records reconcile source fixes already merged on their exact main
+snapshots. Each has regression coverage and a successful exact-head validation
+job. Function packaging/receipt checks also passed 14/14 locally and independently.
+
+| Records | Reviewed source snapshot | Merged resolution |
+| --- | --- | --- |
+| MAUTO-004 | `c50ed1f9f5ce34d2567b2708e86fd54998328661` | [Automation PR #11](https://github.com/nathanmcnulty/azd-maester-azureautomation/pull/11) |
+| MCAJ-004 | `d5efff3998af6a2f889d6da71ee0fa46fa88d537` | [Container job PR #13](https://github.com/nathanmcnulty/azd-maester-containerappjob/pull/13) |
+| MADO-004 | `67b9c6c91013fc4f6a0c05a0ffc252cba231ba15` | [DevOps PR #14](https://github.com/nathanmcnulty/azd-maester-azuredevops/pull/14) |
+| MFUNC-004, MFUNC-005 | `b1ad59802ef9f952ac024e0fd2dcfdae328cd643` | [Function PR #13](https://github.com/nathanmcnulty/azd-maester-functionapp/pull/13), [PR #14](https://github.com/nathanmcnulty/azd-maester-functionapp/pull/14) |
+
+This reconciliation changes tracking files only. The four backlog source revisions
+now reference the reviewed main snapshots. Dirty canonical runtime and detached
+quality worktrees are preserved. Live Automation/Container status propagation,
+real DevOps pipelines and Function invocation/Graph/HTML/queue acceptance remain
+separate integration evidence gaps. These fixes add no new component adoption;
+the reviewed snapshots retain Maester hooks 0.1.5 and report-webapp 0.1.1.

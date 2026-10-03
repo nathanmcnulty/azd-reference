@@ -259,22 +259,26 @@
     {
       "id": "REF-008",
       "title": "Make disposable Git test fixtures independent of interactive signing settings",
-      "kind": "discovery",
+      "kind": "maintenance",
       "priority": "P1",
-      "status": "proposed",
+      "status": "done",
       "wave": 0,
-      "problem": "Open report captured 2026-10-03 during execution reconciliation. Another code-quality task may own an active fix; inspect its PR and current source before dispatch.",
+      "problem": "PR #66 closes issue #65 and isolates ComponentSync fixtures, but PortfolioStatus fixtures still inherit commit and tag signing settings. Complete that bounded fixture gap without changing host signing configuration.",
       "scope": [
-        "Linked issue and current source (read-only)",
-        "Repository-local backlog evidence"
+        "tests/PortfolioStatus.Tests.ps1",
+        "docs/backlog.json",
+        "docs/backlog.md",
+        "BACKLOG.md"
       ],
       "acceptance": [
-        "Read the linked issue and current default branch; classify the exact defect, current owner and evidence gap.",
-        "Record a current PR or verified resolution before selecting any implementation; preserve broader feature and live acceptance gates."
+        "Disable commit and tag signing only in the two disposable fixture repositories; preserve the merged ComponentSync fix and host configuration.",
+        "The PortfolioStatus suite passes with inherited global signing enabled and an unusable signing key.",
+        "Independent review confirms the exact source diff and current-main provenance before commit and push."
       ],
       "validation": [
-        "Read current issue and PR state using nathanmcnulty; do not modify or close issues during reconciliation.",
-        "Inspect dirty state and worktrees; resolve the exact current revision and relevant offline commands before implementation."
+        "Run tests/PortfolioStatus.Tests.ps1 with a temporary GIT_CONFIG_GLOBAL that enables commit.gpgsign and tag.gpgsign and names an unavailable key; restore the process environment afterward.",
+        "Run PSScriptAnalyzer on the changed test file and git diff --check.",
+        "Validate the full canonical backlog set and check the generated Markdown."
       ],
       "dependencies": [],
       "authorization": "local-only",
@@ -282,8 +286,14 @@
       "sources": [
         "https://github.com/nathanmcnulty/azd-reference/issues/65"
       ],
-      "evidence": [],
-      "blocker": null
+      "evidence": [
+        "Fresh GitHub read: issue #65 closed and PR #66 merged at 54a29a590c8b015f5becf7457407128e1b413835; its only source change is tests/ComponentSync.Tests.ps1. PortfolioStatus fixtures at that revision still inherit signing.",
+        "Independent source review passed the exact eight-line fixture-local change at SHA-256 2f05eacd90a4447128ca40804422f2aae45a3a2c3608f6b85ca3233ac7f4034d, based on current main 54a29a590c8b015f5becf7457407128e1b413835.",
+        "PortfolioStatus focused regression: 12 passed, 0 failed in 214.14 seconds with a temporary global configuration enabling commit and tag signing and an unavailable signer/key. Process environment was restored and the temporary file removed; host configuration was not edited.",
+        "PSScriptAnalyzer matches the two pre-existing Pester variable-scope warnings exactly, with zero new findings; git diff --check passed. Reviewed source integrated after canonical baseline parity check; preservation branch codex/portfolio-fixtures-backlog-20261003."
+      ],
+      "blocker": null,
+      "claim": null
     }
   ]
 }

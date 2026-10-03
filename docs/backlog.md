@@ -69,9 +69,9 @@ Stop if the dependencies, scope, or required authorization changed.
 
 ## REF-008: Make disposable Git test fixtures independent of interactive signing settings
 
-- **Kind:** discovery
+- **Kind:** maintenance
 - **Priority:** P1
-- **Status:** proposed
+- **Status:** done
 - **Wave:** 0
 - **Authorization:** local-only
 - **Blocker:** _none_
@@ -79,22 +79,26 @@ Stop if the dependencies, scope, or required authorization changed.
 
 **Problem:**
 
-Open report captured 2026-10-03 during execution reconciliation. Another code-quality task may own an active fix; inspect its PR and current source before dispatch.
+PR &num;66 closes issue &num;65 and isolates ComponentSync fixtures, but PortfolioStatus fixtures still inherit commit and tag signing settings. Complete that bounded fixture gap without changing host signing configuration.
 
 **Scope:**
 
-- Linked issue and current source &lpar;read-only&rpar;
-- Repository-local backlog evidence
+- tests/PortfolioStatus.Tests.ps1
+- docs/backlog.json
+- docs/backlog.md
+- BACKLOG.md
 
 **Acceptance:**
 
-- Read the linked issue and current default branch; classify the exact defect, current owner and evidence gap.
-- Record a current PR or verified resolution before selecting any implementation; preserve broader feature and live acceptance gates.
+- Disable commit and tag signing only in the two disposable fixture repositories; preserve the merged ComponentSync fix and host configuration.
+- The PortfolioStatus suite passes with inherited global signing enabled and an unusable signing key.
+- Independent review confirms the exact source diff and current-main provenance before commit and push.
 
 **Validation:**
 
-- Read current issue and PR state using nathanmcnulty; do not modify or close issues during reconciliation.
-- Inspect dirty state and worktrees; resolve the exact current revision and relevant offline commands before implementation.
+- Run tests/PortfolioStatus.Tests.ps1 with a temporary GIT&lowbar;CONFIG&lowbar;GLOBAL that enables commit.gpgsign and tag.gpgsign and names an unavailable key; restore the process environment afterward.
+- Run PSScriptAnalyzer on the changed test file and git diff --check.
+- Validate the full canonical backlog set and check the generated Markdown.
 
 **Dependencies:**
 
@@ -110,7 +114,10 @@ Open report captured 2026-10-03 during execution reconciliation. Another code-qu
 
 **Evidence:**
 
-- _none_
+- Fresh GitHub read&colon; issue &num;65 closed and PR &num;66 merged at 54a29a590c8b015f5becf7457407128e1b413835; its only source change is tests/ComponentSync.Tests.ps1. PortfolioStatus fixtures at that revision still inherit signing.
+- Independent source review passed the exact eight-line fixture-local change at SHA-256 2f05eacd90a4447128ca40804422f2aae45a3a2c3608f6b85ca3233ac7f4034d, based on current main 54a29a590c8b015f5becf7457407128e1b413835.
+- PortfolioStatus focused regression&colon; 12 passed, 0 failed in 214.14 seconds with a temporary global configuration enabling commit and tag signing and an unavailable signer/key. Process environment was restored and the temporary file removed; host configuration was not edited.
+- PSScriptAnalyzer matches the two pre-existing Pester variable-scope warnings exactly, with zero new findings; git diff --check passed. Reviewed source integrated after canonical baseline parity check; preservation branch codex/portfolio-fixtures-backlog-20261003.
 
 **Review and authorization note:**
 
