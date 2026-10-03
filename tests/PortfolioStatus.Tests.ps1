@@ -14,6 +14,10 @@ Describe 'Portfolio component status' {
         Copy-Item -LiteralPath (Join-Path $script:repoRoot 'portfolio') -Destination $reference -Recurse
         & git -C $reference init --initial-branch main | Out-Null
         & git -C $reference config core.autocrlf false
+        foreach ($setting in @('commit.gpgsign', 'tag.gpgsign')) {
+            & git -C $reference config --local $setting false
+            if ($LASTEXITCODE -ne 0) { throw "Unable to disable $setting in the Git reference fixture." }
+        }
         & git -C $reference config user.name 'reference tests'
         & git -C $reference config user.email 'reference-tests@example.invalid'
         & git -C $reference add --all
@@ -57,6 +61,10 @@ Describe 'Portfolio component status' {
 
         & git -C $checkout init --initial-branch main | Out-Null
         & git -C $checkout config core.autocrlf false
+        foreach ($setting in @('commit.gpgsign', 'tag.gpgsign')) {
+            & git -C $checkout config --local $setting false
+            if ($LASTEXITCODE -ne 0) { throw "Unable to disable $setting in the Git consumer fixture." }
+        }
         & git -C $checkout config user.name 'portfolio tests'
         & git -C $checkout config user.email 'portfolio-tests@example.invalid'
         & git -C $checkout remote add origin 'https://github.com/example/consumer-one.git'
