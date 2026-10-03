@@ -20,3 +20,7 @@
 - Reject non-hexadecimal schedule package hashes at the template boundary.
 - Stage explicitly declared companion artifacts and verify their hashes before execution.
 - Constrain hosted file references to the downloaded evidence root.
+
+## 0.1.3
+
+- Normalize template EOF for clean consumer whitespace validation; runtime behavior is unchanged.
