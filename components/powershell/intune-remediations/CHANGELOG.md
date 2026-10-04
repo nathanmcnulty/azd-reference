@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.3
+
+Use the documented whole-set assign action for script assignment; the individual
+assignment POST route was rejected by the live commercial service. Preserve exact
+complete-set guards and durable pre-write checkpoints.
+
 ## 0.1.2
 
 Accept the native schedule type with or without the optional OData hash prefix.

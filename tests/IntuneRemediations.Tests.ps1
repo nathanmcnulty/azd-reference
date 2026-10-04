@@ -186,7 +186,12 @@ Describe 'Canonical Intune Remediations component' {
             if($Method -eq 'GET' -and $Uri -eq 'https://graph.microsoft.com/beta/deviceManagement/deviceHealthScripts'){return [pscustomobject]@{value=@()}}
             if($Method -eq 'POST' -and $Uri -eq 'https://graph.microsoft.com/beta/deviceManagement/deviceHealthScripts'){$state.scriptCreated=$true;$state.createBody=$Body;return [pscustomobject]@{id=$remote.id}}
             if($Method -eq 'GET' -and $Uri.EndsWith('/assignments')){return [pscustomobject]@{value=if($state.assignmentCreated){@($assignment)}else{@()}}}
-            if($Method -eq 'POST' -and $Uri.EndsWith('/assignments')){$state.assignmentCreated=$true;return [pscustomobject]@{id=$assignment.id}}
+            if($Method -eq 'POST' -and $Uri.EndsWith('/assign')){
+                $state.assignmentCreated=$true
+                $assignment=[pscustomobject]$Body.deviceHealthScriptAssignments[0]
+                $assignment|Add-Member id '77777777-7777-4777-8777-777777777777'
+                return
+            }
             if($Method -eq 'GET' -and $Uri.EndsWith('/'+$remote.id)){return $remote}
             throw "Unexpected request $Method $Uri"
         }.GetNewClosure()
@@ -195,6 +200,55 @@ Describe 'Canonical Intune Remediations component' {
         $review.packageVersion|Should -Be '1.0'
         $review.serviceVersion|Should -Be '1'
         $state.createBody.PSObject.Properties['version']|Should -BeNullOrEmpty
+        $assignCall=@($state.calls|Where-Object {$_.method -eq 'POST' -and $_.uri.EndsWith('/assign')})[0]
+        @($assignCall.body.deviceHealthScriptAssignments).Count|Should -Be 1
+        $assignCall.body.deviceHealthScriptAssignments[0].PSObject.Properties['id']|Should -BeNullOrEmpty
+    }
+    It 'updates the exact assignment through the complete-set assign action with its existing ID' {
+        $remote=New-TestRemoteDeviceHealthScript -PackagePath $script:packagePath
+        $assignment=New-TestRemoteAssignment -Time '04:00:00'
+        $state=@{assignment=$assignment;calls=[Collections.Generic.List[object]]::new()}
+        $caller={
+            param($Method,$Uri,$Body)
+            $state.calls.Add([pscustomobject]@{method=$Method;uri=$Uri;body=$Body})
+            if($Method -eq 'GET' -and $Uri -eq 'https://graph.microsoft.com/beta/deviceManagement/deviceHealthScripts'){return [pscustomobject]@{value=@([pscustomobject]@{id=$remote.id;displayName=$remote.displayName;description=$remote.description})}}
+            if($Method -eq 'GET' -and $Uri.EndsWith('/assignments')){return [pscustomobject]@{value=@($state.assignment)}}
+            if($Method -eq 'POST' -and $Uri.EndsWith('/assign')){$state.assignment=[pscustomobject]$Body.deviceHealthScriptAssignments[0];return}
+            if($Method -eq 'GET' -and $Uri.EndsWith('/'+$remote.id)){return $remote}
+            throw "Unexpected request $Method $Uri"
+        }.GetNewClosure()
+        $plan=Invoke-IntuneDeviceHealthScriptPublication -PackageManifestPath $script:packagePath -TargetTenantId '11111111-1111-4111-8111-111111111111' -CallerTenantId '11111111-1111-4111-8111-111111111111' -AssignmentScope AllDevices -GraphRequest $caller -ReviewOutputPath "$TestDrive/update-assignment-plan.json"
+        $state.calls.Clear()
+        $review=Invoke-IntuneDeviceHealthScriptPublication -PackageManifestPath $script:packagePath -TargetTenantId '11111111-1111-4111-8111-111111111111' -CallerTenantId '11111111-1111-4111-8111-111111111111' -AssignmentScope AllDevices -ExpectedExistingScriptId $remote.id -ExpectedExistingStateSha256 $plan.observedStateSha256 -GraphRequest $caller -ReviewOutputPath "$TestDrive/update-assignment-execute.json" -Execute
+        $review.actions|Should -Contain 'updateAssignment'
+        $post=@($state.calls|Where-Object method -eq 'POST')
+        $post.Count|Should -Be 1
+        $post[0].uri|Should -Be "https://graph.microsoft.com/beta/deviceManagement/deviceHealthScripts/$($remote.id)/assign"
+        @($post[0].body.deviceHealthScriptAssignments).Count|Should -Be 1
+        $post[0].body.deviceHealthScriptAssignments[0].id|Should -Be '77777777-7777-4777-8777-777777777777'
+        $state.assignment.runSchedule.time|Should -Be '03:00:00'
+        @($state.calls|Where-Object method -eq 'PATCH').Count|Should -Be 0
+    }
+    It 'does not replace the complete assignment set after same-target schedule drift' {
+        $remote=New-TestRemoteDeviceHealthScript -PackagePath $script:packagePath
+        $state=@{assignmentReads=0;raceOnSecondRead=$false;baseAssignment=(New-TestRemoteAssignment -Time '04:00:00');raceAssignment=(New-TestRemoteAssignment -Time '05:00:00');calls=[Collections.Generic.List[object]]::new()}
+        $caller={
+            param($Method,$Uri,$Body)
+            $state.calls.Add([pscustomobject]@{method=$Method;uri=$Uri;body=$Body})
+            if($Method -eq 'GET' -and $Uri -eq 'https://graph.microsoft.com/beta/deviceManagement/deviceHealthScripts'){return [pscustomobject]@{value=@([pscustomobject]@{id=$remote.id;displayName=$remote.displayName;description=$remote.description})}}
+            if($Method -eq 'GET' -and $Uri.EndsWith('/assignments')){
+                $state.assignmentReads++
+                $assignment=if($state.raceOnSecondRead -and $state.assignmentReads -ge 2){$state.raceAssignment}else{$state.baseAssignment}
+                return [pscustomobject]@{value=@($assignment)}
+            }
+            if($Method -eq 'GET' -and $Uri.EndsWith('/'+$remote.id)){return $remote}
+            if($Method -eq 'POST' -and $Uri.EndsWith('/assign')){throw 'assign must not run'}
+            throw "Unexpected request $Method $Uri"
+        }.GetNewClosure()
+        $plan=Invoke-IntuneDeviceHealthScriptPublication -PackageManifestPath $script:packagePath -TargetTenantId '11111111-1111-4111-8111-111111111111' -CallerTenantId '11111111-1111-4111-8111-111111111111' -AssignmentScope AllDevices -GraphRequest $caller -ReviewOutputPath "$TestDrive/assignment-race-plan.json"
+        $state.calls.Clear();$state.assignmentReads=0;$state.raceOnSecondRead=$true
+        {Invoke-IntuneDeviceHealthScriptPublication -PackageManifestPath $script:packagePath -TargetTenantId '11111111-1111-4111-8111-111111111111' -CallerTenantId '11111111-1111-4111-8111-111111111111' -AssignmentScope AllDevices -ExpectedExistingScriptId $remote.id -ExpectedExistingStateSha256 $plan.observedStateSha256 -GraphRequest $caller -ReviewOutputPath "$TestDrive/assignment-race-execute.json" -Execute}|Should -Throw '*Assignment set changed after review*'
+        @($state.calls|Where-Object method -eq 'POST').Count|Should -Be 0
     }
     It 'rejects a noncanonical remote service version without mutation' {
         $remote=New-TestRemoteDeviceHealthScript -PackagePath $script:packagePath -ServiceVersion '1.0'
@@ -222,7 +276,7 @@ Describe 'Canonical Intune Remediations component' {
             throw "Unexpected request $Method $Uri"
         }.GetNewClosure()
         {Invoke-IntuneDeviceHealthScriptPublication -PackageManifestPath $script:packagePath -TargetTenantId '11111111-1111-4111-8111-111111111111' -CallerTenantId '11111111-1111-4111-8111-111111111111' -AssignmentScope AllDevices -GraphRequest $caller -ReviewOutputPath "$TestDrive/content-drift-execute.json" -Execute}|Should -Throw '*readback did not match*'
-        @($state.calls|Where-Object {$_.method -eq 'POST' -and $_.uri.EndsWith('/assignments')}).Count|Should -Be 0
+        @($state.calls|Where-Object {$_.method -eq 'POST' -and $_.uri.EndsWith('/assign')}).Count|Should -Be 0
     }
     It 'reports local package and native service versions in readback' {
         $remote=New-TestRemoteDeviceHealthScript -PackagePath $script:packagePath

@@ -241,6 +241,23 @@ function New-DesiredAssignmentBody {
     }
 }
 
+function New-CompleteAssignmentSetBody {
+    param(
+        [Parameter(Mandatory)][object]$DesiredAssignment,
+        [AllowNull()][object]$ExistingAssignment
+    )
+    $assignment = [ordered]@{
+        '@odata.type' = [string]$DesiredAssignment.'@odata.type'
+    }
+    if ($null -ne $ExistingAssignment) {
+        $assignment.id = ConvertTo-RequiredGuid -Value ([string]$ExistingAssignment.id) -Name 'assignment id'
+    }
+    $assignment.target = $DesiredAssignment.target
+    $assignment.runRemediationScript = [bool]$DesiredAssignment.runRemediationScript
+    $assignment.runSchedule = $DesiredAssignment.runSchedule
+    [ordered]@{ deviceHealthScriptAssignments = @($assignment) }
+}
+
 function ConvertTo-NormalizedODataType {
     param([object]$Value)
     ([string]$Value).Trim().TrimStart('#').ToLowerInvariant()
@@ -283,17 +300,9 @@ function Test-AssignmentTargetMatch {
     (($actualTarget | ConvertTo-Json -Compress) -ceq ($desiredTarget | ConvertTo-Json -Compress))
 }
 
-function Get-DeviceHealthScriptCurrentStateDigest {
-    param([Parameter(Mandatory)][object]$Script, [Parameter(Mandatory)][AllowEmptyCollection()][object[]]$Assignments)
-    $scriptShape = [ordered]@{}
-    foreach ($name in @('id','displayName','description','publisher','version','detectionScriptContent','remediationScriptContent','runAsAccount','enforceSignatureCheck','runAs32Bit','isGlobalScript','deviceHealthScriptType')) {
-        $property = $Script.PSObject.Properties[$name]
-        $scriptShape[$name] = if ($null -eq $property) { $null } else { $property.Value }
-    }
-    $scriptShape.roleScopeTagIds = @($Script.roleScopeTagIds | ForEach-Object { [string]$_ } | Sort-Object)
-    $scriptShape.detectionScriptParameters = @($Script.detectionScriptParameters)
-    $scriptShape.remediationScriptParameters = @($Script.remediationScriptParameters)
-    $assignmentShapes = foreach ($assignment in @($Assignments)) {
+function Get-NormalizedAssignmentStateShapes {
+    param([Parameter(Mandatory)][AllowEmptyCollection()][object[]]$Assignments)
+    $shapes = foreach ($assignment in @($Assignments)) {
         $target = Get-NormalizedAssignmentTarget -Assignment $assignment
         $time = [timespan]::Zero
         $timeText = if ([timespan]::TryParse([string]$assignment.runSchedule.time, [Globalization.CultureInfo]::InvariantCulture, [ref]$time)) { $time.ToString('c', [Globalization.CultureInfo]::InvariantCulture) } else { [string]$assignment.runSchedule.time }
@@ -307,7 +316,26 @@ function Get-DeviceHealthScriptCurrentStateDigest {
             time = $timeText
         }
     }
-    $state = [ordered]@{ script=$scriptShape; assignments=@($assignmentShapes | Sort-Object id) }
+    @($shapes | Sort-Object id)
+}
+
+function Get-AssignmentSetCurrentStateDigest {
+    param([Parameter(Mandatory)][AllowEmptyCollection()][object[]]$Assignments)
+    $state = [ordered]@{ assignments=@(Get-NormalizedAssignmentStateShapes -Assignments $Assignments) }
+    Get-Sha256Bytes -Bytes ([Text.UTF8Encoding]::new($false).GetBytes(($state | ConvertTo-Json -Depth 20 -Compress)))
+}
+
+function Get-DeviceHealthScriptCurrentStateDigest {
+    param([Parameter(Mandatory)][object]$Script, [Parameter(Mandatory)][AllowEmptyCollection()][object[]]$Assignments)
+    $scriptShape = [ordered]@{}
+    foreach ($name in @('id','displayName','description','publisher','version','detectionScriptContent','remediationScriptContent','runAsAccount','enforceSignatureCheck','runAs32Bit','isGlobalScript','deviceHealthScriptType')) {
+        $property = $Script.PSObject.Properties[$name]
+        $scriptShape[$name] = if ($null -eq $property) { $null } else { $property.Value }
+    }
+    $scriptShape.roleScopeTagIds = @($Script.roleScopeTagIds | ForEach-Object { [string]$_ } | Sort-Object)
+    $scriptShape.detectionScriptParameters = @($Script.detectionScriptParameters)
+    $scriptShape.remediationScriptParameters = @($Script.remediationScriptParameters)
+    $state = [ordered]@{ script=$scriptShape; assignments=@(Get-NormalizedAssignmentStateShapes -Assignments $Assignments) }
     Get-Sha256Bytes -Bytes ([Text.UTF8Encoding]::new($false).GetBytes(($state | ConvertTo-Json -Depth 20 -Compress)))
 }
 
@@ -453,6 +481,8 @@ function Invoke-IntuneDeviceHealthScriptPublication {
     $actualScript = $null
     $assignments = @()
     $observedStateSha256 = $null
+    $reviewedAssignmentSetSha256 = $null
+    $observedAssignmentSetSha256 = $null
     if ($matches.Count -eq 0) {
         if ($expectedScriptId) { throw 'ExpectedExistingScriptId was supplied, but the approved owned script was not found.' }
         $actions.Add('createScript')
@@ -485,6 +515,7 @@ function Invoke-IntuneDeviceHealthScriptPublication {
         $actualScript = Invoke-GraphRequestChecked -GraphRequest $GraphRequest -Method GET -Uri "$base/$scriptId"
         if ((ConvertTo-RequiredGuid -Value ([string]$actualScript.id) -Name 'existing script readback id') -ne $scriptId) { throw 'Existing script readback ID did not match the approved owned ID.' }
         $assignments = @(Get-GraphCollection -GraphRequest $GraphRequest -InitialUri "$base/$scriptId/assignments" -AllowedPathPrefix "/beta/deviceManagement/deviceHealthScripts/$scriptId/assignments")
+        $reviewedAssignmentSetSha256 = Get-AssignmentSetCurrentStateDigest -Assignments $assignments
         $observedStateSha256 = Get-DeviceHealthScriptCurrentStateDigest -Script $actualScript -Assignments $assignments
         if ($expectedScriptId -and $observedStateSha256 -cne $ExpectedExistingStateSha256) { throw "Existing script state digest changed: expected $ExpectedExistingStateSha256, found $observedStateSha256." }
         if ($expectedScriptId) {
@@ -494,7 +525,10 @@ function Invoke-IntuneDeviceHealthScriptPublication {
     }
 
     if ($scriptId -and ($matches.Count -eq 0 -or $expectedScriptId)) {
-        if ($matches.Count -eq 0) { $assignments = @() }
+        if ($matches.Count -eq 0) {
+            $assignments = @()
+            $reviewedAssignmentSetSha256 = Get-AssignmentSetCurrentStateDigest -Assignments $assignments
+        }
         $matchingAssignments = @($assignments | Where-Object { Test-AssignmentTargetMatch -Actual $_ -Desired $desiredAssignment })
         $unexpected = @($assignments | Where-Object { $_ -notin $matchingAssignments })
         if ($unexpected.Count -gt 0) { throw 'Existing script has assignment targets outside the explicitly reviewed scope; publication stopped.' }
@@ -503,7 +537,10 @@ function Invoke-IntuneDeviceHealthScriptPublication {
         elseif (-not (Test-DesiredAssignmentMatch -Actual $matchingAssignments[0] -Desired $desiredAssignment)) { $actions.Add('updateAssignment') }
         else { $actions.Add('reuseAssignment') }
     }
-    elseif (-not $scriptId) { $actions.Add('createAssignmentAfterScript') }
+    elseif (-not $scriptId) {
+        $reviewedAssignmentSetSha256 = Get-AssignmentSetCurrentStateDigest -Assignments @()
+        $actions.Add('createAssignmentAfterScript')
+    }
 
     if ($Execute) {
         if ($actions -contains 'updateScript') {
@@ -522,45 +559,27 @@ function Invoke-IntuneDeviceHealthScriptPublication {
         if ((ConvertTo-RequiredGuid -Value ([string]$actualScript.id) -Name 'pre-assignment script readback id') -ne $scriptId) { throw 'Pre-assignment script readback ID did not match the approved script ID.' }
         if (-not (Test-DesiredScriptMatch -Actual $actualScript -Desired $desiredScript)) { throw 'Script readback did not match the reviewed package; assignment was not attempted.' }
         $assignments = @(Get-GraphCollection -GraphRequest $GraphRequest -InitialUri "$base/$scriptId/assignments" -AllowedPathPrefix "/beta/deviceManagement/deviceHealthScripts/$scriptId/assignments")
+        $currentAssignmentSetSha256 = Get-AssignmentSetCurrentStateDigest -Assignments $assignments
         $matchingAssignments = @($assignments | Where-Object { Test-AssignmentTargetMatch -Actual $_ -Desired $desiredAssignment })
         $unexpected = @($assignments | Where-Object { $_ -notin $matchingAssignments })
         if ($unexpected.Count -gt 0 -or $matchingAssignments.Count -gt 1) { throw 'Assignment set changed outside the explicitly reviewed target before mutation.' }
+        if ($currentAssignmentSetSha256 -cne $reviewedAssignmentSetSha256) { throw 'Assignment set changed after review; no complete-set assignment action was attempted.' }
         if ($matchingAssignments.Count -eq 0 -and -not ($actions -contains 'createAssignment' -or $actions -contains 'createAssignmentAfterScript')) { throw 'Reviewed assignment disappeared before mutation.' }
-        if ($actions -contains 'createAssignment') {
-            Write-PublicationCheckpoint -Path $reviewFullPath -TargetTenantId $targetTenant -CallerTenantId $callerTenant -Package $package -AssignmentScope $AssignmentScope -GroupId $groupId -DeviceHealthScriptId $scriptId -CompletedActions @($completedActions) -PendingAction createAssignment -LineageId $operationLineageId -CreateNew:(-not $checkpointCreated)
+        if (($actions -contains 'createAssignment' -or $actions -contains 'createAssignmentAfterScript') -and $matchingAssignments.Count -ne 0) { throw 'The reviewed assignment target appeared after review; no complete-set assignment action was attempted.' }
+        if ($actions -contains 'updateAssignment' -and $matchingAssignments.Count -ne 1) { throw 'The reviewed assignment target changed after review; no complete-set assignment action was attempted.' }
+        $assignmentAction = if ($actions -contains 'updateAssignment') { 'updateAssignment' } elseif ($actions -contains 'createAssignment' -or $actions -contains 'createAssignmentAfterScript') { 'createAssignment' } else { $null }
+        if ($assignmentAction) {
+            $existingAssignment = if ($assignmentAction -eq 'updateAssignment') { $matchingAssignments[0] } else { $null }
+            $completeAssignmentBody = New-CompleteAssignmentSetBody -DesiredAssignment $desiredAssignment -ExistingAssignment $existingAssignment
+            Write-PublicationCheckpoint -Path $reviewFullPath -TargetTenantId $targetTenant -CallerTenantId $callerTenant -Package $package -AssignmentScope $AssignmentScope -GroupId $groupId -DeviceHealthScriptId $scriptId -CompletedActions @($completedActions) -PendingAction assignCompleteSet -LineageId $operationLineageId -CreateNew:(-not $checkpointCreated)
             $checkpointCreated = $true
-            try { $null = Invoke-GraphRequestChecked -GraphRequest $GraphRequest -Method POST -Uri "$base/$scriptId/assignments" -Body $desiredAssignment }
+            try { $null = Invoke-GraphRequestChecked -GraphRequest $GraphRequest -Method POST -Uri "$base/$scriptId/assign" -Body $completeAssignmentBody }
             catch {
                 $failure = $_
-                try { Write-PublicationCheckpoint -Path $reviewFullPath -TargetTenantId $targetTenant -CallerTenantId $callerTenant -Package $package -AssignmentScope $AssignmentScope -GroupId $groupId -DeviceHealthScriptId $scriptId -CompletedActions @($completedActions) -PendingAction createAssignment -LineageId $operationLineageId -Status unknown-outcome } catch {}
+                try { Write-PublicationCheckpoint -Path $reviewFullPath -TargetTenantId $targetTenant -CallerTenantId $callerTenant -Package $package -AssignmentScope $AssignmentScope -GroupId $groupId -DeviceHealthScriptId $scriptId -CompletedActions @($completedActions) -PendingAction assignCompleteSet -LineageId $operationLineageId -Status unknown-outcome } catch {}
                 throw $failure
             }
-            $completedActions.Add('createAssignment')
-            Write-PublicationCheckpoint -Path $reviewFullPath -TargetTenantId $targetTenant -CallerTenantId $callerTenant -Package $package -AssignmentScope $AssignmentScope -GroupId $groupId -DeviceHealthScriptId $scriptId -CompletedActions @($completedActions) -LineageId $operationLineageId
-        }
-        elseif ($actions -contains 'updateAssignment') {
-            $assignmentId = ConvertTo-RequiredGuid -Value ([string]$matchingAssignments[0].id) -Name 'assignment id'
-            Write-PublicationCheckpoint -Path $reviewFullPath -TargetTenantId $targetTenant -CallerTenantId $callerTenant -Package $package -AssignmentScope $AssignmentScope -GroupId $groupId -DeviceHealthScriptId $scriptId -CompletedActions @($completedActions) -PendingAction updateAssignment -LineageId $operationLineageId -CreateNew:(-not $checkpointCreated)
-            $checkpointCreated = $true
-            try { $null = Invoke-GraphRequestChecked -GraphRequest $GraphRequest -Method PATCH -Uri "$base/$scriptId/assignments/$assignmentId" -Body $desiredAssignment }
-            catch {
-                $failure = $_
-                try { Write-PublicationCheckpoint -Path $reviewFullPath -TargetTenantId $targetTenant -CallerTenantId $callerTenant -Package $package -AssignmentScope $AssignmentScope -GroupId $groupId -DeviceHealthScriptId $scriptId -CompletedActions @($completedActions) -PendingAction updateAssignment -LineageId $operationLineageId -Status unknown-outcome } catch {}
-                throw $failure
-            }
-            $completedActions.Add('updateAssignment')
-            Write-PublicationCheckpoint -Path $reviewFullPath -TargetTenantId $targetTenant -CallerTenantId $callerTenant -Package $package -AssignmentScope $AssignmentScope -GroupId $groupId -DeviceHealthScriptId $scriptId -CompletedActions @($completedActions) -LineageId $operationLineageId
-        }
-        elseif ($actions -contains 'createAssignmentAfterScript') {
-            Write-PublicationCheckpoint -Path $reviewFullPath -TargetTenantId $targetTenant -CallerTenantId $callerTenant -Package $package -AssignmentScope $AssignmentScope -GroupId $groupId -DeviceHealthScriptId $scriptId -CompletedActions @($completedActions) -PendingAction createAssignment -LineageId $operationLineageId -CreateNew:(-not $checkpointCreated)
-            $checkpointCreated = $true
-            try { $null = Invoke-GraphRequestChecked -GraphRequest $GraphRequest -Method POST -Uri "$base/$scriptId/assignments" -Body $desiredAssignment }
-            catch {
-                $failure = $_
-                try { Write-PublicationCheckpoint -Path $reviewFullPath -TargetTenantId $targetTenant -CallerTenantId $callerTenant -Package $package -AssignmentScope $AssignmentScope -GroupId $groupId -DeviceHealthScriptId $scriptId -CompletedActions @($completedActions) -PendingAction createAssignment -LineageId $operationLineageId -Status unknown-outcome } catch {}
-                throw $failure
-            }
-            $completedActions.Add('createAssignment')
+            $completedActions.Add($assignmentAction)
             Write-PublicationCheckpoint -Path $reviewFullPath -TargetTenantId $targetTenant -CallerTenantId $callerTenant -Package $package -AssignmentScope $AssignmentScope -GroupId $groupId -DeviceHealthScriptId $scriptId -CompletedActions @($completedActions) -LineageId $operationLineageId
         }
 
@@ -572,9 +591,11 @@ function Invoke-IntuneDeviceHealthScriptPublication {
         if ($assignments.Count -ne 1 -or $matchingAssignments.Count -ne 1 -or -not (Test-DesiredAssignmentMatch -Actual $matchingAssignments[0] -Desired $desiredAssignment)) {
             throw 'Final assignment readback was not the complete reviewed target, filter, and schedule set.'
         }
+        $observedAssignmentSetSha256 = Get-AssignmentSetCurrentStateDigest -Assignments $assignments
         $observedStateSha256 = Get-DeviceHealthScriptCurrentStateDigest -Script $actualScript -Assignments $assignments
     }
 
+    if (-not $Execute -and $null -eq $observedAssignmentSetSha256) { $observedAssignmentSetSha256 = $reviewedAssignmentSetSha256 }
     $review = [ordered]@{
         schemaVersion = '1.0'
         status = if ($Execute) { 'validated' } else { 'planned' }
@@ -606,7 +627,9 @@ function Invoke-IntuneDeviceHealthScriptPublication {
             schedule = $manifest.assignment.schedule
         }
         expectedExisting = [ordered]@{ scriptId=$expectedScriptId; stateSha256=$ExpectedExistingStateSha256 }
+        reviewedAssignmentSetSha256 = $reviewedAssignmentSetSha256
         observedStateSha256 = $observedStateSha256
+        observedAssignmentSetSha256 = $observedAssignmentSetSha256
         evidenceBoundary = 'Graph readback proves control-plane content and assignment only. It does not prove endpoint execution, effective Defender policy, or availability of the local full inventory.'
     }
     Write-DurableJsonDocument -Path $reviewFullPath -Value $review -CreateNew:(-not $checkpointCreated) -ExpectedLineageId $operationLineageId
