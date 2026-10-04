@@ -172,6 +172,15 @@ function ConvertTo-StrictUtcTimestamp {
     $parsed.ToUniversalTime()
 }
 
+function Get-CanonicalServiceVersion {
+    param([Parameter(Mandatory)][object]$Value)
+    $text = [string]$Value
+    if ([string]::IsNullOrWhiteSpace($text) -or $text -cnotmatch '^[1-9][0-9]*$') {
+        throw 'Remote device health script version must be a canonical positive integer returned by Intune.'
+    }
+    $text
+}
+
 function New-DesiredDeviceHealthScriptBody {
     param([Parameter(Mandatory)][object]$Package)
     $manifest = $Package.Manifest
@@ -180,7 +189,6 @@ function New-DesiredDeviceHealthScriptBody {
         displayName = [string]$manifest.displayName
         description = ('{0} [azd-managed-id:{1}]' -f [string]$manifest.description, [string]$manifest.identityKey).Trim()
         publisher = [string]$manifest.publisher
-        version = [string]$manifest.version
         detectionScriptContent = [Convert]::ToBase64String($Package.DetectionBytes)
         remediationScriptContent = [Convert]::ToBase64String($Package.RemediationBytes)
         runAsAccount = 'system'
@@ -196,7 +204,8 @@ function New-DesiredDeviceHealthScriptBody {
 
 function Test-DesiredScriptMatch {
     param([Parameter(Mandatory)][object]$Actual, [Parameter(Mandatory)][object]$Desired)
-    foreach ($name in @('displayName','description','publisher','version','detectionScriptContent','remediationScriptContent','runAsAccount','enforceSignatureCheck','runAs32Bit','isGlobalScript','deviceHealthScriptType')) {
+    $null = Get-CanonicalServiceVersion -Value $Actual.version
+    foreach ($name in @('displayName','description','publisher','detectionScriptContent','remediationScriptContent','runAsAccount','enforceSignatureCheck','runAs32Bit','isGlobalScript','deviceHealthScriptType')) {
         $property = $Actual.PSObject.Properties[$name]
         if ($null -eq $property -or ($property.Value | ConvertTo-Json -Compress) -cne ($Desired[$name] | ConvertTo-Json -Compress)) { return $false }
     }
@@ -576,6 +585,8 @@ function Invoke-IntuneDeviceHealthScriptPublication {
         execute = [bool]$Execute
         identityKey = [string]$manifest.identityKey
         displayName = [string]$manifest.displayName
+        packageVersion = [string]$manifest.version
+        serviceVersion = if ($null -eq $actualScript) { $null } else { Get-CanonicalServiceVersion -Value $actualScript.version }
         deviceHealthScriptId = $scriptId
         actions = @($actions)
         completedActions = @($completedActions)
@@ -682,8 +693,8 @@ function Get-IntuneDeviceHealthScriptReadback {
         capturedAt = [datetimeoffset]::UtcNow.ToString('o')
         targetTenantId = $targetTenant
         callerTenantId = $callerTenant
-        package = [ordered]@{ identityKey=[string]$package.Manifest.identityKey; manifestSha256=[string]$package.ManifestSha256; detectionScriptSha256=[string]$package.Manifest.detectionScript.sha256; remediationScriptSha256=[string]$package.Manifest.remediationScript.sha256 }
-        deviceHealthScript = [ordered]@{ id = $scriptId; displayName = [string]$script.displayName; description = [string]$script.description; stateSha256=Get-DeviceHealthScriptCurrentStateDigest -Script $script -Assignments $assignments }
+        package = [ordered]@{ identityKey=[string]$package.Manifest.identityKey; version=[string]$package.Manifest.version; manifestSha256=[string]$package.ManifestSha256; detectionScriptSha256=[string]$package.Manifest.detectionScript.sha256; remediationScriptSha256=[string]$package.Manifest.remediationScript.sha256 }
+        deviceHealthScript = [ordered]@{ id = $scriptId; displayName = [string]$script.displayName; description = [string]$script.description; serviceVersion=Get-CanonicalServiceVersion -Value $script.version; stateSha256=Get-DeviceHealthScriptCurrentStateDigest -Script $script -Assignments $assignments }
         expectedAssignment = [ordered]@{ scope=$AssignmentScope; groupId=$groupId; targetType=[string]$desiredAssignment.target.'@odata.type'; filterType='none'; filterId=$null; runRemediationScript=[bool]$package.Manifest.assignment.runRemediationScript; schedule=$package.Manifest.assignment.schedule }
         assignments = @($assignments | ForEach-Object { $target=Get-NormalizedAssignmentTarget -Assignment $_; [ordered]@{ id = [string]$_.id; targetType=$target.targetType; groupId=$target.groupId; filterType=$target.filterType; filterId=$target.filterId; runRemediationScript = [bool]$_.runRemediationScript; runSchedule = $_.runSchedule } })
         deviceRunStates = @($summaries)

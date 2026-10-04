@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.1
+
+Treat Intune's observed service version separately from the local package authoring
+version. Bind reuse to the full current service state and exact script bytes.
+Targeted runs also verify the exact daily UTC schedule, and allow only the reviewed
+no-op companion hashes when on-demand execution could invoke remediation.
+
 ## 0.1.0
 
 Initial pilot of a shared Intune data-gathering script package publisher and

@@ -33,7 +33,7 @@ if([string]$script.id -cne $DeviceHealthScriptId.ToString() -or
    [string]$script.displayName -cne [string]$manifest.displayName -or
    [string]$script.description -cne ('{0} [azd-managed-id:{1}]' -f [string]$manifest.description,[string]$manifest.identityKey).Trim() -or
    [string]$script.runAsAccount -cne 'system' -or $script.runAs32Bit -ne $false -or
-   [string]$script.publisher -cne [string]$manifest.publisher -or [string]$script.version -cne [string]$manifest.version -or
+   [string]$script.publisher -cne [string]$manifest.publisher -or [string]$script.version -cnotmatch '^[1-9]\d*$' -or
    $script.enforceSignatureCheck -ne $false -or $script.isGlobalScript -ne $false -or
    [string]$script.deviceHealthScriptType -cne 'deviceHealthScript' -or
    (@($script.roleScopeTagIds|Sort-Object)|ConvertTo-Json -Compress) -cne (@('0')|ConvertTo-Json -Compress)){throw 'Remote collector identity or execution context differs from the reviewed package.'}
@@ -57,7 +57,28 @@ $filterId=$target.PSObject.Properties['deviceAndAppManagementAssignmentFilterId'
 $filterType=$target.PSObject.Properties['deviceAndAppManagementAssignmentFilterType']
 if(([string]$target.'@odata.type').TrimStart('#') -cne 'microsoft.graph.allDevicesAssignmentTarget' -or
    ($filterId -and [string]$filterId.Value -notin @('','00000000-0000-0000-0000-000000000000')) -or
-   ($filterType -and [string]$filterType.Value -notin @('','none')) -or $assignment.runRemediationScript -ne $false){throw 'On-demand validation requires the reviewed unfiltered All devices assignment with scheduled remediation disabled.'}
+   ($filterType -and [string]$filterType.Value -notin @('','none'))){throw 'On-demand validation requires the reviewed unfiltered All devices assignment.'}
+$runRemediationProperty=$assignment.PSObject.Properties['runRemediationScript']
+$scheduleProperty=$assignment.PSObject.Properties['runSchedule']
+if($null -eq $runRemediationProperty -or $runRemediationProperty.Value -isnot [bool] -or $runRemediationProperty.Value -ne $false -or
+   $null -eq $scheduleProperty -or $null -eq $scheduleProperty.Value){throw 'The scheduled assignment must explicitly disable remediation and contain the reviewed daily schedule.'}
+$schedule=$scheduleProperty.Value
+$intervalProperty=$schedule.PSObject.Properties['interval']
+$useUtcProperty=$schedule.PSObject.Properties['useUtc']
+$timeProperty=$schedule.PSObject.Properties['time']
+$integerTypes=@('System.Byte','System.SByte','System.Int16','System.UInt16','System.Int32','System.UInt32','System.Int64','System.UInt64')
+$actualScheduleTime=[timespan]::Zero
+$desiredScheduleTime=[timespan]::Zero
+$timeMatches=$null -ne $timeProperty -and $timeProperty.Value -is [string] -and
+    [timespan]::TryParse([string]$timeProperty.Value,[Globalization.CultureInfo]::InvariantCulture,[ref]$actualScheduleTime) -and
+    [timespan]::TryParse([string]$manifest.assignment.schedule.time,[Globalization.CultureInfo]::InvariantCulture,[ref]$desiredScheduleTime) -and
+    $actualScheduleTime -eq $desiredScheduleTime
+if([string]$schedule.'@odata.type' -cne '#microsoft.graph.deviceHealthScriptDailySchedule' -or
+   $null -eq $intervalProperty -or $null -eq $intervalProperty.Value -or $intervalProperty.Value.GetType().FullName -notin $integerTypes -or $intervalProperty.Value -ne 1 -or
+   $null -eq $useUtcProperty -or $useUtcProperty.Value -isnot [bool] -or $useUtcProperty.Value -ne $true -or
+   -not $timeMatches){
+    throw 'The scheduled assignment does not exactly match the reviewed daily type, integer interval, Boolean UTC flag, and time.'
+}
 $deviceUri="$root/managedDevices/$ManagedDeviceId"
 $device=& $GraphRequest -Method GET -Uri $deviceUri -Body $null
 if([string]$device.id -cne $ManagedDeviceId.ToString() -or [string]$device.operatingSystem -cne 'Windows' -or
@@ -66,7 +87,7 @@ $entraId=[guid]::Empty
 if(-not [guid]::TryParse([string]$device.azureADDeviceId,[ref]$entraId) -or $entraId -eq [guid]::Empty -or $entraId -ne $ExpectedEntraDeviceId){throw 'The selected endpoint does not match the reviewed Entra device identity.'}
 $receipt=[ordered]@{
     schemaVersion='1.0';operationId=[guid]::NewGuid().ToString();status='Planned';targetTenantId=$TargetTenantId.ToString();callerTenantId=$CallerTenantId.ToString()
-    deviceHealthScriptId=$DeviceHealthScriptId.ToString();managedDeviceId=$ManagedDeviceId.ToString();entraDeviceId=$entraId.ToString()
+    deviceHealthScriptId=$DeviceHealthScriptId.ToString();serviceVersion=[string]$script.version;managedDeviceId=$ManagedDeviceId.ToString();entraDeviceId=$entraId.ToString()
     packageManifestSha256=$package.ManifestSha256
     onDemandRemediationSha256=[string]$manifest.remediationScript.sha256
     requestedAt=[datetimeoffset]::UtcNow.ToString('o');accepted=$false;endpointExecutionProven=$false

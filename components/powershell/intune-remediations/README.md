@@ -40,3 +40,9 @@ required; the attempted request is saved before POST. An accepted request is
 not proof that the endpoint ran the script. Supply caller tenant assertions from
 the authenticated transport context; this component cannot inspect an arbitrary
 scriptblock's token.
+
+The package `version` is authoring metadata. Intune's observed custom-script service
+version is an independent positive integer; it is not submitted or compared to the
+package version. Reuse approvals bind the observed service version in the full
+current-state digest. Exact script bytes, identity, flags, parameters, scope tags
+and schedule remain required.

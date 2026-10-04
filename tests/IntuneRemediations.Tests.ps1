@@ -19,6 +19,26 @@ BeforeAll {
         [IO.File]::WriteAllText("$Directory/package.json",($manifest|ConvertTo-Json -Depth 15),[Text.UTF8Encoding]::new($false))
         "$Directory/package.json"
     }
+    function New-TestRemoteDeviceHealthScript([string]$PackagePath,[string]$Id='33333333-3333-4333-8333-333333333333',[string]$ServiceVersion='1') {
+        $manifest=Get-Content $PackagePath -Raw|ConvertFrom-Json
+        $root=Split-Path $PackagePath
+        [pscustomobject]@{
+            id=$Id;displayName=$manifest.displayName;description=('{0} [azd-managed-id:{1}]' -f $manifest.description,$manifest.identityKey)
+            publisher=$manifest.publisher;version=$ServiceVersion;isGlobalScript=$false;enforceSignatureCheck=$false
+            deviceHealthScriptType='deviceHealthScript';roleScopeTagIds=@('0');runAsAccount='system';runAs32Bit=$false
+            detectionScriptContent=[Convert]::ToBase64String([IO.File]::ReadAllBytes((Join-Path $root $manifest.detectionScript.path)))
+            remediationScriptContent=[Convert]::ToBase64String([IO.File]::ReadAllBytes((Join-Path $root $manifest.remediationScript.path)))
+            detectionScriptParameters=@();remediationScriptParameters=@()
+        }
+    }
+    function New-TestRemoteAssignment([string]$Time='03:00:00',[int]$Interval=1,[bool]$UseUtc=$true) {
+        [pscustomobject]@{
+            id='77777777-7777-4777-8777-777777777777'
+            target=[pscustomobject]@{'@odata.type'='#microsoft.graph.allDevicesAssignmentTarget'}
+            runRemediationScript=$false
+            runSchedule=[pscustomobject]@{'@odata.type'='#microsoft.graph.deviceHealthScriptDailySchedule';interval=$Interval;useUtc=$UseUtc;time=$Time}
+        }
+    }
 }
 
 Describe 'Optional on-demand collector validation' {
@@ -27,7 +47,7 @@ Describe 'Optional on-demand collector validation' {
         $script:requestPath=Join-Path $script:componentRoot 'Request-IntuneCollectorRun.ps1'
         $script:requestArguments=@{TargetTenantId='11111111-1111-4111-8111-111111111111';CallerTenantId='11111111-1111-4111-8111-111111111111';DeviceHealthScriptId='33333333-3333-4333-8333-333333333333';ManagedDeviceId='44444444-4444-4444-8444-444444444444';ExpectedEntraDeviceId='55555555-5555-4555-8555-555555555555';PackageManifestPath=$script:packagePath;ReceiptPath="$TestDrive/request-$([guid]::NewGuid().ToString('N')).json"}
         $script:requestCalls=[Collections.Generic.List[object]]::new()
-        $script:requestTestState=@{signature=$false;race=$false;throwPost=$false;detectionContent=$null;remediationContent=$null}
+        $script:requestTestState=@{signature=$false;race=$false;throwPost=$false;version='1';scheduleInterval=1;scheduleUseUtc=$true;scheduleTime='03:00:00';detectionContent=$null;remediationContent=$null}
         $calls=$script:requestCalls;$state=$script:requestTestState;$receiptPath=$script:requestArguments.ReceiptPath
         $manifest=Get-Content $script:packagePath -Raw|ConvertFrom-Json
         $script:requestTestState.detectionContent=[Convert]::ToBase64String([IO.File]::ReadAllBytes((Join-Path (Split-Path $script:packagePath) 'detection.ps1')))
@@ -36,12 +56,12 @@ Describe 'Optional on-demand collector validation' {
             param($Method,$Uri,$Body)
             $calls.Add([pscustomobject]@{method=$Method;uri=$Uri;body=$Body})
             if($Method -eq 'POST'){if($state.throwPost){throw 'Simulated transport timeout'};return}
-            if($Uri.EndsWith('/assignments')){return [pscustomobject]@{value=@([pscustomobject]@{target=[pscustomobject]@{'@odata.type'='#microsoft.graph.allDevicesAssignmentTarget'};runRemediationScript=$false})}}
+            if($Uri.EndsWith('/assignments')){return [pscustomobject]@{value=@([pscustomobject]@{target=[pscustomobject]@{'@odata.type'='#microsoft.graph.allDevicesAssignmentTarget'};runRemediationScript=$false;runSchedule=[pscustomobject]@{'@odata.type'='#microsoft.graph.deviceHealthScriptDailySchedule';interval=$state.scheduleInterval;useUtc=$state.scheduleUseUtc;time=$state.scheduleTime}})}}
             if($Uri -match '/managedDevices/'){
                 if($state.race){Set-Content $receiptPath 'preserve-racing-receipt'}
                 return [pscustomobject]@{id='44444444-4444-4444-8444-444444444444';azureADDeviceId='55555555-5555-4555-8555-555555555555';operatingSystem='Windows';managementAgent='mdm'}
             }
-            [pscustomobject]@{id='33333333-3333-4333-8333-333333333333';displayName=$manifest.displayName;description=('{0} [azd-managed-id:{1}]' -f $manifest.description,$manifest.identityKey);publisher=$manifest.publisher;version=$manifest.version;isGlobalScript=$false;enforceSignatureCheck=$state.signature;deviceHealthScriptType='deviceHealthScript';roleScopeTagIds=@('0');runAsAccount='system';runAs32Bit=$false;detectionScriptContent=$state.detectionContent;remediationScriptContent=$state.remediationContent;detectionScriptParameters=@();remediationScriptParameters=@()}
+            [pscustomobject]@{id='33333333-3333-4333-8333-333333333333';displayName=$manifest.displayName;description=('{0} [azd-managed-id:{1}]' -f $manifest.description,$manifest.identityKey);publisher=$manifest.publisher;version=$state.version;isGlobalScript=$false;enforceSignatureCheck=$state.signature;deviceHealthScriptType='deviceHealthScript';roleScopeTagIds=@('0');runAsAccount='system';runAs32Bit=$false;detectionScriptContent=$state.detectionContent;remediationScriptContent=$state.remediationContent;detectionScriptParameters=@();remediationScriptParameters=@()}
         }.GetNewClosure()
     }
     It 'rejects a context tenant mismatch before any request' {
@@ -95,6 +115,18 @@ Describe 'Optional on-demand collector validation' {
         {& $script:requestPath @script:requestArguments -Execute}|Should -Throw '*differs*'
         @($script:requestCalls|Where-Object method -eq 'POST').Count|Should -Be 0
     }
+    It 'rejects a noncanonical service version before requesting a run' {
+        $script:requestTestState.version='1.0'
+        $script:requestArguments.GraphRequest=$script:requestTransport
+        {& $script:requestPath @script:requestArguments -Execute}|Should -Throw '*differs from the reviewed package*'
+        @($script:requestCalls|Where-Object method -eq 'POST').Count|Should -Be 0
+    }
+    It 'rejects assignment schedule drift before requesting a run' {
+        $script:requestTestState.scheduleInterval=7
+        $script:requestArguments.GraphRequest=$script:requestTransport
+        {& $script:requestPath @script:requestArguments -Execute}|Should -Throw '*schedule*'
+        @($script:requestCalls|Where-Object method -eq 'POST').Count|Should -Be 0
+    }
     It 'rejects a managed-device to Entra-device mismatch before requesting a run' {
         $script:requestArguments.ExpectedEntraDeviceId='66666666-6666-4666-8666-666666666666'
         $script:requestArguments.GraphRequest=$script:requestTransport
@@ -143,6 +175,67 @@ Describe 'Canonical Intune Remediations component' {
         $plan=Invoke-IntuneDeviceHealthScriptPublication -PackageManifestPath $script:packagePath -TargetTenantId '11111111-1111-4111-8111-111111111111' -CallerTenantId '11111111-1111-4111-8111-111111111111' -AssignmentScope AllDevices -GraphRequest $caller -ReviewOutputPath "$TestDrive/plan.json"
         $plan.status|Should -Be 'planned'
         @($calls|Where-Object {$_ -ne 'GET'}).Count|Should -Be 0
+    }
+    It 'publishes without sending local package version and accepts native service version 1' {
+        $remote=New-TestRemoteDeviceHealthScript -PackagePath $script:packagePath
+        $assignment=New-TestRemoteAssignment
+        $state=@{scriptCreated=$false;assignmentCreated=$false;createBody=$null;calls=[Collections.Generic.List[object]]::new()}
+        $caller={
+            param($Method,$Uri,$Body)
+            $state.calls.Add([pscustomobject]@{method=$Method;uri=$Uri;body=$Body})
+            if($Method -eq 'GET' -and $Uri -eq 'https://graph.microsoft.com/beta/deviceManagement/deviceHealthScripts'){return [pscustomobject]@{value=@()}}
+            if($Method -eq 'POST' -and $Uri -eq 'https://graph.microsoft.com/beta/deviceManagement/deviceHealthScripts'){$state.scriptCreated=$true;$state.createBody=$Body;return [pscustomobject]@{id=$remote.id}}
+            if($Method -eq 'GET' -and $Uri.EndsWith('/assignments')){return [pscustomobject]@{value=if($state.assignmentCreated){@($assignment)}else{@()}}}
+            if($Method -eq 'POST' -and $Uri.EndsWith('/assignments')){$state.assignmentCreated=$true;return [pscustomobject]@{id=$assignment.id}}
+            if($Method -eq 'GET' -and $Uri.EndsWith('/'+$remote.id)){return $remote}
+            throw "Unexpected request $Method $Uri"
+        }.GetNewClosure()
+        $review=Invoke-IntuneDeviceHealthScriptPublication -PackageManifestPath $script:packagePath -TargetTenantId '11111111-1111-4111-8111-111111111111' -CallerTenantId '11111111-1111-4111-8111-111111111111' -AssignmentScope AllDevices -GraphRequest $caller -ReviewOutputPath "$TestDrive/native-version-execute.json" -Execute
+        $review.status|Should -Be 'validated'
+        $review.packageVersion|Should -Be '1.0'
+        $review.serviceVersion|Should -Be '1'
+        $state.createBody.PSObject.Properties['version']|Should -BeNullOrEmpty
+    }
+    It 'rejects a noncanonical remote service version without mutation' {
+        $remote=New-TestRemoteDeviceHealthScript -PackagePath $script:packagePath -ServiceVersion '1.0'
+        $calls=[Collections.Generic.List[string]]::new()
+        $caller={
+            param($Method,$Uri,$Body)
+            $calls.Add($Method)
+            if($Uri -eq 'https://graph.microsoft.com/beta/deviceManagement/deviceHealthScripts'){return [pscustomobject]@{value=@([pscustomobject]@{id=$remote.id;displayName=$remote.displayName;description=$remote.description})}}
+            if($Uri.EndsWith('/assignments')){return [pscustomobject]@{value=@()}}
+            return $remote
+        }.GetNewClosure()
+        {Invoke-IntuneDeviceHealthScriptPublication -PackageManifestPath $script:packagePath -TargetTenantId '11111111-1111-4111-8111-111111111111' -CallerTenantId '11111111-1111-4111-8111-111111111111' -AssignmentScope AllDevices -GraphRequest $caller -ReviewOutputPath "$TestDrive/invalid-service-version.json"}|Should -Throw '*canonical positive integer*'
+        @($calls|Where-Object {$_ -ne 'GET'}).Count|Should -Be 0
+    }
+    It 'rejects remote script content drift before assignment' {
+        $remote=New-TestRemoteDeviceHealthScript -PackagePath $script:packagePath
+        $remote.detectionScriptContent=[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes('changed remote collector'))
+        $state=@{calls=[Collections.Generic.List[object]]::new()}
+        $caller={
+            param($Method,$Uri,$Body)
+            $state.calls.Add([pscustomobject]@{method=$Method;uri=$Uri})
+            if($Method -eq 'GET' -and $Uri -eq 'https://graph.microsoft.com/beta/deviceManagement/deviceHealthScripts'){return [pscustomobject]@{value=@()}}
+            if($Method -eq 'POST' -and $Uri -eq 'https://graph.microsoft.com/beta/deviceManagement/deviceHealthScripts'){return [pscustomobject]@{id=$remote.id}}
+            if($Method -eq 'GET' -and $Uri.EndsWith('/'+$remote.id)){return $remote}
+            throw "Unexpected request $Method $Uri"
+        }.GetNewClosure()
+        {Invoke-IntuneDeviceHealthScriptPublication -PackageManifestPath $script:packagePath -TargetTenantId '11111111-1111-4111-8111-111111111111' -CallerTenantId '11111111-1111-4111-8111-111111111111' -AssignmentScope AllDevices -GraphRequest $caller -ReviewOutputPath "$TestDrive/content-drift-execute.json" -Execute}|Should -Throw '*readback did not match*'
+        @($state.calls|Where-Object {$_.method -eq 'POST' -and $_.uri.EndsWith('/assignments')}).Count|Should -Be 0
+    }
+    It 'reports local package and native service versions in readback' {
+        $remote=New-TestRemoteDeviceHealthScript -PackagePath $script:packagePath
+        $assignment=New-TestRemoteAssignment
+        $caller={
+            param($Method,$Uri,$Body)
+            if($Uri.EndsWith('/assignments')){return [pscustomobject]@{value=@($assignment)}}
+            if($Uri.EndsWith('/deviceRunStates')){return [pscustomobject]@{value=@()}}
+            return $remote
+        }.GetNewClosure()
+        $readback=Get-IntuneDeviceHealthScriptReadback -TargetTenantId '11111111-1111-4111-8111-111111111111' -CallerTenantId '11111111-1111-4111-8111-111111111111' -DeviceHealthScriptId $remote.id -PackageManifestPath $script:packagePath -AssignmentScope AllDevices -GraphRequest $caller -OutputProjector {param($Output,$State,$StateTime,$Now,$MaximumStateAgeHours)} -OutputPath "$TestDrive/service-version-readback.json"
+        $readback.package.version|Should -Be '1.0'
+        $readback.deviceHealthScript.serviceVersion|Should -Be '1'
     }
     It 'rejects a same-host continuation into another Graph resource' {
         $caller={param($Method,$Uri,$Body) [pscustomobject]@{value=@();'@odata.nextLink'='https://graph.microsoft.com/beta/users'}}
