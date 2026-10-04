@@ -214,3 +214,29 @@ retrieve all subscription pages and identify provisioning as the lifecycle
 workflow's state-Enabled release point. The old canonical runtime checkout and
 its local environments were preserved; the new operations text is saved only
 in the separately reviewed source branch.
+
+
+## Follow-up cleanup and preservation validation
+
+A fresh read-only audit verified 37/37 published branch refs against their saved
+commit IDs. Both exact synthetic-test resource groups remain absent from the
+selected lab subscription, and neither owned test-role assignment GUID remains.
+No new Azure resources, grants or delivery operations were needed. The published
+backlog tooling revalidated all 31 backlogs and generated views; its ten regression
+tests passed and all three tools had zero analyzer findings.
+
+Six completed linked worktrees were independently reviewed and removed through
+non-force Git worktree removal: the four Maester reconciliation worktrees, Health
+reconciliation and the portfolio signing fixtures. Each had no dirty, untracked,
+ignored, nested-repository or environment state. Exact local branch refs, remote
+commits, verified complete single-branch bundles and private evidence were retained.
+Dirty worktrees and those carrying ignored validation results remain preserved.
+
+The unavailable `azd-nathanmcnulty` checkout was inspected separately. Its five
+tracked baseline files are portfolio notes and generic repository hygiene; there
+is no AZD template, infrastructure, script or application implementation to move.
+Its three local backlog files already match the reviewed preservation commit.
+A second complete bundle and recovery manifest were saved outside task artifacts.
+The checkout and aggregate entries remain unchanged pending the maintainer's
+retirement decision. Coordination already belongs in azd-reference; this stub
+should not become another staged solution.
