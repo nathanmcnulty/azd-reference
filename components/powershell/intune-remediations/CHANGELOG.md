@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.4
+
+Accept native unfiltered zero-GUID filter metadata and exact composite assignment
+IDs. Include/exclude filter types remain distinct and fail the unfiltered guard.
+
 ## 0.1.3
 
 Use the documented whole-set assign action for script assignment; the individual

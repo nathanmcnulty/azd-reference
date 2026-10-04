@@ -31,10 +31,10 @@ BeforeAll {
             detectionScriptParameters=@();remediationScriptParameters=@()
         }
     }
-    function New-TestRemoteAssignment([string]$Time='03:00:00',[int]$Interval=1,[bool]$UseUtc=$true) {
+    function New-TestRemoteAssignment([string]$Time='03:00:00',[int]$Interval=1,[bool]$UseUtc=$true,[string]$Id='33333333-3333-4333-8333-333333333333:77777777-7777-4777-8777-777777777777') {
         [pscustomobject]@{
-            id='77777777-7777-4777-8777-777777777777'
-            target=[pscustomobject]@{'@odata.type'='#microsoft.graph.allDevicesAssignmentTarget'}
+            id=$Id
+            target=[pscustomobject]@{'@odata.type'='#microsoft.graph.allDevicesAssignmentTarget';deviceAndAppManagementAssignmentFilterId='00000000-0000-0000-0000-000000000000';deviceAndAppManagementAssignmentFilterType='none'}
             runRemediationScript=$false
             runSchedule=[pscustomobject]@{'@odata.type'='microsoft.graph.deviceHealthScriptDailySchedule';interval=$Interval;useUtc=$UseUtc;time=$Time}
         }
@@ -189,7 +189,9 @@ Describe 'Canonical Intune Remediations component' {
             if($Method -eq 'POST' -and $Uri.EndsWith('/assign')){
                 $state.assignmentCreated=$true
                 $assignment=[pscustomobject]$Body.deviceHealthScriptAssignments[0]
-                $assignment|Add-Member id '77777777-7777-4777-8777-777777777777'
+                $assignment|Add-Member id '33333333-3333-4333-8333-333333333333:77777777-7777-4777-8777-777777777777'
+                $assignment.target|Add-Member deviceAndAppManagementAssignmentFilterId '00000000-0000-0000-0000-000000000000'
+                $assignment.target|Add-Member deviceAndAppManagementAssignmentFilterType 'none'
                 return
             }
             if($Method -eq 'GET' -and $Uri.EndsWith('/'+$remote.id)){return $remote}
@@ -225,7 +227,7 @@ Describe 'Canonical Intune Remediations component' {
         $post.Count|Should -Be 1
         $post[0].uri|Should -Be "https://graph.microsoft.com/beta/deviceManagement/deviceHealthScripts/$($remote.id)/assign"
         @($post[0].body.deviceHealthScriptAssignments).Count|Should -Be 1
-        $post[0].body.deviceHealthScriptAssignments[0].id|Should -Be '77777777-7777-4777-8777-777777777777'
+        $post[0].body.deviceHealthScriptAssignments[0].id|Should -Be '33333333-3333-4333-8333-333333333333:77777777-7777-4777-8777-777777777777'
         $state.assignment.runSchedule.time|Should -Be '03:00:00'
         @($state.calls|Where-Object method -eq 'PATCH').Count|Should -Be 0
     }
@@ -249,6 +251,25 @@ Describe 'Canonical Intune Remediations component' {
         $state.calls.Clear();$state.assignmentReads=0;$state.raceOnSecondRead=$true
         {Invoke-IntuneDeviceHealthScriptPublication -PackageManifestPath $script:packagePath -TargetTenantId '11111111-1111-4111-8111-111111111111' -CallerTenantId '11111111-1111-4111-8111-111111111111' -AssignmentScope AllDevices -ExpectedExistingScriptId $remote.id -ExpectedExistingStateSha256 $plan.observedStateSha256 -GraphRequest $caller -ReviewOutputPath "$TestDrive/assignment-race-execute.json" -Execute}|Should -Throw '*Assignment set changed after review*'
         @($state.calls|Where-Object method -eq 'POST').Count|Should -Be 0
+    }
+    It 'normalizes only the native none plus zero filter and retains the exact opaque assignment ID in state hashes' {
+        InModuleScope Intune.DeviceHealthScripts {
+            $desired=[pscustomobject]@{target=[pscustomobject]@{'@odata.type'='#microsoft.graph.allDevicesAssignmentTarget'}}
+            $noneZero=[pscustomobject]@{id='Script:Assignment';target=[pscustomobject]@{'@odata.type'='#microsoft.graph.allDevicesAssignmentTarget';deviceAndAppManagementAssignmentFilterType='none';deviceAndAppManagementAssignmentFilterId='00000000-0000-0000-0000-000000000000'};runRemediationScript=$false;runSchedule=[pscustomobject]@{'@odata.type'='#microsoft.graph.deviceHealthScriptDailySchedule';interval=1;useUtc=$true;time='03:00:00'}}
+            $includeZero=[pscustomobject]@{id='Script:Assignment';target=[pscustomobject]@{'@odata.type'='#microsoft.graph.allDevicesAssignmentTarget';deviceAndAppManagementAssignmentFilterType='include';deviceAndAppManagementAssignmentFilterId='00000000-0000-0000-0000-000000000000'};runRemediationScript=$false;runSchedule=$noneZero.runSchedule}
+            Test-AssignmentTargetMatch -Actual $noneZero -Desired $desired|Should -BeTrue
+            Test-AssignmentTargetMatch -Actual $includeZero -Desired $desired|Should -BeFalse
+            $caseChanged=$noneZero.PSObject.Copy();$caseChanged.id='script:assignment'
+            (Get-AssignmentSetCurrentStateDigest -Assignments @($noneZero))|Should -Not -Be (Get-AssignmentSetCurrentStateDigest -Assignments @($caseChanged))
+        }
+    }
+    It 'rejects empty, control-containing, or oversized opaque assignment IDs before the assign action' {
+        InModuleScope Intune.DeviceHealthScripts {
+            $desired=[pscustomobject]@{'@odata.type'='#microsoft.graph.deviceHealthScriptAssignment';target=[pscustomobject]@{'@odata.type'='#microsoft.graph.allDevicesAssignmentTarget'};runRemediationScript=$false;runSchedule=[pscustomobject]@{'@odata.type'='#microsoft.graph.deviceHealthScriptDailySchedule';interval=1;useUtc=$true;time='03:00:00'}}
+            foreach($badId in @('',"script`nassignment",('a'*513))){
+                {New-CompleteAssignmentSetBody -DesiredAssignment $desired -ExistingAssignment ([pscustomobject]@{id=$badId})}|Should -Throw '*opaque string*'
+            }
+        }
     }
     It 'rejects a noncanonical remote service version without mutation' {
         $remote=New-TestRemoteDeviceHealthScript -PackagePath $script:packagePath -ServiceVersion '1.0'

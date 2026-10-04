@@ -250,7 +250,12 @@ function New-CompleteAssignmentSetBody {
         '@odata.type' = [string]$DesiredAssignment.'@odata.type'
     }
     if ($null -ne $ExistingAssignment) {
-        $assignment.id = ConvertTo-RequiredGuid -Value ([string]$ExistingAssignment.id) -Name 'assignment id'
+        $assignmentId = [string]$ExistingAssignment.id
+        if ([string]::IsNullOrWhiteSpace($assignmentId) -or $assignmentId.Length -gt 512 -or
+            $assignmentId -cne $assignmentId.Trim() -or $assignmentId -match '\p{Cc}') {
+            throw 'Assignment ID must be a nonempty opaque string of at most 512 characters without surrounding whitespace or control characters.'
+        }
+        $assignment.id = $assignmentId
     }
     $assignment.target = $DesiredAssignment.target
     $assignment.runRemediationScript = [bool]$DesiredAssignment.runRemediationScript
@@ -272,6 +277,8 @@ function Get-NormalizedAssignmentTarget {
     $filterId = if ($null -eq $filterIdProperty) { '' } else { [string]$filterIdProperty.Value }
     $filterType = if ($null -eq $filterTypeProperty) { '' } else { ([string]$filterTypeProperty.Value).Trim().ToLowerInvariant() }
     if ([string]::IsNullOrWhiteSpace($filterType)) { $filterType = 'none' }
+    $filterId = $filterId.Trim()
+    if ($filterType -eq 'none' -and $filterId -eq '00000000-0000-0000-0000-000000000000') { $filterId = '' }
     [ordered]@{
         targetType = $type
         groupId = if ($type -eq 'microsoft.graph.groupassignmenttarget') { ([string]$target.groupId).ToLowerInvariant() } else { $null }
@@ -307,7 +314,7 @@ function Get-NormalizedAssignmentStateShapes {
         $time = [timespan]::Zero
         $timeText = if ([timespan]::TryParse([string]$assignment.runSchedule.time, [Globalization.CultureInfo]::InvariantCulture, [ref]$time)) { $time.ToString('c', [Globalization.CultureInfo]::InvariantCulture) } else { [string]$assignment.runSchedule.time }
         [pscustomobject][ordered]@{
-            id = ([string]$assignment.id).ToLowerInvariant()
+            id = [string]$assignment.id
             target = $target
             runRemediationScript = $assignment.runRemediationScript
             scheduleType = ConvertTo-NormalizedODataType $assignment.runSchedule.'@odata.type'
