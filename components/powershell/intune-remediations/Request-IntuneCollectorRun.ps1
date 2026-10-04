@@ -73,7 +73,7 @@ $timeMatches=$null -ne $timeProperty -and $timeProperty.Value -is [string] -and
     [timespan]::TryParse([string]$timeProperty.Value,[Globalization.CultureInfo]::InvariantCulture,[ref]$actualScheduleTime) -and
     [timespan]::TryParse([string]$manifest.assignment.schedule.time,[Globalization.CultureInfo]::InvariantCulture,[ref]$desiredScheduleTime) -and
     $actualScheduleTime -eq $desiredScheduleTime
-if([string]$schedule.'@odata.type' -cne '#microsoft.graph.deviceHealthScriptDailySchedule' -or
+if(([string]$schedule.'@odata.type').Trim().TrimStart('#').ToLowerInvariant() -cne 'microsoft.graph.devicehealthscriptdailyschedule' -or
    $null -eq $intervalProperty -or $null -eq $intervalProperty.Value -or $intervalProperty.Value.GetType().FullName -notin $integerTypes -or $intervalProperty.Value -ne 1 -or
    $null -eq $useUtcProperty -or $useUtcProperty.Value -isnot [bool] -or $useUtcProperty.Value -ne $true -or
    -not $timeMatches){

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.2
+
+Accept the native schedule type with or without the optional OData hash prefix.
+
 ## 0.1.1
 
 Treat Intune's observed service version separately from the local package authoring

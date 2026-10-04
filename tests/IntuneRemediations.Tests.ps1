@@ -36,7 +36,7 @@ BeforeAll {
             id='77777777-7777-4777-8777-777777777777'
             target=[pscustomobject]@{'@odata.type'='#microsoft.graph.allDevicesAssignmentTarget'}
             runRemediationScript=$false
-            runSchedule=[pscustomobject]@{'@odata.type'='#microsoft.graph.deviceHealthScriptDailySchedule';interval=$Interval;useUtc=$UseUtc;time=$Time}
+            runSchedule=[pscustomobject]@{'@odata.type'='microsoft.graph.deviceHealthScriptDailySchedule';interval=$Interval;useUtc=$UseUtc;time=$Time}
         }
     }
 }
@@ -56,7 +56,7 @@ Describe 'Optional on-demand collector validation' {
             param($Method,$Uri,$Body)
             $calls.Add([pscustomobject]@{method=$Method;uri=$Uri;body=$Body})
             if($Method -eq 'POST'){if($state.throwPost){throw 'Simulated transport timeout'};return}
-            if($Uri.EndsWith('/assignments')){return [pscustomobject]@{value=@([pscustomobject]@{target=[pscustomobject]@{'@odata.type'='#microsoft.graph.allDevicesAssignmentTarget'};runRemediationScript=$false;runSchedule=[pscustomobject]@{'@odata.type'='#microsoft.graph.deviceHealthScriptDailySchedule';interval=$state.scheduleInterval;useUtc=$state.scheduleUseUtc;time=$state.scheduleTime}})}}
+            if($Uri.EndsWith('/assignments')){return [pscustomobject]@{value=@([pscustomobject]@{target=[pscustomobject]@{'@odata.type'='#microsoft.graph.allDevicesAssignmentTarget'};runRemediationScript=$false;runSchedule=[pscustomobject]@{'@odata.type'='microsoft.graph.deviceHealthScriptDailySchedule';interval=$state.scheduleInterval;useUtc=$state.scheduleUseUtc;time=$state.scheduleTime}})}}
             if($Uri -match '/managedDevices/'){
                 if($state.race){Set-Content $receiptPath 'preserve-racing-receipt'}
                 return [pscustomobject]@{id='44444444-4444-4444-8444-444444444444';azureADDeviceId='55555555-5555-4555-8555-555555555555';operatingSystem='Windows';managementAgent='mdm'}
