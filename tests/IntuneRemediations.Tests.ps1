@@ -240,9 +240,12 @@ Describe 'Canonical Intune Remediations component' {
         $review=Invoke-IntuneDeviceHealthScriptPublication -PackageManifestPath $script:packagePath -TargetTenantId '11111111-1111-4111-8111-111111111111' -CallerTenantId '11111111-1111-4111-8111-111111111111' -AssignmentScope AllDevices -ExpectedExistingScriptId $remote.id -ExpectedExistingStateSha256 $plan.observedStateSha256 -GraphRequest $caller -ReviewOutputPath "$TestDrive/update-script-execute.json" -Execute
         $review.actions|Should -Contain 'updateScript'
         @($state.calls|Where-Object method -eq 'PATCH').Count|Should -Be 1
+        @($state.patchBody.Keys|Sort-Object)|Should -Be @('@odata.type','description','detectionScriptContent','displayName','enforceSignatureCheck','publisher','remediationScriptContent','roleScopeTagIds','runAs32Bit','runAsAccount')
         $state.patchBody.PSObject.Properties['isGlobalScript']|Should -BeNullOrEmpty
         $state.patchBody.PSObject.Properties['version']|Should -BeNullOrEmpty
-        $state.patchBody.deviceHealthScriptType|Should -Be 'deviceHealthScript'
+        $state.patchBody.PSObject.Properties['deviceHealthScriptType']|Should -BeNullOrEmpty
+        $state.patchBody.PSObject.Properties['detectionScriptParameters']|Should -BeNullOrEmpty
+        $state.patchBody.PSObject.Properties['remediationScriptParameters']|Should -BeNullOrEmpty
         $remote.isGlobalScript|Should -BeFalse
         $package=Import-IntuneDeviceHealthScriptPackage -ManifestPath $script:packagePath
         InModuleScope Intune.DeviceHealthScripts -Parameters @{Package=$package} {
@@ -252,6 +255,33 @@ Describe 'Canonical Intune Remediations component' {
             $actual|Add-Member version '1'
             $actual.isGlobalScript=$true
             (Test-DesiredScriptMatch -Actual $actual -Desired $desired)|Should -BeFalse
+        }
+    }
+    It 'rejects unsupported immutable script drift before PATCH' {
+        $mutations=@(
+            {param($Remote)$Remote.isGlobalScript=$true},
+            {param($Remote)$Remote.deviceHealthScriptType='managedInstallerScript'},
+            {param($Remote)$Remote.detectionScriptParameters=@([pscustomobject]@{name='unexpected'})},
+            {param($Remote)$Remote.remediationScriptParameters=@([pscustomobject]@{name='unexpected'})}
+        )
+        for($index=0;$index -lt $mutations.Count;$index++){
+            $remote=New-TestRemoteDeviceHealthScript -PackagePath $script:packagePath
+            & $mutations[$index] $remote
+            $assignment=New-TestRemoteAssignment
+            $calls=[Collections.Generic.List[object]]::new()
+            $caller={
+                param($Method,$Uri,$Body)
+                $calls.Add([pscustomobject]@{method=$Method;uri=$Uri;body=$Body})
+                if($Method -eq 'GET' -and $Uri -eq 'https://graph.microsoft.com/beta/deviceManagement/deviceHealthScripts'){return [pscustomobject]@{value=@([pscustomobject]@{id=$remote.id;displayName=$remote.displayName;description=$remote.description})}}
+                if($Method -eq 'GET' -and $Uri.EndsWith('/assignments')){return [pscustomobject]@{value=@($assignment)}}
+                if($Method -eq 'GET' -and $Uri.EndsWith('/'+$remote.id)){return $remote}
+                if($Method -eq 'PATCH'){throw 'PATCH must not run'}
+                throw "Unexpected request $Method $Uri"
+            }.GetNewClosure()
+            $plan=Invoke-IntuneDeviceHealthScriptPublication -PackageManifestPath $script:packagePath -TargetTenantId '11111111-1111-4111-8111-111111111111' -CallerTenantId '11111111-1111-4111-8111-111111111111' -AssignmentScope AllDevices -GraphRequest $caller -ReviewOutputPath "$TestDrive/immutable-drift-plan-$index.json"
+            $calls.Clear()
+            {Invoke-IntuneDeviceHealthScriptPublication -PackageManifestPath $script:packagePath -TargetTenantId '11111111-1111-4111-8111-111111111111' -CallerTenantId '11111111-1111-4111-8111-111111111111' -AssignmentScope AllDevices -ExpectedExistingScriptId $remote.id -ExpectedExistingStateSha256 $plan.observedStateSha256 -GraphRequest $caller -ReviewOutputPath "$TestDrive/immutable-drift-execute-$index.json" -Execute}|Should -Throw '*immutable property*'
+            @($calls|Where-Object method -eq 'PATCH').Count|Should -Be 0
         }
     }
     It 'updates the exact assignment through the complete-set assign action with its existing ID' {

@@ -215,10 +215,20 @@ function New-DesiredDeviceHealthScriptBody {
 function New-DesiredDeviceHealthScriptUpdateBody {
     param([Parameter(Mandatory)][object]$DesiredScript)
     $update = [ordered]@{}
-    foreach ($name in @('@odata.type','displayName','description','publisher','detectionScriptContent','remediationScriptContent','runAsAccount','enforceSignatureCheck','runAs32Bit','roleScopeTagIds','deviceHealthScriptType','detectionScriptParameters','remediationScriptParameters')) {
+    foreach ($name in @('@odata.type','displayName','description','publisher','detectionScriptContent','remediationScriptContent','runAsAccount','enforceSignatureCheck','runAs32Bit','roleScopeTagIds')) {
         $update[$name] = $DesiredScript[$name]
     }
     $update
+}
+
+function Assert-DesiredDeviceHealthScriptImmutableState {
+    param([Parameter(Mandatory)][object]$Actual, [Parameter(Mandatory)][object]$Desired)
+    foreach ($name in @('isGlobalScript','deviceHealthScriptType','detectionScriptParameters','remediationScriptParameters')) {
+        $property = $Actual.PSObject.Properties[$name]
+        if ($null -eq $property -or ($property.Value | ConvertTo-Json -Compress) -cne ($Desired[$name] | ConvertTo-Json -Compress)) {
+            throw "Existing script immutable property '$name' differs from the reviewed custom collector; unsupported partial update was not attempted."
+        }
+    }
 }
 
 function Test-DesiredScriptMatch {
@@ -545,6 +555,7 @@ function Invoke-IntuneDeviceHealthScriptPublication {
         $observedStateSha256 = Get-DeviceHealthScriptCurrentStateDigest -Script $actualScript -Assignments $assignments
         if ($expectedScriptId -and $observedStateSha256 -cne $ExpectedExistingStateSha256) { throw "Existing script state digest changed: expected $ExpectedExistingStateSha256, found $observedStateSha256." }
         if ($expectedScriptId) {
+            Assert-DesiredDeviceHealthScriptImmutableState -Actual $actualScript -Desired $desiredScript
             if (-not (Test-DesiredScriptMatch -Actual $actualScript -Desired $desiredScript)) { $actions.Add('updateScript') }
             else { $actions.Add('reuseScript') }
         }

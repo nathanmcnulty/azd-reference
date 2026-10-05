@@ -1,7 +1,7 @@
 {
   "manifestVersion": "1.1",
   "id": "intune-remediations",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "status": "pilot",
   "description": "Explicit caller-authenticated Intune data-gathering script publication and readback with package hashes and assignment verification.",
   "changelog": "components/powershell/intune-remediations/CHANGELOG.md",

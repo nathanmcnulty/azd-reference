@@ -48,4 +48,6 @@ The package `version` is authoring metadata. Intune's observed custom-script ser
 version is an independent positive integer; it is not submitted or compared to the
 package version. Reuse approvals bind the observed service version in the full
 current-state digest. Exact script bytes, identity, flags, parameters, scope tags
-and schedule remain required.
+and schedule remain required. Updates send only the live-supported mutable custom
+script fields; proprietary-script state, script type and parameter arrays must
+already match and remain part of final readback validation.

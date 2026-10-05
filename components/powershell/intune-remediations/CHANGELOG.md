@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.6
+
+Restrict custom-script PATCH bodies to the mutable fields accepted by the live
+service. Require proprietary-script state, script type and both parameter arrays
+to match the reviewed custom collector before any update; final readback still
+verifies the complete desired resource.
+
 ## 0.1.5
 
 Treat device run-state IDs as opaque service strings and preserve them exactly in
