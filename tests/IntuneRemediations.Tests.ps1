@@ -39,6 +39,15 @@ BeforeAll {
             runSchedule=[pscustomobject]@{'@odata.type'='microsoft.graph.deviceHealthScriptDailySchedule';interval=$Interval;useUtc=$UseUtc;time=$Time}
         }
     }
+    function New-TestDeviceRunState([string]$Id,[string]$Time='2026-10-04T04:00:00Z',[string]$ManagedDeviceId='44444444-4444-4444-8444-444444444444') {
+        [pscustomobject]@{
+            id=$Id
+            detectionState='success'
+            lastStateUpdateDateTime=$Time
+            preRemediationDetectionScriptOutput='bounded output'
+            managedDevice=[pscustomobject]@{id=$ManagedDeviceId;azureADDeviceId=$null}
+        }
+    }
 }
 
 Describe 'Optional on-demand collector validation' {
@@ -202,9 +211,48 @@ Describe 'Canonical Intune Remediations component' {
         $review.packageVersion|Should -Be '1.0'
         $review.serviceVersion|Should -Be '1'
         $state.createBody.PSObject.Properties['version']|Should -BeNullOrEmpty
+        $state.createBody.isGlobalScript|Should -BeFalse
         $assignCall=@($state.calls|Where-Object {$_.method -eq 'POST' -and $_.uri.EndsWith('/assign')})[0]
         @($assignCall.body.deviceHealthScriptAssignments).Count|Should -Be 1
         $assignCall.body.deviceHealthScriptAssignments[0].PSObject.Properties['id']|Should -BeNullOrEmpty
+    }
+    It 'omits the live-rejected global-script flag from PATCH while retaining exact readback validation' {
+        $remote=New-TestRemoteDeviceHealthScript -PackagePath $script:packagePath
+        $remote.detectionScriptContent=[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes('stale collector'))
+        $assignment=New-TestRemoteAssignment
+        $state=@{patchBody=$null;calls=[Collections.Generic.List[object]]::new()}
+        $caller={
+            param($Method,$Uri,$Body)
+            $state.calls.Add([pscustomobject]@{method=$Method;uri=$Uri;body=$Body})
+            if($Method -eq 'GET' -and $Uri -eq 'https://graph.microsoft.com/beta/deviceManagement/deviceHealthScripts'){return [pscustomobject]@{value=@([pscustomobject]@{id=$remote.id;displayName=$remote.displayName;description=$remote.description})}}
+            if($Method -eq 'GET' -and $Uri.EndsWith('/assignments')){return [pscustomobject]@{value=@($assignment)}}
+            if($Method -eq 'PATCH'){
+                $state.patchBody=$Body
+                foreach($name in $Body.Keys){
+                    if($remote.PSObject.Properties[$name]){$remote.$name=$Body[$name]}else{$remote|Add-Member -NotePropertyName $name -NotePropertyValue $Body[$name]}
+                }
+                return $remote
+            }
+            if($Method -eq 'GET' -and $Uri.EndsWith('/'+$remote.id)){return $remote}
+            throw "Unexpected request $Method $Uri"
+        }.GetNewClosure()
+        $plan=Invoke-IntuneDeviceHealthScriptPublication -PackageManifestPath $script:packagePath -TargetTenantId '11111111-1111-4111-8111-111111111111' -CallerTenantId '11111111-1111-4111-8111-111111111111' -AssignmentScope AllDevices -GraphRequest $caller -ReviewOutputPath "$TestDrive/update-script-plan.json"
+        $review=Invoke-IntuneDeviceHealthScriptPublication -PackageManifestPath $script:packagePath -TargetTenantId '11111111-1111-4111-8111-111111111111' -CallerTenantId '11111111-1111-4111-8111-111111111111' -AssignmentScope AllDevices -ExpectedExistingScriptId $remote.id -ExpectedExistingStateSha256 $plan.observedStateSha256 -GraphRequest $caller -ReviewOutputPath "$TestDrive/update-script-execute.json" -Execute
+        $review.actions|Should -Contain 'updateScript'
+        @($state.calls|Where-Object method -eq 'PATCH').Count|Should -Be 1
+        $state.patchBody.PSObject.Properties['isGlobalScript']|Should -BeNullOrEmpty
+        $state.patchBody.PSObject.Properties['version']|Should -BeNullOrEmpty
+        $state.patchBody.deviceHealthScriptType|Should -Be 'deviceHealthScript'
+        $remote.isGlobalScript|Should -BeFalse
+        $package=Import-IntuneDeviceHealthScriptPackage -ManifestPath $script:packagePath
+        InModuleScope Intune.DeviceHealthScripts -Parameters @{Package=$package} {
+            param($Package)
+            $desired=New-DesiredDeviceHealthScriptBody -Package $Package
+            $actual=$desired|ConvertTo-Json -Depth 20|ConvertFrom-Json
+            $actual|Add-Member version '1'
+            $actual.isGlobalScript=$true
+            (Test-DesiredScriptMatch -Actual $actual -Desired $desired)|Should -BeFalse
+        }
     }
     It 'updates the exact assignment through the complete-set assign action with its existing ID' {
         $remote=New-TestRemoteDeviceHealthScript -PackagePath $script:packagePath
@@ -305,12 +353,131 @@ Describe 'Canonical Intune Remediations component' {
         $caller={
             param($Method,$Uri,$Body)
             if($Uri.EndsWith('/assignments')){return [pscustomobject]@{value=@($assignment)}}
-            if($Uri.EndsWith('/deviceRunStates')){return [pscustomobject]@{value=@()}}
+            if($Uri -match '/deviceRunStates\?\$expand=managedDevice$'){return [pscustomobject]@{value=@()}}
             return $remote
         }.GetNewClosure()
         $readback=Get-IntuneDeviceHealthScriptReadback -TargetTenantId '11111111-1111-4111-8111-111111111111' -CallerTenantId '11111111-1111-4111-8111-111111111111' -DeviceHealthScriptId $remote.id -PackageManifestPath $script:packagePath -AssignmentScope AllDevices -GraphRequest $caller -OutputProjector {param($Output,$State,$StateTime,$Now,$MaximumStateAgeHours)} -OutputPath "$TestDrive/service-version-readback.json"
         $readback.package.version|Should -Be '1.0'
         $readback.deviceHealthScript.serviceVersion|Should -Be '1'
+    }
+    It 'preserves a composite run-state ID and binds its managed-device relationship identities' {
+        $remote=New-TestRemoteDeviceHealthScript -PackagePath $script:packagePath
+        $assignment=New-TestRemoteAssignment
+        $stateId='9733d656-7d64-4691-8a18-438f6683a70f4cab2260-1231-4937-974a-bf1ba54a4d8ea2307c5a-76df-4513-b575-0537842c1d8b'
+        $state=New-TestDeviceRunState -Id $stateId
+        $stateCollectionUri="https://graph.microsoft.com/beta/deviceManagement/deviceHealthScripts/$($remote.id)/deviceRunStates?`$expand=managedDevice"
+        $nextStatePageUri="$stateCollectionUri&`$skiptoken=page2"
+        $deviceUri='https://graph.microsoft.com/beta/deviceManagement/managedDevices/44444444-4444-4444-8444-444444444444?$select=id,azureADDeviceId,lastSyncDateTime'
+        $calls=[Collections.Generic.List[string]]::new()
+        $caller={
+            param($Method,$Uri,$Body)
+            $calls.Add($Uri)
+            if($Uri.EndsWith('/assignments')){return [pscustomobject]@{value=@($assignment)}}
+            if($Uri -ceq $stateCollectionUri){return [pscustomobject]@{value=@();'@odata.nextLink'=$nextStatePageUri}}
+            if($Uri -ceq $nextStatePageUri){return [pscustomobject]@{value=@($state)}}
+            if($Uri -ceq $deviceUri){return [pscustomobject]@{id='44444444-4444-4444-8444-444444444444';azureADDeviceId='55555555-5555-4555-8555-555555555555'}}
+            return $remote
+        }.GetNewClosure()
+        $readback=Get-IntuneDeviceHealthScriptReadback -TargetTenantId '11111111-1111-4111-8111-111111111111' -CallerTenantId '11111111-1111-4111-8111-111111111111' -DeviceHealthScriptId $remote.id -PackageManifestPath $script:packagePath -AssignmentScope AllDevices -GraphRequest $caller -OutputProjector {[pscustomobject]@{summary='reviewed';eligibleForReview=$true}} -OutputPath "$TestDrive/composite-run-state.json" -Now ([datetimeoffset]'2026-10-04T05:00:00Z')
+        $readback.deviceRunStates.Count|Should -Be 1
+        $readback.deviceRunStates[0].stateId|Should -BeExactly $stateId
+        $readback.deviceRunStates[0].managedDeviceId|Should -Be '44444444-4444-4444-8444-444444444444'
+        $readback.deviceRunStates[0].entraDeviceId|Should -Be '55555555-5555-4555-8555-555555555555'
+        @($calls|Where-Object {$_ -ceq $stateCollectionUri}).Count|Should -Be 1
+        @($calls|Where-Object {$_ -ceq $nextStatePageUri}).Count|Should -Be 1
+        @($calls|Where-Object {$_ -ceq $deviceUri}).Count|Should -Be 1
+    }
+    It 'rejects run-state IDs that could alter or ambiguously encode a path before managed-device lookup' {
+        $remote=New-TestRemoteDeviceHealthScript -PackagePath $script:packagePath
+        $assignment=New-TestRemoteAssignment
+        $badIds=@('.','..','../users','%2f','%0a','state/users','state?x=1','state#fragment',"state`nusers")
+        for($index=0;$index -lt $badIds.Count;$index++){
+            $state=New-TestDeviceRunState -Id $badIds[$index]
+            $transportState=@{deviceCalls=0}
+            $caller={
+                param($Method,$Uri,$Body)
+                if($Uri.EndsWith('/assignments')){return [pscustomobject]@{value=@($assignment)}}
+                if($Uri -match '/deviceRunStates\?\$expand=managedDevice$'){return [pscustomobject]@{value=@($state)}}
+                if($Uri -match '/managedDevices/'){$transportState.deviceCalls++;throw 'managed-device lookup must not run'}
+                return $remote
+            }.GetNewClosure()
+            {Get-IntuneDeviceHealthScriptReadback -TargetTenantId '11111111-1111-4111-8111-111111111111' -CallerTenantId '11111111-1111-4111-8111-111111111111' -DeviceHealthScriptId $remote.id -PackageManifestPath $script:packagePath -AssignmentScope AllDevices -GraphRequest $caller -OutputProjector {[pscustomobject]@{summary='reviewed';eligibleForReview=$true}} -OutputPath "$TestDrive/unsafe-run-state-$index.json" -Now ([datetimeoffset]'2026-10-04T05:00:00Z')}|Should -Throw '*ASCII letters*'
+            $transportState.deviceCalls|Should -Be 0
+        }
+    }
+    It 'rejects duplicate opaque run-state IDs before resolving any managed-device relationship' {
+        $remote=New-TestRemoteDeviceHealthScript -PackagePath $script:packagePath
+        $assignment=New-TestRemoteAssignment
+        $stateId='9733d656-7d64-4691-8a18-438f6683a70f4cab2260-1231-4937-974a-bf1ba54a4d8ea2307c5a-76df-4513-b575-0537842c1d8b'
+        $states=@((New-TestDeviceRunState -Id $stateId),(New-TestDeviceRunState -Id $stateId))
+        $deviceCalls=0
+        $caller={
+            param($Method,$Uri,$Body)
+            if($Uri.EndsWith('/assignments')){return [pscustomobject]@{value=@($assignment)}}
+            if($Uri -match '/deviceRunStates\?\$expand=managedDevice$'){return [pscustomobject]@{value=$states}}
+            if($Uri -match '/managedDevices/'){$deviceCalls++;throw 'managed-device lookup must not run'}
+            return $remote
+        }.GetNewClosure()
+        {Get-IntuneDeviceHealthScriptReadback -TargetTenantId '11111111-1111-4111-8111-111111111111' -CallerTenantId '11111111-1111-4111-8111-111111111111' -DeviceHealthScriptId $remote.id -PackageManifestPath $script:packagePath -AssignmentScope AllDevices -GraphRequest $caller -OutputProjector {[pscustomobject]@{summary='reviewed';eligibleForReview=$true}} -OutputPath "$TestDrive/duplicate-run-state.json" -Now ([datetimeoffset]'2026-10-04T05:00:00Z')}|Should -Throw '*Duplicate device run state IDs*'
+        $deviceCalls|Should -Be 0
+    }
+    It 'rejects a missing, null, or malformed expanded managed-device identity before direct lookup' {
+        $remote=New-TestRemoteDeviceHealthScript -PackagePath $script:packagePath
+        $assignment=New-TestRemoteAssignment
+        $states=@(
+            (New-TestDeviceRunState -Id 'missing-inline'),
+            (New-TestDeviceRunState -Id 'null-inline'),
+            (New-TestDeviceRunState -Id 'malformed-inline')
+        )
+        $states[0].PSObject.Properties.Remove('managedDevice')
+        $states[1].managedDevice=$null
+        $states[2].managedDevice.id='not-a-guid'
+        for($index=0;$index -lt $states.Count;$index++){
+            $state=$states[$index]
+            $transportState=@{deviceCalls=0}
+            $caller={
+                param($Method,$Uri,$Body)
+                if($Uri.EndsWith('/assignments')){return [pscustomobject]@{value=@($assignment)}}
+                if($Uri -match '/deviceRunStates\?\$expand=managedDevice$'){return [pscustomobject]@{value=@($state)}}
+                if($Uri -match '/managedDevices/'){$transportState.deviceCalls++;throw 'managed-device lookup must not run'}
+                return $remote
+            }.GetNewClosure()
+            {Get-IntuneDeviceHealthScriptReadback -TargetTenantId '11111111-1111-4111-8111-111111111111' -CallerTenantId '11111111-1111-4111-8111-111111111111' -DeviceHealthScriptId $remote.id -PackageManifestPath $script:packagePath -AssignmentScope AllDevices -GraphRequest $caller -OutputProjector {[pscustomobject]@{summary='reviewed';eligibleForReview=$true}} -OutputPath "$TestDrive/invalid-inline-$index.json" -Now ([datetimeoffset]'2026-10-04T05:00:00Z')}|Should -Throw
+            $transportState.deviceCalls|Should -Be 0
+        }
+    }
+    It 'rejects a mismatched direct managed-device ID or missing Entra device ID' {
+        $remote=New-TestRemoteDeviceHealthScript -PackagePath $script:packagePath
+        $assignment=New-TestRemoteAssignment
+        $state=New-TestDeviceRunState -Id 'identity-check'
+        $responses=@(
+            [pscustomobject]@{id='66666666-6666-4666-8666-666666666666';azureADDeviceId='55555555-5555-4555-8555-555555555555'},
+            [pscustomobject]@{id='44444444-4444-4444-8444-444444444444';azureADDeviceId=$null}
+        )
+        for($index=0;$index -lt $responses.Count;$index++){
+            $device=$responses[$index]
+            $caller={
+                param($Method,$Uri,$Body)
+                if($Uri.EndsWith('/assignments')){return [pscustomobject]@{value=@($assignment)}}
+                if($Uri -match '/deviceRunStates\?\$expand=managedDevice$'){return [pscustomobject]@{value=@($state)}}
+                if($Uri -match '/managedDevices/'){return $device}
+                return $remote
+            }.GetNewClosure()
+            {Get-IntuneDeviceHealthScriptReadback -TargetTenantId '11111111-1111-4111-8111-111111111111' -CallerTenantId '11111111-1111-4111-8111-111111111111' -DeviceHealthScriptId $remote.id -PackageManifestPath $script:packagePath -AssignmentScope AllDevices -GraphRequest $caller -OutputProjector {[pscustomobject]@{summary='reviewed';eligibleForReview=$true}} -OutputPath "$TestDrive/invalid-direct-device-$index.json" -Now ([datetimeoffset]'2026-10-04T05:00:00Z')}|Should -Throw
+        }
+    }
+    It 'rejects two run states bound by Graph to the same managed-device identity' {
+        $remote=New-TestRemoteDeviceHealthScript -PackagePath $script:packagePath
+        $assignment=New-TestRemoteAssignment
+        $states=@((New-TestDeviceRunState -Id 'state-one'),(New-TestDeviceRunState -Id 'state-two'))
+        $caller={
+            param($Method,$Uri,$Body)
+            if($Uri.EndsWith('/assignments')){return [pscustomobject]@{value=@($assignment)}}
+            if($Uri -match '/deviceRunStates\?\$expand=managedDevice$'){return [pscustomobject]@{value=$states}}
+            if($Uri -match '/managedDevices/'){return [pscustomobject]@{id='44444444-4444-4444-8444-444444444444';azureADDeviceId='55555555-5555-4555-8555-555555555555'}}
+            return $remote
+        }.GetNewClosure()
+        {Get-IntuneDeviceHealthScriptReadback -TargetTenantId '11111111-1111-4111-8111-111111111111' -CallerTenantId '11111111-1111-4111-8111-111111111111' -DeviceHealthScriptId $remote.id -PackageManifestPath $script:packagePath -AssignmentScope AllDevices -GraphRequest $caller -OutputProjector {[pscustomobject]@{summary='reviewed';eligibleForReview=$true}} -OutputPath "$TestDrive/device-identity-collision.json" -Now ([datetimeoffset]'2026-10-04T05:00:00Z')}|Should -Throw '*same managed device ID*'
     }
     It 'rejects a same-host continuation into another Graph resource' {
         $caller={param($Method,$Uri,$Body) [pscustomobject]@{value=@();'@odata.nextLink'='https://graph.microsoft.com/beta/users'}}

@@ -9,6 +9,16 @@ function ConvertTo-RequiredGuid {
     $parsed.ToString()
 }
 
+function ConvertTo-BoundedOpaqueIdentifier {
+    param([Parameter(Mandatory)][AllowEmptyString()][object]$Value, [Parameter(Mandatory)][string]$Name)
+    if ($Value -isnot [string]) { throw "$Name must be a string." }
+    $text = [string]$Value
+    if ($text -cnotmatch '^[A-Za-z0-9_-]{1,512}$') {
+        throw "$Name must use 1 to 512 ASCII letters, digits, underscores, or hyphens."
+    }
+    $text
+}
+
 function Get-Sha256Bytes {
     param([Parameter(Mandatory)][byte[]]$Bytes)
     $algorithm = [Security.Cryptography.SHA256]::Create()
@@ -200,6 +210,15 @@ function New-DesiredDeviceHealthScriptBody {
         detectionScriptParameters = @()
         remediationScriptParameters = @()
     }
+}
+
+function New-DesiredDeviceHealthScriptUpdateBody {
+    param([Parameter(Mandatory)][object]$DesiredScript)
+    $update = [ordered]@{}
+    foreach ($name in @('@odata.type','displayName','description','publisher','detectionScriptContent','remediationScriptContent','runAsAccount','enforceSignatureCheck','runAs32Bit','roleScopeTagIds','deviceHealthScriptType','detectionScriptParameters','remediationScriptParameters')) {
+        $update[$name] = $DesiredScript[$name]
+    }
+    $update
 }
 
 function Test-DesiredScriptMatch {
@@ -551,9 +570,10 @@ function Invoke-IntuneDeviceHealthScriptPublication {
 
     if ($Execute) {
         if ($actions -contains 'updateScript') {
+            $desiredUpdateScript = New-DesiredDeviceHealthScriptUpdateBody -DesiredScript $desiredScript
             Write-PublicationCheckpoint -Path $reviewFullPath -TargetTenantId $targetTenant -CallerTenantId $callerTenant -Package $package -AssignmentScope $AssignmentScope -GroupId $groupId -DeviceHealthScriptId $scriptId -CompletedActions @($completedActions) -PendingAction updateScript -LineageId $operationLineageId -CreateNew:(-not $checkpointCreated)
             $checkpointCreated = $true
-            try { $null = Invoke-GraphRequestChecked -GraphRequest $GraphRequest -Method PATCH -Uri "$base/$scriptId" -Body $desiredScript }
+            try { $null = Invoke-GraphRequestChecked -GraphRequest $GraphRequest -Method PATCH -Uri "$base/$scriptId" -Body $desiredUpdateScript }
             catch {
                 $failure = $_
                 try { Write-PublicationCheckpoint -Path $reviewFullPath -TargetTenantId $targetTenant -CallerTenantId $callerTenant -Package $package -AssignmentScope $AssignmentScope -GroupId $groupId -DeviceHealthScriptId $scriptId -CompletedActions @($completedActions) -PendingAction updateScript -LineageId $operationLineageId -Status unknown-outcome } catch {}
@@ -683,13 +703,27 @@ function Get-IntuneDeviceHealthScriptReadback {
     if ($assignments.Count -ne 1 -or $matchingAssignments.Count -ne 1 -or -not (Test-DesiredAssignmentMatch -Actual $matchingAssignments[0] -Desired $desiredAssignment)) {
         throw 'Script assignment readback does not match the complete reviewed target, filter, and schedule set.'
     }
-    $states = @(Get-GraphCollection -GraphRequest $GraphRequest -InitialUri "$base/deviceRunStates" -AllowedPathPrefix "/beta/deviceManagement/deviceHealthScripts/$scriptId/deviceRunStates")
-    $stateIds = @($states | ForEach-Object { ConvertTo-RequiredGuid -Value ([string]$_.id) -Name 'device run state id' })
-    if (@($stateIds | Sort-Object -Unique).Count -ne $stateIds.Count) { throw 'Duplicate device run state IDs were returned.' }
-    $summaries = foreach ($state in $states) {
-        $stateId = ConvertTo-RequiredGuid -Value ([string]$state.id) -Name 'device run state id'
-        $device = Invoke-GraphRequestChecked -GraphRequest $GraphRequest -Method GET -Uri "$base/deviceRunStates/$stateId/managedDevice"
-        $managedDeviceId = ConvertTo-RequiredGuid -Value ([string]$device.id) -Name 'managed device id'
+    $stateCollectionUri = "$base/deviceRunStates?`$expand=managedDevice"
+    $states = @(Get-GraphCollection -GraphRequest $GraphRequest -InitialUri $stateCollectionUri -AllowedPathPrefix "/beta/deviceManagement/deviceHealthScripts/$scriptId/deviceRunStates")
+    $stateRecords = foreach ($state in $states) {
+        $stateId = ConvertTo-BoundedOpaqueIdentifier -Value $state.id -Name 'device run state id'
+        $managedDeviceProperty = $state.PSObject.Properties['managedDevice']
+        if ($null -eq $managedDeviceProperty -or $null -eq $managedDeviceProperty.Value) { throw "Device run state '$stateId' did not include the expanded managedDevice relationship." }
+        $managedDeviceId = ConvertTo-RequiredGuid -Value ([string]$managedDeviceProperty.Value.id) -Name "device run state '$stateId' managed device id"
+        [pscustomobject][ordered]@{ state=$state; id=$stateId; managedDeviceId=$managedDeviceId }
+    }
+    $seenStateIds = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+    foreach ($record in $stateRecords) {
+        if (-not $seenStateIds.Add($record.id)) { throw 'Duplicate device run state IDs were returned.' }
+    }
+    $summaries = foreach ($record in $stateRecords) {
+        $state = $record.state
+        $stateId = $record.id
+        $managedDeviceId = $record.managedDeviceId
+        $deviceUri = "https://graph.microsoft.com/beta/deviceManagement/managedDevices/${managedDeviceId}?`$select=id,azureADDeviceId,lastSyncDateTime"
+        $device = Invoke-GraphRequestChecked -GraphRequest $GraphRequest -Method GET -Uri $deviceUri
+        $directManagedDeviceId = ConvertTo-RequiredGuid -Value ([string]$device.id) -Name 'managed device readback id'
+        if ($directManagedDeviceId -cne $managedDeviceId) { throw "Device run state '$stateId' expanded managed device ID did not match the direct managed device readback." }
         $entraDeviceId = ConvertTo-RequiredGuid -Value ([string]$device.azureADDeviceId) -Name 'managed device azureADDeviceId'
         $stateTime = ConvertTo-StrictUtcTimestamp -Value $state.lastStateUpdateDateTime -Name 'device run state lastStateUpdateDateTime'
         $fresh = $stateTime -le $Now.ToUniversalTime() -and $stateTime -ge $Now.ToUniversalTime().AddHours(-$MaximumStateAgeHours)

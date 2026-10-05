@@ -19,7 +19,10 @@ assignments and device run states. A successful create or matching assignment
 does not prove delivery or execution. Intune output is bounded; consumers must
 report overflow and failed/partial collections rather than treating missing
 values as an empty inventory. Complete inventories can remain local when they
-exceed the service output limit.
+exceed the service output limit. Device run-state IDs are opaque service keys;
+the readback preserves them exactly and never places them in a URI. It requires
+each expanded `managedDevice` relationship, then verifies that GUID through the
+canonical managed-device resource before recording its Entra-device identity.
 
 The operator's Graph requirements are recorded in each consumer permission
 manifest. Existing cached consent is not least-privilege proof. Hosting snapshot

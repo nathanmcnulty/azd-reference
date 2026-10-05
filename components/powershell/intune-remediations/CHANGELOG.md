@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.5
+
+Treat device run-state IDs as opaque service strings and preserve them exactly in
+evidence. Resolve managed-device identity from the expanded relationship, then
+verify it through the canonical managed-device resource without putting the
+opaque state ID in a URI. Omit the live-rejected `isGlobalScript` property from
+PATCH bodies while retaining it in exact readback validation.
+
 ## 0.1.4
 
 Accept native unfiltered zero-GUID filter metadata and exact composite assignment
