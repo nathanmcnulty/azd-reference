@@ -134,9 +134,9 @@ resetting the dirty canonical permission-tracking checkout.
 
 The first batch was independently reviewed across 135 paths, committed in 26
 Git roots and pushed to 25 accessible repositories on
-`codex/backlog-reviewed-20261003`. Exact remote hashes were verified. The retained
-`azd-nathanmcnulty` checkout has an unavailable configured remote; its local
-commit and single-head Git bundle were independently verified instead. Existing
+`codex/backlog-reviewed-20261003`. Exact remote hashes were verified. At that stage, the retained
+`azd-nathanmcnulty` checkout had an unavailable configured remote;
+its local commit and single-head Git bundle were independently verified instead. Existing
 checkouts, indexes, local environments and unrelated builders were preserved.
 
 EA-004 and DEVICE-004 continue on separate reviewed branches based on their
@@ -237,6 +237,39 @@ tracked baseline files are portfolio notes and generic repository hygiene; there
 is no AZD template, infrastructure, script or application implementation to move.
 Its three local backlog files already match the reviewed preservation commit.
 A second complete bundle and recovery manifest were saved outside task artifacts.
-The checkout and aggregate entries remain unchanged pending the maintainer's
-retirement decision. Coordination already belongs in azd-reference; this stub
+At that inspection the checkout and aggregate entries were retained pending
+the maintainer's retirement decision, subsequently recorded below. Coordination already belongs in azd-reference; this stub
 should not become another staged solution.
+
+
+## Portfolio coordination stub retirement
+
+On 4 October 2026 the maintainer explicitly approved retiring azd-nathanmcnulty
+and converging its useful material into azd-reference. The entire primary checkout,
+including Git metadata and the three raw local backlog files, was moved into the
+existing durable archive. The active checkout path is absent. The reviewed commit
+`41fa2c47d3ac1aaab908827f59450c6a89c3d240`, its parent main snapshot and complete
+bundle remain recoverable. The bundle SHA-256 is
+`129644e0a354aa87af4849ee4c66d5bccc47cb964af40870ae233a7d27576104`.
+
+The five baseline files add no missing reference capability: the license matches,
+Dependabot settings are equivalent, portfolio ownership is already documented,
+and reference security policy, governance and validation cover the hygiene needs.
+The stub-only prohibition on azure.yaml is inappropriate for reference. Existing
+reference controls remain authoritative; no duplicate workflow or competing task
+tracker was introduced. The two archived INDEX records and stub component row
+were removed from the active aggregate, leaving 30 backlog roots and 202 records.
+This retirement concerns only the unavailable local coordination stub; historical
+execution evidence and all independently deployable solution repositories remain.
+
+
+## Remaining integration gate
+
+A read-only GitHub ancestry check on 4 October found the reviewed reference
+foundation/execution, Auth operator workflow, Device validation upgrade and
+Emergency Access validation upgrade absent from their current main histories.
+The reference and Device histories have diverged; Auth and Emergency Access
+remain on saved branches. These checks establish preservation, not main integration.
+Reconcile against current main, retain independent review and appropriate tests,
+and complete authorized integration before treating the portfolio push as landed.
+Preservation refs must remain until that work is verified on main.

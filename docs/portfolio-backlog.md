@@ -2,9 +2,9 @@
 
 Captured 3 October 2026. This is a generated preparation view of repository-local backlogs, not a second task database. Regenerate counts and links from `docs/backlog.json`; update task status only in the owning repository. The proposed order favors reliability and deployment readiness before new capabilities. No feature implementation, tenant deployment, delivery, release, merge, cleanup or required-check change is authorized by this report.
 
-Coverage: 25 current GitHub `nathanmcnulty/azd-*` repositories, one retained local coordination checkout, and five staged solutions. 204 task records: 33 ready, 152 proposed, 19 done. All 30 AZD issues open at initial capture are linked in task sources, with 15 then-open PRs recorded for reconciliation. Execution reconciliation added 28 further open-report candidates and confirmed Device Cleanup PR #10 and staged App Control PR #32 as merged. The earlier read-only refresh recorded Health issue #6 / PR #8 as resolved at c2c63371ec182060b0e7e24f534e37e62c84d84e; it remains a completed record, with a separate historical-exposure assessment candidate. These GitHub search results are a dated snapshot, not a guarantee about changes after capture.
+Coverage: 25 current GitHub `nathanmcnulty/azd-*` repositories and five staged solutions. 202 active task records: 31 ready, 152 proposed, 19 done. All 30 AZD issues open at initial capture are linked in task sources, with 15 then-open PRs recorded for reconciliation. Execution reconciliation added 28 further open-report candidates and confirmed Device Cleanup PR #10 and staged App Control PR #32 as merged. The earlier read-only refresh recorded Health issue #6 / PR #8 as resolved at c2c63371ec182060b0e7e24f534e37e62c84d84e; it remains a completed record, with a separate historical-exposure assessment candidate. These GitHub search results are a dated snapshot, not a guarantee about changes after capture.
 
-`azd-nathanmcnulty` exists locally, but authenticated `gh repo view` could not resolve its configured remote. It is preserved and treated as local coordination only. `AZD-for-beginners` is Microsoft-owned and excluded. Duplicate acceptance/build worktrees are not independent portfolio repositories. The legacy staged `azd-pim` copy is preserved and excluded from a competing implementation backlog pending history/owner reconciliation.
+`azd-nathanmcnulty` was retired on 4 October 2026 after maintainer approval. Its complete Git history and local files are archived; its two coordination-only records are excluded from this active aggregate. Portfolio coordination is owned by azd-reference. See the [retirement record](portfolio-execution.md#portfolio-coordination-stub-retirement). `AZD-for-beginners` is Microsoft-owned and excluded. Duplicate acceptance/build worktrees are not independent portfolio repositories. The legacy staged `azd-pim` copy is preserved and excluded from a competing implementation backlog pending history/owner reconciliation.
 
 [Execution record](portfolio-execution.md) tracks selected owners, completed review packets, validation and verified lab cleanup.
 
@@ -21,7 +21,7 @@ Coverage: 25 current GitHub `nathanmcnulty/azd-*` repositories, one retained loc
 
 | Wave | Purpose | Current records | Exit gate |
 | --- | --- | ---: | --- |
-| 0 | Reconcile current source, issue/PR state and active owners | 63 | Actual offline commands and remaining work verified; no duplicate owner |
+| 0 | Reconcile current source, issue/PR state and active owners | 61 | Actual offline commands and remaining work verified; no duplicate owner |
 | 1 | Fix failure/secret boundaries and shared tracking/provenance gaps | 51 | Focused regressions pass; component decisions use exact hashes |
 | 2 | Validate selected deployment paths and improve bounded operational behavior | 52 | Current-source service and human/endpoint evidence retained for authorized targets |
 | 3 | Add selected new capabilities and optional components | 35 | Narrow design accepted; permission additions, rollout and rollback are explicit |
@@ -70,7 +70,6 @@ These are candidates for selection, not a standing instruction to implement or m
 | [azd-verified-id](../../azd-verified-id/docs/backlog.md) | 6 | VID-001: current-source reconciliation |
 | [azd-website](../../azd-website/docs/backlog.md) | 4 | WEB-001: current-source reconciliation |
 | [azd-work-in-progress](../../azd-work-in-progress/docs/backlog.md) | 5 | STAGE-001: current-source reconciliation |
-| [azd-nathanmcnulty](../../azd-nathanmcnulty/docs/backlog.md) | 2 | INDEX-001: current-source reconciliation |
 | [azd-work-in-progress/azd-app-control](../../azd-work-in-progress/azd-app-control/docs/backlog.md) | 4 | APP0-001: current-source reconciliation |
 | [azd-work-in-progress/azd-app-control-for-business](../../azd-work-in-progress/azd-app-control-for-business/docs/backlog.md) | 7 | ACFB-001: current-source reconciliation |
 | [azd-work-in-progress/azd-defender-asr-rules](../../azd-work-in-progress/azd-defender-asr-rules/docs/backlog.md) | 5 | ASR-001: current-source reconciliation |
