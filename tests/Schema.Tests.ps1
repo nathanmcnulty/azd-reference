@@ -70,6 +70,19 @@ Describe 'Portfolio JSON schemas' {
             Test-Json -SchemaFile (Join-Path $script:repoRoot 'schemas/portfolio-consumers.schema.json') -ErrorAction Stop) | Should -BeTrue
     }
 
+    It 'records Auth Notifications at its reviewed pilot component pins' {
+        $registry = Get-Content -LiteralPath (Join-Path $script:repoRoot 'portfolio/consumers.json') -Raw | ConvertFrom-Json
+        $consumer = @($registry.consumers | Where-Object id -eq 'azd-auth-notifications')
+        $consumer.Count | Should -Be 1
+        $consumer[0].rolloutRing | Should -Be 'pilot'
+        $consumer[0].adoption | Should -Be 'adopted'
+        $consumer[0].validation.entryPoint | Should -Be 'scripts/Test-Repository.ps1'
+        @($consumer[0].components | ForEach-Object { "$($_.id)@$($_.desiredVersion)" }) | Should -Be @(
+            'deployment-validation@1.1.1',
+            'notification-contracts@1.0.0'
+        )
+    }
+
     It 'requires every stable component to have at least two adopted consumer shapes' {
         $registry = Get-Content -LiteralPath (Join-Path $script:repoRoot 'portfolio/consumers.json') -Raw | ConvertFrom-Json
         $stableManifests = @(Get-ChildItem -LiteralPath (Join-Path $script:repoRoot 'components') -Filter component.json -File -Recurse | ForEach-Object {
