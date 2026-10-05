@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "repository": "nathanmcnulty/azd-reference",
-  "sourceRevision": "54a29a590c8b015f5becf7457407128e1b413835",
+  "sourceRevision": "cd5d64ee37aa58553074966342dc553decfa31c8",
   "capturedAt": "2026-10-04",
   "items": [
     {
@@ -46,7 +46,7 @@
       "title": "Pilot the shared backlog contract in repository validation",
       "kind": "maintenance",
       "priority": "P1",
-      "status": "proposed",
+      "status": "done",
       "wave": 1,
       "problem": "Backlog files need structural and dependency checks before agents can reliably select work.",
       "scope": [
@@ -72,8 +72,12 @@
         "README.md",
         ".github/workflows/validate.yml"
       ],
-      "evidence": [],
-      "blocker": null
+      "evidence": [
+        "Selected for this local reconciliation under the maintainer instruction to finish work not requiring judgment. The existing schema/semantic tools and ten regression tests enforce the bounded task contract and dependency/evidence/ownership checks.",
+        "Added an ordinary step to the existing Windows/Linux validation job: Test-AzdBacklog.ps1 and Export-AzdBacklogMarkdown.ps1 -Check. Both commands pass locally against the current repository; this adds no required check, catalog enforcement, runtime dependency, deployment or tenant action. Hosted validation is verified through the PR before main integration."
+      ],
+      "blocker": null,
+      "claim": null
     },
     {
       "id": "REF-003",

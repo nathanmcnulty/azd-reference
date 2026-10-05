@@ -263,13 +263,147 @@ This retirement concerns only the unavailable local coordination stub; historica
 execution evidence and all independently deployable solution repositories remain.
 
 
-## Remaining integration gate
+## Current-main reconciliation
 
-A read-only GitHub ancestry check on 4 October found the reviewed reference
-foundation/execution, Auth operator workflow, Device validation upgrade and
-Emergency Access validation upgrade absent from their current main histories.
-The reference and Device histories have diverged; Auth and Emergency Access
-remain on saved branches. These checks establish preservation, not main integration.
-Reconcile against current main, retain independent review and appropriate tests,
-and complete authorized integration before treating the portfolio push as landed.
-Preservation refs must remain until that work is verified on main.
+The maintainer authorized completing remaining reconciliation that needs no new
+judgment. On 4 October 2026 the coordinator rebuilt the owned packets against
+current main instead of merging old preservation-branch ancestry. All 25 active
+repositories have their tracking integration on main; the staging repository also
+contains tracking for its existing historical App Control solution. Four newer
+unpublished staged solution trackers remain on their owners' preserved snapshots.
+No staged solution was published, moved or absorbed merely because it was present.
+
+Each packet received independent review of its exact diff, appropriate offline
+validation, passing registered PR-head checks before ordinary squash merge and
+exact merged tree comparison. Triggered post-merge main workflows passed. GUI's
+tracking-only branch had no registered PR checks or post-merge workflows;
+Website's PR site/catalog check passed but no post-merge workflow was triggered.
+Their separately reviewed offline validation remains the recorded test evidence.
+MyWorkID's supported .NET 8 hosted tests passed; the local .NET 10 roll-forward
+attempt was not treated as equivalent acceptance. Reference's foundation passed
+292 local tests and Windows/Linux hosted validation. Earlier execution sections
+are dated historical evidence; this table supersedes their branch-only integration
+state without changing the source to which their live proof was bound.
+
+| Repository | Reviewed integration | Verified merged main |
+| --- | --- | --- |
+| azd-advanced-auditing | [PR #18](https://github.com/nathanmcnulty/azd-advanced-auditing/pull/18) | [`edd48cd5`](https://github.com/nathanmcnulty/azd-advanced-auditing/commit/edd48cd5ac3866b13ddbe3640ae6181b7871975c) |
+| azd-auth-notifications | [PR #10](https://github.com/nathanmcnulty/azd-auth-notifications/pull/10) | [`715fcafc`](https://github.com/nathanmcnulty/azd-auth-notifications/commit/715fcafc70cecdc831a512699c1e0129e11167ea) |
+| azd-cloud-pc-recommendations | [PR #7](https://github.com/nathanmcnulty/azd-cloud-pc-recommendations/pull/7) | [`f035b101`](https://github.com/nathanmcnulty/azd-cloud-pc-recommendations/commit/f035b101ebe9c5928dae058ad871979a23b56e1e) |
+| azd-defender-reporting | [PR #18](https://github.com/nathanmcnulty/azd-defender-reporting/pull/18) | [`8f258252`](https://github.com/nathanmcnulty/azd-defender-reporting/commit/8f258252417cb9f675a8b1ec3a8649582bdca91c) |
+| azd-device-cleanup | [PR #14](https://github.com/nathanmcnulty/azd-device-cleanup/pull/14) | [`95ec50bf`](https://github.com/nathanmcnulty/azd-device-cleanup/commit/95ec50bfe96a6a704359a70dd97ea92008a23840) |
+| azd-device-notifications | [PR #38](https://github.com/nathanmcnulty/azd-device-notifications/pull/38) | [`bbc8984d`](https://github.com/nathanmcnulty/azd-device-notifications/commit/bbc8984d92ecbb11049645963f10fe3706461fe9) |
+| azd-emergency-access | [PR #22](https://github.com/nathanmcnulty/azd-emergency-access/pull/22) | [`15a39144`](https://github.com/nathanmcnulty/azd-emergency-access/commit/15a39144529f48faa7628a8dd02e3f8750879dcc) |
+| azd-entra-health-monitoring | [PR #10](https://github.com/nathanmcnulty/azd-entra-health-monitoring/pull/10) | [`6e509bfb`](https://github.com/nathanmcnulty/azd-entra-health-monitoring/commit/6e509bfbc8cb90d7ce8c1a321515e4a0584180e3) |
+| azd-entra-iga | [PR #18](https://github.com/nathanmcnulty/azd-entra-iga/pull/18) | [`7799e494`](https://github.com/nathanmcnulty/azd-entra-iga/commit/7799e494d5138bbaf9a4796e21406afa37c88140) |
+| azd-global-secure-access | [PR #16](https://github.com/nathanmcnulty/azd-global-secure-access/pull/16) | [`2f153eb8`](https://github.com/nathanmcnulty/azd-global-secure-access/commit/2f153eb8e04f1cc0c7ac9f446e9b293fce94ff13) |
+| azd-gui | [PR #144](https://github.com/nathanmcnulty/azd-gui/pull/144) | [`6432d90b`](https://github.com/nathanmcnulty/azd-gui/commit/6432d90be206aff52e053b70b2a92a1bb014c77f) |
+| azd-maester | [PR #31](https://github.com/nathanmcnulty/azd-maester/pull/31) | [`9c86e879`](https://github.com/nathanmcnulty/azd-maester/commit/9c86e879f43de090f6fbee0fbb5f35ecbc83c374) |
+| azd-maester-azureautomation | [PR #20](https://github.com/nathanmcnulty/azd-maester-azureautomation/pull/20) | [`f307d58a`](https://github.com/nathanmcnulty/azd-maester-azureautomation/commit/f307d58aa2616c3eea2f23bf366e3bc25bbb081d) |
+| azd-maester-azuredevops | [PR #17](https://github.com/nathanmcnulty/azd-maester-azuredevops/pull/17) | [`760ac2d8`](https://github.com/nathanmcnulty/azd-maester-azuredevops/commit/760ac2d854b54367376b6c9892ff8c0385ab92c6) |
+| azd-maester-containerappjob | [PR #22](https://github.com/nathanmcnulty/azd-maester-containerappjob/pull/22) | [`c29019a4`](https://github.com/nathanmcnulty/azd-maester-containerappjob/commit/c29019a489ea76d34181ac6f4479db1715f090f3) |
+| azd-maester-functionapp | [PR #22](https://github.com/nathanmcnulty/azd-maester-functionapp/pull/22) | [`ed8668d8`](https://github.com/nathanmcnulty/azd-maester-functionapp/commit/ed8668d84ed2ccd66bba94c1298916ca285ca64d) |
+| azd-myworkid | [PR #40](https://github.com/nathanmcnulty/azd-myworkid/pull/40) | [`6b4f5386`](https://github.com/nathanmcnulty/azd-myworkid/commit/6b4f538689731a2bb8e90061f44929466fcaac2b) |
+| azd-pim | [PR #18](https://github.com/nathanmcnulty/azd-pim/pull/18) | [`4c6ddfdb`](https://github.com/nathanmcnulty/azd-pim/commit/4c6ddfdb1cc0d5f30c9cac817a259decd181cc31) |
+| azd-reference | [PR #67](https://github.com/nathanmcnulty/azd-reference/pull/67) | [`cd5d64ee`](https://github.com/nathanmcnulty/azd-reference/commit/cd5d64ee37aa58553074966342dc553decfa31c8) |
+| azd-risk-based-ca | [PR #24](https://github.com/nathanmcnulty/azd-risk-based-ca/pull/24) | [`1028ba8f`](https://github.com/nathanmcnulty/azd-risk-based-ca/commit/1028ba8f0fbaacd9c7d09807c36cf4e9207a1e3d) |
+| azd-santa | [PR #26](https://github.com/nathanmcnulty/azd-santa/pull/26) | [`82c17ed9`](https://github.com/nathanmcnulty/azd-santa/commit/82c17ed961fad5f38499f8b212a2889ece249b97) |
+| azd-sysmon | [PR #11](https://github.com/nathanmcnulty/azd-sysmon/pull/11) | [`bb11af88`](https://github.com/nathanmcnulty/azd-sysmon/commit/bb11af88551b3c18be1954a288898a3a3a741577) |
+| azd-verified-id | [PR #11](https://github.com/nathanmcnulty/azd-verified-id/pull/11) | [`4d34f9a1`](https://github.com/nathanmcnulty/azd-verified-id/commit/4d34f9a1c87c948190bd188fd2aa97d7ca58798b) |
+| azd-website | [PR #58](https://github.com/nathanmcnulty/azd-website/pull/58) | [`0886e99f`](https://github.com/nathanmcnulty/azd-website/commit/0886e99f51fb884100765bbcb3a81f918fe4631c) |
+| azd-work-in-progress | [PR #37](https://github.com/nathanmcnulty/azd-work-in-progress/pull/37) | [`996d0585`](https://github.com/nathanmcnulty/azd-work-in-progress/commit/996d0585921c3cceae43ab04f702c20c031751a7) |
+
+The Reference entry records foundation PR #67. This follow-up report packet adds
+REF-002's backlog-schema and generated-view checks to the existing Windows/Linux
+validation job. It has ten focused local regressions and aggregate validation;
+hosted PR validation must pass before merge. It introduces no new required check,
+catalog enforcement, runtime dependency, deployment or permission grant.
+
+### Refreshed backlog accounting
+
+The 30-root aggregate contains 206 records: 75 done, 126 proposed and five ready.
+It uses the 26 reviewed tracking roots described above, including this Reference
+CI-pilot packet, and four read-only unpublished owner snapshots. Done includes
+source reconciliation and existing implemented fixes; it is not a count of newly
+delivered features. Four new resolved issue records in Auditing, Cloud PC and
+Device Cleanup explain the change from the earlier 202-record preparation.
+Schema, dependency, evidence and generated-view checks passed for all 30 roots.
+
+Device Cleanup's batch cap, Maester failure semantics, Health's callback source
+fix and App Control's DoD mapping are already implemented. All four validation
+component consumers have the reviewed immutable deployment-validation 1.1.1
+revision `0c96cc89c554ffc3b3ca82ceda12da6591e816c1`, with schema 1.0 output
+contracts preserved. Their broader live acceptance remains a separate gate.
+Website's local dependency audit reported 29 high findings; WEB-004 retains
+assessment/remediation as proposed. Tracking integration does not declare that
+dependency gap resolved or establish exploitability of every raw audit finding.
+
+### Work that agents can continue without a rollout decision
+
+- Reconcile exact owner handoffs for App Control for Business and the three
+  Defender engines, then map historical App Control architecture under APP0-003.
+  Preserve both source histories and active dirty work; do not import unfinished
+  permission/security-host/runtime ancestor commits as part of tracking changes.
+- Assess Website WEB-004 dependency findings against current source, and implement
+  bounded offline fixes/fixtures such as Health HEALTH-003. HEALTH-006's historical
+  exposure assessment is prepared but no target-bound assessment or rotation has
+  been completed.
+- Qualify optional component candidates only against their actual runtime and
+  identity contracts, with immutable pins and permission gaps recorded. A proposed
+  opportunity is not approval to grant a scope, combine identities or deploy.
+- Use clean current-main worktrees for the next wave. Canonical dirty checkouts
+  intentionally remain; their older local backlog/source files must not overwrite
+  the reviewed main packets.
+
+The four newer roots are preserved at aggregate branch
+`codex/staged-security-solutions-20261003@9df79e0290ce340641d8aab653ce0a7c088b075c`.
+Their source trees match `9dc18622bfee88a8c8eadfa423bc56070a40dbd1`, whose
+[three-platform staged validation](https://github.com/nathanmcnulty/azd-work-in-progress/actions/runs/37258211018)
+passed 316 Windows tests, 316 PowerShell 7.4.20 tests and 310 Linux tests with six
+explicit Windows-only skips, plus Bicep, permissions, locks and packaging.
+There is no current live agent owner. Clean builder histories and a separate dirty
+four-file ACFB/Firewall quality worktree remain preserved. Later aggregate code
+contains the same safety concepts with different blobs, so the next owner must
+compare semantics before replaying a reviewed source packet onto current main.
+APP0-003 maps retained historical research/probes into the newer ACFB roadmap;
+both roots and histories remain, with no implied archive or policy enforcement.
+
+### Gates requiring a target, human acceptance or product decision
+
+- GUI: signed exact-candidate Windows 11 standard-user account/WAM, draft/cancel
+  and target-identity acceptance. Native tests do not establish human UI success.
+- Santa: actual Mac Monitor configuration delivery and on-device/per-device proof.
+  Package/profile preparation does not establish the previously pending main
+  configuration was delivered.
+- App Control and Defender: populated pilot endpoints, real update/rollback and
+  policy convergence. No broader assignment or enforcement is inferred.
+- Notifications and recovery: named recipients/routes and visible delivery or
+  recovery drill acceptance where required by the selected task.
+- Rollout/promotion: policy thresholds, retention/privacy/cost choices, shared
+  hosting/identity decisions, named standalone publication/release and any named
+  catalog-required enforcement approval. The lab authorization already permits
+  necessary bounded validation and cleanup; it is not a blanket rollout target.
+
+### Cleanup and preservation
+
+No cloud resources, grants, notifications or endpoint assignments were created
+by this reconciliation. A fresh read-only audit explicitly selected the commercial
+lab subscription `43babb60-9e73-4dc8-b769-4401c01aad73`, AzureCloud and tenant
+`847b5907-ca15-40f4-b171-eb18619dbfab`. Both owned test groups
+`rg-azd-backlog-retention-7ff6fd16` and
+`rg-azd-backlog-auth004-b4286f5e6acb` were absent, and both exact owned role
+assignment GUIDs had zero matches. The absence receipt SHA-256 is
+`0d130ef3968e853235109fcbb834a71fe59ced5d7174a30c59b61b8094448727e`.
+
+The Auth dependency cache was recoverably moved to C: with exact manifest parity
+for all 16,053 path/type/size entries; source and Git state stayed unchanged.
+Separately, GUI/Santa/Website generated outputs were removed by their owner to
+recover disk capacity. Independent review verified bounded paths and unchanged
+source; the accounting receipt explicitly records unknown size limits and deletion
+of successful ignored Pester XML. Bounded logs and the failed ENOSPC/fresh-C retry
+logs were retained; no failed live evidence was deleted. The accounting receipt
+SHA-256 is `1879c344dc7de4f65744bd889461b6a5387c57d1711798d92da4d04bd9b1ef67`.
+
+The azd-nathanmcnulty stub retirement remains complete and recoverable as recorded
+above. There was no unique application code to migrate. Dirty source worktrees,
+environment state, preservation commits and raw lab proof remain retained.

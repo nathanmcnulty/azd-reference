@@ -5,7 +5,7 @@
 
 - **Schema version:** 1.0.0
 - **Repository:** nathanmcnulty/azd-reference
-- **Source revision:** `54a29a590c8b015f5becf7457407128e1b413835`
+- **Source revision:** `cd5d64ee37aa58553074966342dc553decfa31c8`
 - **Captured:** 2026-10-04
 - **Items:** 8
 
@@ -128,7 +128,7 @@ Review REF-008 against the current repository state. Its status or authorization
 
 - **Kind:** maintenance
 - **Priority:** P1
-- **Status:** proposed
+- **Status:** done
 - **Wave:** 1
 - **Authorization:** local-only
 - **Blocker:** _none_
@@ -172,7 +172,8 @@ Backlog files need structural and dependency checks before agents can reliably s
 
 **Evidence:**
 
-- _none_
+- Selected for this local reconciliation under the maintainer instruction to finish work not requiring judgment. The existing schema/semantic tools and ten regression tests enforce the bounded task contract and dependency/evidence/ownership checks.
+- Added an ordinary step to the existing Windows/Linux validation job&colon; Test-AzdBacklog.ps1 and Export-AzdBacklogMarkdown.ps1 -Check. Both commands pass locally against the current repository; this adds no required check, catalog enforcement, runtime dependency, deployment or tenant action. Hosted validation is verified through the PR before main integration.
 
 **Review and authorization note:**
 

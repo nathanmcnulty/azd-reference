@@ -71,6 +71,11 @@ jobs:
           Install-Module Microsoft.Graph.Authentication -RequiredVersion 2.38.0 -Force -Scope CurrentUser
           Invoke-Pester ./tests -CI
 
+      - name: Validate the repository backlog and generated review view
+        run: |
+          ./tooling/Test-AzdBacklog.ps1 | Out-Null
+          ./tooling/Export-AzdBacklogMarkdown.ps1 -Check | Out-Null
+
       - name: Test and reproduce the catalog validator package
         working-directory: ./.github/actions/catalog-validator
         run: |
