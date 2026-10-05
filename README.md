@@ -54,6 +54,13 @@ multiple solutions.
 
 ## Layout
 
+Track agent work in [`docs/backlog.json`](docs/backlog.json), with a generated
+[review view](docs/backlog.md), using the [agent backlog standard](standards/agent-backlogs.md).
+The [portfolio preparation report](docs/portfolio-backlog.md) links repository
+backlogs, component opportunities, and the proposed focused work waves.
+The [execution record](docs/portfolio-execution.md) captures selected ownership,
+independent reviews, validation, and disposable lab cleanup evidence.
+
 ```text
 components/   Versioned component source and component manifests
 docs/         Architecture and extraction decisions

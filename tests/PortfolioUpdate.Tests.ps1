@@ -17,6 +17,10 @@ Describe 'Portfolio update preparation' {
 
         & git -C $reference init --initial-branch main | Out-Null
         & git -C $reference config core.autocrlf false
+        foreach ($setting in @('commit.gpgsign', 'tag.gpgsign')) {
+            & git -C $reference config --local $setting false
+            if ($LASTEXITCODE -ne 0) { throw "Unable to disable $setting in the Git reference fixture." }
+        }
         & git -C $reference config user.name 'reference tests'
         & git -C $reference config user.email 'reference-tests@example.invalid'
         & git -C $reference remote add origin 'https://github.com/example/azd-reference.git'
@@ -28,6 +32,10 @@ Describe 'Portfolio update preparation' {
 
         & git -C $consumer init --initial-branch main | Out-Null
         & git -C $consumer config core.autocrlf false
+        foreach ($setting in @('commit.gpgsign', 'tag.gpgsign')) {
+            & git -C $consumer config --local $setting false
+            if ($LASTEXITCODE -ne 0) { throw "Unable to disable $setting in the Git consumer fixture." }
+        }
         & git -C $consumer config user.name 'consumer tests'
         & git -C $consumer config user.email 'consumer-tests@example.invalid'
         & git -C $consumer remote add origin 'https://github.com/example/consumer-one.git'
