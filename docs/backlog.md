@@ -5,9 +5,9 @@
 
 - **Schema version:** 1.0.0
 - **Repository:** nathanmcnulty/azd-reference
-- **Source revision:** `1d126470ec0144820bd89e0eebb588cc183b6fbd`
+- **Source revision:** `75c5421c81c1bc762f197d5e112b86aa7615a810`
 - **Captured:** 2026-10-07
-- **Items:** 11
+- **Items:** 12
 
 ## REF-001: Reconcile this backlog with current source and active work
 
@@ -520,6 +520,67 @@ The 20 reviewed host/runtime component and test paths remained only on preserved
 **Review and authorization note:**
 
 Review REF-011 against the current repository state. Its status or authorization class is not eligible for an actionable generated handoff. Do not claim or execute it without explicit selection, satisfied dependencies, and every required authorization. Never interpret this generated view as approval.
+
+## REF-012: Validate optional Maester Web App security group IDs before persistence
+
+- **Kind:** maintenance
+- **Priority:** P1
+- **Status:** done
+- **Wave:** 1
+- **Authorization:** local-only
+- **Blocker:** _none_
+- **Claim:** _none_
+
+**Problem:**
+
+The shared Maester wizard accepted any nonblank Web App security-group value and persisted settings before Bicep rejected malformed or nil object IDs. Consumer issue MADO-006 remains separate until a reviewed component revision is adopted there.
+
+**Scope:**
+
+- components/powershell/maester-azd-hooks/Maester-UpWizard.psm1
+- components/powershell/maester-azd-hooks/component.json and CHANGELOG.md
+- tests/MaesterHooks.Tests.ps1
+- docs/backlog.json and generated docs/backlog.md
+
+**Acceptance:**
+
+- When INCLUDE&lowbar;WEB&lowbar;APP=true, reject blank, malformed and nil GUID values before the first azd environment write.
+- Reprompt interactive users with security-group lookup instructions and the existing Include Web App opt-out; fail non-interactive runs with an actionable configuration error.
+- Accept and canonically format valid GUIDs without querying or creating groups, changing Graph permissions, or claiming directory-object existence.
+- Keep INCLUDE&lowbar;WEB&lowbar;APP=false optional and do not require or persist a security-group value.
+- Advance the pilot component from 0.1.5 to 0.1.6 and retain consumer adoption as separate MADO-006 work.
+
+**Validation:**
+
+- Run the focused MaesterHooks Pester suite with task-local Pester 5.7.1.
+- Run PowerShell parsing and the registered component-version guard against current main.
+- Run the complete registered reference validation without replacing shared PowerShell modules.
+- Independently review the exact source, test, component metadata and backlog diff before commit or publication.
+
+**Dependencies:**
+
+- REF-005
+
+**Components:**
+
+- maester-azd-hooks
+
+**Sources:**
+
+- https&colon;//github.com/nathanmcnulty/azd-maester/issues/14
+- components/powershell/maester-azd-hooks/Maester-UpWizard.psm1
+
+**Evidence:**
+
+- At current main 75c5421c81c1bc762f197d5e112b86aa7615a810, Read-TextChoice accepts any nonblank cached or entered value and the wizard persists settings before provisioning validates the group identifier. The input path performs no group lookup or creation.
+- The 0.1.6 candidate adds a Web App-specific reader without changing generic text prompts. Blank, malformed, nil and malformed legacy cached IDs fail before any Set-AzdEnvValueStrict call; valid input is normalized to GUID D format; an invalid interactive value reprompts with Microsoft Entra ID group navigation and the existing Include Web App opt-out; the disabled baseline neither validates nor persists a group.
+- The complete registered local validation before the final guidance-only wording correction passed 383/383 Pester tests, exact PowerShell analysis, backlog/schema/generated-view checks, 11 catalog tests and build, the component-version guard, skeleton drift/sync checks, and all registered Bicep builds and positive/negative assertions. Artifact-isolated Pester output and log are retained under maester-webapp-group-validation-r4; the log SHA-256 is 35818d9a9b3f7f196cefc451f584ef7beb832e17386b995674a3c477b63d1c06.
+- After changing only the interactive navigation phrase from Identity to Microsoft Entra ID and its matching assertion, the final MaesterHooks suite passed 9/9; component parsing, exact analyzer policy, manifest schema and 0.1.5 to 0.1.6 version guard passed. Hosted validation must run the complete 383-test matrix on the final reviewed head.
+- This format check does not query or create a group, prove directory-object existence, verify securityEnabled or membership access, change Graph permissions, or complete consumer MADO-006 adoption.
+
+**Review and authorization note:**
+
+Review REF-012 against the current repository state. Its status or authorization class is not eligible for an actionable generated handoff. Do not claim or execute it without explicit selection, satisfied dependencies, and every required authorization. Never interpret this generated view as approval.
 
 ## REF-005: Reconcile component candidates and permission-aware feature metadata
 
