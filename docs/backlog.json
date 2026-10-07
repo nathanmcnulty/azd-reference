@@ -1,8 +1,8 @@
 {
   "schemaVersion": "1.0.0",
   "repository": "nathanmcnulty/azd-reference",
-  "sourceRevision": "cd5d64ee37aa58553074966342dc553decfa31c8",
-  "capturedAt": "2026-10-04",
+  "sourceRevision": "06d22bcf2ff819f8c0bfa58d6c67decbb9076c0b",
+  "capturedAt": "2026-10-07",
   "items": [
     {
       "id": "REF-001",
@@ -154,13 +154,21 @@
       "title": "Reconcile component candidates and permission-aware feature metadata",
       "kind": "maintenance",
       "priority": "P2",
-      "status": "proposed",
+      "status": "done",
       "wave": 1,
-      "problem": "Candidate inventory contains older Maester hook versions and teams lifecycle extraction remains evidence-gated.",
+      "problem": "Candidate and optional-feature permission metadata were preserved on a separate Reference branch. Reconcile the finished metadata/tooling into main while keeping unqualified host/runtime and Teams extraction behind their existing gates.",
       "scope": [
         "docs/component-candidates.md",
-        "portfolio/consumers.json",
-        "https://github.com/nathanmcnulty/azd-reference/blob/8d33a9ccaf0e0298ccd112f82a63820999814b9b/standards/permission-requirements.md"
+        "docs/permission-comparison.md",
+        "standards/permission-requirements.md",
+        "schemas/permission-requirements.schema.json",
+        "schemas/permission-solutions.schema.json",
+        "portfolio/permission-solutions.json",
+        "tooling/Get-AzdPermissionComparison.ps1",
+        "tests/PermissionComparison.Tests.ps1",
+        "skeleton/azd-permissions.json",
+        "examples/deployment-check/azd-permissions.json",
+        "README.md"
       ],
       "acceptance": [
         "Use component manifests and consumer locks as evidence; document stable, pilot and candidate status separately.",
@@ -168,8 +176,10 @@
         "Optional features record only actual incremental permissions and known gaps; metadata never grants scopes or roles."
       ],
       "validation": [
-        "Use the offline commands in the registered validation workflow; record the exact commands, revision and results before implementation is complete.",
-        "Run focused tests for changed behavior from tests/; fixtures do not prove live-service or endpoint behavior."
+        "Invoke-Pester ./tests/PermissionComparison.Tests.ps1,./tests/Backlog.Tests.ps1 -PassThru",
+        "Invoke-ScriptAnalyzer -Path tooling/Get-AzdPermissionComparison.ps1 -Settings ./PSScriptAnalyzerSettings.psd1",
+        "Validate template manifests against schemas/permission-requirements.schema.json; inspect local default and explicitly selected feature comparisons without granting permissions.",
+        "Run the registered Reference validation workflow, aggregate backlog schema/dependency checks and generated-view checks."
       ],
       "dependencies": [],
       "authorization": "local-only",
@@ -177,13 +187,20 @@
       "sources": [
         "docs/component-candidates.md",
         "portfolio/consumers.json",
-        "https://github.com/nathanmcnulty/azd-reference/blob/8d33a9ccaf0e0298ccd112f82a63820999814b9b/standards/permission-requirements.md"
+        "https://github.com/nathanmcnulty/azd-reference/blob/8d33a9ccaf0e0298ccd112f82a63820999814b9b/standards/permission-requirements.md",
+        "standards/permission-requirements.md",
+        "tooling/Get-AzdPermissionComparison.ps1",
+        "https://github.com/nathanmcnulty/azd-reference/commit/e5265492a949f2e111d3dac88d043b4f63175d3a"
       ],
       "evidence": [
-        "Component candidate versions and four consumer upgrade decisions reconciled under REF-006. Permission-aware optional-feature metadata and additional extraction qualification remain proposed; this broader record is not complete.",
-        "Current-main reconciliation: permission tracking is separately owned branch work, not part of this backlog/tooling integration; its historical source is linked explicitly."
+        "Pre-follow-through baseline: Component candidate versions and four consumer upgrade decisions reconciled under REF-006. Permission-aware optional-feature metadata and additional extraction qualification remain proposed; this broader record is not complete.",
+        "Pre-follow-through baseline: Current-main reconciliation: permission tracking is separately owned branch work, not part of this backlog/tooling integration; its historical source is linked explicitly.",
+        "2026-10-06 narrow metadata convergence reconciles nine finished schema/standard/registry/tool/test/template/example paths from immutable branch e5265492a949f2e111d3dac88d043b4f63175d3a, with a current README guide link and four-newer-runner clarification. No security host/runtime or Intune component source, registration or release was imported. Current main manifests separately identify one stable, six pilot and one candidate component, with unchanged immutable consumer pins.",
+        "Focused permission comparison and backlog regressions passed 19/19; permission tool script analysis and both template metadata schema checks passed. Local read-only comparisons of ASR with AV/Firewall yielded zero default runtime requirements and six explicitly selected optional runtime/discovery requirements, with all three inventories still partial and comparisonComplete=false. No authentication, tenant reads or grants ran from this tool. Exact tuples retain principal/phase/feature evidence; missing coverage never becomes a permission-free or least-privilege claim. Teams transport extraction and shared hosting remain evidence-gated proposals.",
+        "Independent review required two bounded corrections before final acceptance: both schemas and the contained-path guard reject colon-bearing NTFS alternate data stream paths; saved comparison JSON records enabled/excluded features and optional-union selection. Focused 19/19 regression checks cover rejected stream paths and reproducible feature selections. Documentation accurately describes registered local files, without claiming Git tracking. These corrections are separately reviewed with the final exact packet."
       ],
-      "blocker": null
+      "blocker": null,
+      "claim": null
     },
     {
       "id": "REF-006",
@@ -235,7 +252,7 @@
       "priority": "P2",
       "status": "proposed",
       "wave": 1,
-      "problem": "Host/runtime components were newly committed in active reference branch revision 9ed4c575cc057a4a96c05ce91c7dd9b7694da7b7 during this review, and further changes remain active. Local pilot manifests do not establish published immutable adoption or lifecycle proof.",
+      "problem": "Host/runtime components are preserved in branch revision e5265492a949f2e111d3dac88d043b4f63175d3a. The finished metadata packet excludes their 29 component/test paths; local candidate manifests do not establish canonical qualification, published immutable adoption or lifecycle proof.",
       "scope": [
         "Proposed components/security-automation-host and security-automation-runtime",
         "docs/",
@@ -263,7 +280,8 @@
         "https://github.com/nathanmcnulty/azd-reference/blob/9ed4c575cc057a4a96c05ce91c7dd9b7694da7b7/components/powershell/security-automation-runtime/component.json"
       ],
       "evidence": [
-        "Current main 54a29a590c8b015f5becf7457407128e1b413835 contains neither proposed security component. Historical branch manifests are evidence of separate owner work; no implementation or adoption is imported by this reconciliation."
+        "Current main 54a29a590c8b015f5becf7457407128e1b413835 contains neither proposed security component. Historical branch manifests are evidence of separate owner work; no implementation or adoption is imported by this reconciliation.",
+        "2026-10-07 follow-through: preserved revision e5265492a949f2e111d3dac88d043b4f63175d3a remains separate. Only permission metadata/tooling and starter manifests converge under REF-005; host/runtime/Intune component extraction requires its own exact-source review and consumer/lifecycle validation. No component registration or release is inferred."
       ],
       "blocker": null
     },
@@ -306,6 +324,46 @@
         "2026-10-04 current-main full suite: 287 passed and five PortfolioUpdate cases failed because inherited tag signing required an editor and prevented disposable fixture tag creation. Added the same fixture-local signing guard to its two repositories; no host signing settings or product code changed.",
         "PortfolioUpdate signing regression: 17/17 passed in 85.83 seconds under temporary global commit/tag signing enabled with an unavailable SSH key. The process environment was restored and the temporary configuration removed.",
         "Final PortfolioUpdate guard explicitly uses git config --local and checks each native exit code. Hostile-signing regression rerun: 17/17 passed in 87.10 seconds."
+      ],
+      "blocker": null,
+      "claim": null
+    },
+    {
+      "id": "REF-009",
+      "title": "Preserve numeric HTML entities in generated backlog text",
+      "kind": "maintenance",
+      "priority": "P1",
+      "status": "done",
+      "wave": 0,
+      "problem": "Escaping Markdown hash markers after HTML encoding corrupted apostrophes and encoded Unicode in generated review evidence.",
+      "scope": [
+        "tooling/Export-AzdBacklogMarkdown.ps1",
+        "tests/Backlog.Tests.ps1",
+        "Generated Auth Notifications and Sysmon backlog Markdown"
+      ],
+      "acceptance": [
+        "Preserve HTML encoder-produced numeric entities while keeping literal Markdown and raw entity input inert.",
+        "Apostrophes and Unicode round-trip correctly without activating links, images or HTML.",
+        "Regenerate affected consumer views without changing canonical task JSON or runtime code."
+      ],
+      "validation": [
+        "Invoke-Pester ./tests/Backlog.Tests.ps1 -PassThru",
+        "Invoke-ScriptAnalyzer -Path tooling/Export-AzdBacklogMarkdown.ps1",
+        "Regenerate and check affected Markdown views; independently review their exact one-file diffs and unchanged JSON."
+      ],
+      "dependencies": [
+        "REF-003"
+      ],
+      "authorization": "local-only",
+      "components": [],
+      "sources": [
+        "tooling/Export-AzdBacklogMarkdown.ps1",
+        "tests/Backlog.Tests.ps1"
+      ],
+      "evidence": [
+        "2026-10-06 independent exact-source review passed base 06d22bcf, two-path tree 67b78e705b8764aaa662b9a7e5cf3ec96bb2f73c and patch SHA-256 a6b88ad073690f3405665d0c26f9e10958a3b6c0e699e016e07ce651e2deea6d. The literal hash escape now excludes numeric entities already produced by HtmlEncode.",
+        "Focused regression passed 10/10 locally and independently; script analysis and diff checks passed. Tests cover apostrophes, Unicode, literal headings and raw entity text alongside existing hostile Markdown.",
+        "Independent consumer review passed only docs/backlog.md changes: one Auth Notifications entity and three Sysmon canary apostrophe entities. Canonical JSON and runtime source hashes are unchanged. Consumer publication results are recorded in docs/portfolio-execution.md."
       ],
       "blocker": null,
       "claim": null

@@ -189,7 +189,7 @@ Describe 'Agent backlog contract and tooling' {
     It 'renders hostile Markdown as inert text and detects a stale generated view' {
         $path = Join-Path $TestDrive 'hostile.json'
         $outputPath = Join-Path $TestDrive 'backlog.md'
-        $hostile = '<script>alert(1)</script> *bold* _em_ [link](https://example.com/a_b) ![image](https://example.com/x.png) `code`'
+        $hostile = '<script>alert(1)</script> *bold* _em_ [link](https://example.com/a_b) ![image](https://example.com/x.png) `code`' + " validator's café #heading &#39;"
         Write-BacklogFixture -Path $path -Backlog (New-Backlog -Repository 'nathanmcnulty/hostile' -Items @(
                 New-BacklogItem -Id 'HOST-001' -Title $hostile -Authorization publication
                 New-BacklogItem -Id 'HOST-002' -Status ready -Title 'Eligible local review'
@@ -204,6 +204,10 @@ Describe 'Agent backlog contract and tooling' {
         $markdown | Should -Match ([regex]::Escape('&lt;script&gt;'))
         $markdown | Should -Match ([regex]::Escape('&ast;bold&ast;'))
         $markdown | Should -Match ([regex]::Escape('https&colon;//example.com'))
+        $markdown | Should -Match ([regex]::Escape('validator&#39;s'))
+        $markdown | Should -Match ([regex]::Escape('&num;heading'))
+        $markdown | Should -Match ([regex]::Escape('&amp;&num;39;'))
+        [Net.WebUtility]::HtmlDecode($markdown) | Should -Match ([regex]::Escape("validator's café"))
         ([regex]::Matches($markdown, '\*\*Agent handoff prompt:\*\*')).Count | Should -Be 1
         ([regex]::Matches($markdown, '\*\*Review and authorization note:\*\*')).Count | Should -Be 1
 

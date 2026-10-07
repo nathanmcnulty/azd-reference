@@ -265,6 +265,10 @@ execution evidence and all independently deployable solution repositories remain
 
 ## Current-main reconciliation
 
+This section records the 4–5 October snapshot. The completed 6–7 October
+follow-through below supersedes its then-current source-handoff, Website and
+Health fixture gaps while preserving the historical evidence.
+
 The maintainer authorized completing remaining reconciliation that needs no new
 judgment. On 4 October 2026 the coordinator rebuilt the owned packets against
 current main instead of merging old preservation-branch ancestry. All 25 active
@@ -407,3 +411,132 @@ SHA-256 is `1879c344dc7de4f65744bd889461b6a5387c57d1711798d92da4d04bd9b1ef67`.
 The azd-nathanmcnulty stub retirement remains complete and recoverable as recorded
 above. There was no unique application code to migrate. Dirty source worktrees,
 environment state, preservation commits and raw lab proof remain retained.
+
+## Follow-through reconciliation, 6–7 October 2026
+
+Five independently reviewed follow-through packets are merged into main. Each
+merged tree matches its reviewed candidate, and PR plus post-main checks passed.
+The four newer staged source roots are now present on staging main; the original
+aggregate branches and dirty quality worktree remain preserved.
+
+| Packet | Reviewed integration | Verified main |
+| --- | --- | --- |
+| Staged App Control for Business, ASR, AV and Firewall convergence | [PR #38](https://github.com/nathanmcnulty/azd-work-in-progress/pull/38) | `fd1e708f26e01d7ccfc2d1fb1eaa0a6e80c99799` |
+| Health receiver and lifecycle fixtures | [PR #11](https://github.com/nathanmcnulty/azd-entra-health-monitoring/pull/11) | `3a7eeffd020f865570e625e596601d5827228fa2` |
+| Website dependency remediation | [PR #61](https://github.com/nathanmcnulty/azd-website/pull/61) | `3e2cdd3b0dec142f7235e3f1f6224d9b69484273` |
+| Auth Notifications generated-view entity repair | [PR #11](https://github.com/nathanmcnulty/azd-auth-notifications/pull/11) | `016a9ded4b9777c95a975b271fb678a8d84ef615` |
+| Sysmon generated-view entity repair | [PR #12](https://github.com/nathanmcnulty/azd-sysmon/pull/12) | `719915e6adb36881085a0aad2275c45933490edb` |
+
+The staged packet passed 278 local tests, four Bicep builds, immutable vendor and
+permission checks, and committed-source combined packaging before push. Its
+[post-main three-platform validation](https://github.com/nathanmcnulty/azd-work-in-progress/actions/runs/37583973606)
+and [historical App Control validation](https://github.com/nathanmcnulty/azd-work-in-progress/actions/runs/37583973633)
+passed. Historical App Control remains separate Phase 0 research, with its
+meaningful architecture mapped into the newer ACFB plan. No standalone publication,
+policy assignment or endpoint convergence is inferred.
+
+Health now enforces declared request types, ignores missing change types,
+mismatched states and empty IDs, URI-escapes alert IDs, processes identical
+normalized records once within a batch, and explicitly terminates failed renewal
+even after its warning relay succeeds. Fifteen offline tests passed. The actual
+Azure workflow engine passed 15 synthetic fixture cases in a fresh lab attempt,
+including a query-token response to a JSON-bodied synthetic challenge, one counted
+batch iteration,
+fail-closed cases skipping creation/renewal, and failed renewal followed by a
+successful warning relay and Terminate. The strengthened lifecycle assertions
+were also checked against the retained run receipt. Receipt SHA-256:
+`c4f7f91c1a8a315013b4b6f6604fe79e4707c89efda2fa337fc7d9a4cdb924b8`.
+Both earlier failed harness attempts remain retained. This proves synthetic
+workflow expressions/topology/failure paths; it does not prove real Graph
+renewal, Teams receipt, production confidentiality, default retry timing or
+cross-request deduplication. HEALTH-004 retains those acceptance gates.
+
+Website addressed seven of the eight vulnerable root packages in its fresh
+baseline audit. The candidate audit remains nonzero: 28 high affected entries
+propagate solely from the unpatched braces advisory GHSA-vfj7-8cjw-p6xm. The
+hash-bound depth patch remains and issue #53 is open; there is no security-clean
+or deployed exploitability claim. Clean installation, four patch tests, six
+catalog tests, type checking and static build passed. Independent validation also
+forced the two-thread Docusaurus path for the Tinypool major override. The existing
+automatic Workers Builds check passed after merge; no manual deployment was invoked.
+
+The Auth/Sysmon packets only repaired one/three numeric entity markers in their
+generated Markdown. Their canonical backlog JSON and runtime source remained
+unchanged. This Reference packet fixes the generator and records its persistent
+apostrophe, Unicode, literal-heading and raw-entity regressions under REF-009.
+
+### Canonical permission metadata and accounting
+
+This Reference packet reconciles the finished permission schema, standard,
+registry, comparison tool/tests and starter manifests from immutable preserved
+branch `e5265492a949f2e111d3dac88d043b4f63175d3a`, plus bounded path-safety and
+selection-receipt corrections required by independent review. It does not import
+or release the 29 security-host/runtime/Intune component and test paths. Registry
+files are review metadata; deployment hooks do not execute them or grant roles.
+Colon-bearing manifest/evidence paths, including NTFS alternate data streams,
+are rejected. Saved JSON records enabled/excluded features and optional-union
+selection, without claiming Git tracking or effective tenant permissions.
+
+The existing eight main component manifests remain one stable, six pilot and one
+candidate; component versions and immutable consumer pins are unchanged. Teams
+personal-bot and managed-connector extraction, shared-host isolation and identity
+choices remain behind their evidence gates. Local ASR/AV/Firewall comparisons
+reported zero default runtime requirements and six explicitly selected optional
+runtime/discovery requirements; all three inventories remained partial with
+`comparisonComplete: false`. That is an incomplete inventory, not a permission-free
+or least-privilege conclusion.
+
+The 30-root aggregate now has 207 records: 86 done and 121 proposed, with no ready
+or in-progress records. This includes the current Reference packet. REF-005's
+metadata reconciliation and HEALTH-003's bounded fixture work are complete; the
+new REF-009 record explains the additional item. Schema, dependency, evidence
+and generated-view checks passed for every root. Done includes reconciliation
+and previously implemented fixes, not 86 newly delivered features.
+
+Local Reference validation passed a full 301-test run on the preliminary
+candidate, followed by the focused 19-test permission/backlog suite for final
+path and selection corrections. Registered PowerShell parsing/analysis,
+11 catalog action tests/build, unchanged component versions, skeleton
+locks/drift/sync WhatIf, and Bicep positive/negative assertions passed. Final
+Windows/Linux hosted validation must pass on the exact reviewed packet before
+normal merge. Catalog validation remains a non-required pilot; no check
+requirement, enforcement approval, component release or runtime dependency changed.
+
+### Remaining reconciliation and acceptance
+
+HEALTH-006 has a partial value-safe historical assessment: one selected retained
+environment has the legacy callback key, another does not, and the exact resource
+group recorded by the legacy environment is absent in the selected lab. No
+credential value was displayed/copied, and no rotation or environment removal
+ran. Historical terminal/CI/artifact locations and tenant-side subscriptions
+remain unassessed. Keep those gaps separate from the completed callback source fix.
+
+The 121 proposals still include ordinary engineering that can be selected without
+a rollout decision. Proposed status does not mean every item needs human judgment.
+Further canonical convergence of preserved host/runtime/Intune component work
+requires a separate exact-source review and compatible consumer/lifecycle proof;
+those files were deliberately excluded from this finished metadata packet.
+The gates requiring a concrete target or human acceptance remain Windows GUI/WAM
+acceptance, Santa Mac configuration delivery, populated App Control/Defender
+pilot endpoints and effective-state/update/rollback proof, real notification or
+recovery recipients/routes, standalone publication/releases, and any explicitly
+approved catalog-required enforcement. Policy thresholds and shared-identity,
+privacy/retention/cost choices also remain product decisions.
+
+### Cleanup and preservation
+
+A fresh read-only AzureCloud audit explicitly selected the lab subscription and
+tenant already recorded above. All three exact Health fixture groups and both
+prior owned retention/Auth test groups are absent; both prior exact owned role
+assignment GUIDs have zero matches. Absence receipt SHA-256:
+`f9f4de122ccee9dac4dd36c220dc2d64afd31e973e4e19573d1114ff9f5ae980`.
+No identity, role assignment, Graph subscription, Teams message or endpoint
+assignment was created by the synthetic Health fixtures. Their tokens and signed
+callbacks remained in memory, and cleanup refused unexpected resources or direct
+role assignments before deleting the tagged owned group.
+
+The azd-nathanmcnulty retirement remains recoverable with no unique application
+code to migrate. Canonical dirty checkouts, retained environments, immutable
+preservation branches, failed lab evidence and successful ignored validation
+artifacts remain preserved. Use reviewed current-main sources for new work;
+older local snapshots must not overwrite the reconciled backlogs or source.

@@ -54,6 +54,11 @@ multiple solutions.
 
 ## Layout
 
+Track each solution's declared permissions with `azd-permissions.json`. See the
+[permission tracking standard](standards/permission-requirements.md) and
+[comparison tool guide](docs/permission-comparison.md) to inspect shared runtime
+requirements and exact additions for another solution or optional feature.
+
 Track agent work in [`docs/backlog.json`](docs/backlog.json), with a generated
 [review view](docs/backlog.md), using the [agent backlog standard](standards/agent-backlogs.md).
 The [portfolio preparation report](docs/portfolio-backlog.md) links repository
