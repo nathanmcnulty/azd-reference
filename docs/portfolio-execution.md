@@ -509,6 +509,50 @@ tests, 23 script parses, all four PR checks and both post-main workflows. No
 authentication or network behavior changed. The retained integration receipt has SHA-256
 `91c7a8658e68fe6ad5bf73b2ed6f91cde5907f1cca02cb7f13d033e887b0a6ae`.
 
+## Runtime compatibility and notification discovery, 7 October 2026
+
+SYS-013 is complete in [Sysmon PR #15](https://github.com/nathanmcnulty/azd-sysmon/pull/15).
+Reviewed head `c71fec1b558529b822a9f94d34e2a7090639b6f6` merged as
+`1d59a4381212900796d7f3bfaaf94d35a840a1e3`, with identical tree
+`ea118ccfad4ec8c5f8fab0fab4eb14bf6227852c`. The matrix covers Windows 2022 and
+2025 hosted runners, each using hosted PowerShell or the archived 7.2.24
+compatibility floor. Each leg runs 74 behavioral tests plus static/package
+validation, two offline builds with hash comparison, and rebuilt package checks.
+The original terminal `validate` identity remains and requires all four legs to
+succeed. The portable bootstrap verifies a pinned archive hash before fresh
+extraction; a hostile pre-existing executable fixture cannot bypass it.
+
+Both local interpreters passed 74 tests with zero failed, skipped or not-run.
+Initial qualification run `37705865764` passed all four cells and terminal
+validation on implementation head `b4b18c8cfee4a1d97464bb3c99543c64e147b6ad`;
+all eight PR checks passed again on the final reviewed head. Post-main matrix,
+terminal validation and CodeQL passed on merged main. This proves source compatibility, not elevated Windows 11/Sysmon
+installation, AMA/Intune behavior, ingestion, rollback or live cleanup.
+
+DEVICE-003 discovery is complete in
+[Device Notifications PR #39](https://github.com/nathanmcnulty/azd-device-notifications/pull/39).
+Reviewed head `094c4157379f44c253f4a5f2e440b57feef09819` merged as
+`6774c6509ea34388b61ce24eee025264dcee08d7`, with identical tree
+`fd8cb9037a32ccbe425909f62cce6c712bee8fec`. The source comparison documents
+Auth's accepted/review/suppressed outcomes and gaps in normalized duplicate,
+retry, destination and stranded-state recovery classifications. Device fixtures
+execute production propagation logic and owner-scoped conversation operations;
+Auth's missing propagation and conversation-isolation fixtures remain explicit.
+Per-recipient identity and actual delivery/lifecycle proof remain prerequisites
+for shared bot extraction. Neither runtime nor component locks changed.
+
+Required Device validation passed 106 Pester and 114 Vitest tests, build,
+bundle, production audit, pinned Bicep 0.46.1, metadata and documentation gates.
+The initial compiler mismatch remains retained; the successful rerun used a
+private compiler configuration. All four PR checks and post-main validation
+plus CodeQL passed on merged main. Both changes passed independent review. No lab resource, authentication,
+message, permission, assignment, endpoint action or catalog enforcement changed.
+
+The refreshed 30-root aggregate has 210 records: 101 done and 109 proposed,
+including 76 proposed records classified `local-only`. All schemas and generated
+views pass, with no ready or in-progress records. Ordinary implementation and
+fixture work remain available alongside the separate live acceptance gates.
+
 ## Sysmon promotion and path evidence guides, 7 October 2026
 
 SYS-016 and SYS-017 are complete as documentation work in
@@ -537,9 +581,9 @@ must be captured separately where helpers do not produce them. No bearer token,
 secret or SAS URL should be retained in evidence. No lab resource, identity,
 permission, assignment, endpoint action or catalog enforcement was changed.
 
-The refreshed 30-root aggregate contains 210 records: 99 done and 111 proposed,
+After the Sysmon guide batch, the 30-root snapshot contained 210 records: 99 done and 111 proposed,
 with no ready or in-progress records. All 30 schemas and generated views pass.
-Of the proposed records, 78 are classified `local-only`; further ordinary
+Of those proposed records, 78 were classified `local-only`; further ordinary
 engineering remains available without a product or rollout decision.
 
 ## Maester standalone source and consumer convergence, 7 October 2026
