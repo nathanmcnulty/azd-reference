@@ -509,6 +509,39 @@ tests, 23 script parses, all four PR checks and both post-main workflows. No
 authentication or network behavior changed. The retained integration receipt has SHA-256
 `91c7a8658e68fe6ad5bf73b2ed6f91cde5907f1cca02cb7f13d033e887b0a6ae`.
 
+## Sysmon promotion and path evidence guides, 7 October 2026
+
+SYS-016 and SYS-017 are complete as documentation work in
+[Sysmon PR #14](https://github.com/nathanmcnulty/azd-sysmon/pull/14).
+The [release evidence guide](https://github.com/nathanmcnulty/azd-sysmon/blob/main/docs/release-evidence.md)
+provides a promotion checklist and evidence requirements for client-only,
+Sentinel/DCR, Azure VM, Intune, tenant-wide client AMA and MDE Live Response paths.
+It separates source, publication, endpoint execution, ingestion and cleanup
+claims, with ownership and rollback requirements for each applicable path.
+
+Independent review approved commit
+`47f92d4013571d23f75628208e9c9298dd7c995d`; merged main
+`0f485ba02fb19b63bf2b819487f4eebd2090c280` has the identical tree
+`557588edd9a5d27fdbbd25ca97e0058ddb46b05d`. Required offline validation
+passed 74/74 tests, all four PR checks passed, and post-main validation and
+CodeQL passed on that merged revision. Only the guide, its README link, canonical
+backlog metadata and the two records/generated view changed; runtime behavior is
+unchanged.
+
+This does not qualify a deployment or release. Historical live evidence retains
+its original limits; helper publication is not endpoint acceptance. Sysmon has
+no canonical permission manifest yet, and partial documented requirements remain
+gaps rather than authorization to grant permissions. Client AMA API versions are
+runtime-discovered; qualified reports and successful independent cleanup reads
+must be captured separately where helpers do not produce them. No bearer token,
+secret or SAS URL should be retained in evidence. No lab resource, identity,
+permission, assignment, endpoint action or catalog enforcement was changed.
+
+The refreshed 30-root aggregate contains 210 records: 99 done and 111 proposed,
+with no ready or in-progress records. All 30 schemas and generated views pass.
+Of the proposed records, 78 are classified `local-only`; further ordinary
+engineering remains available without a product or rollout decision.
+
 ## Maester standalone source and consumer convergence, 7 October 2026
 
 [Reference PR #73](https://github.com/nathanmcnulty/azd-reference/pull/73)
@@ -578,9 +611,9 @@ consumer evidence does not claim live deployment, group existence/type, pipeline
 execution, report publication, cleanup acceptance, component release or required
 catalog enforcement.
 
-The refreshed exact 30-root aggregate has 210 records: 97 done and 113
+The Maester batch 30-root aggregate snapshot had 210 records: 97 done and 113
 proposed, with no ready or in-progress records; all 30 generated views pass.
-Eighty proposed items are classified `local-only`, so proposed status must not
+Eighty proposed items in that snapshot were classified `local-only`, so proposed status must not
 be read as a claim that all remaining work requires a human product decision.
 
 ### Canonical permission metadata and accounting
