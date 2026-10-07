@@ -414,7 +414,7 @@ environment state, preservation commits and raw lab proof remain retained.
 
 ## Follow-through reconciliation, 6–7 October 2026
 
-Nine independently reviewed follow-through packets are merged into main. Each
+Twelve independently reviewed follow-through packets are merged into main. Each
 merged tree matches its reviewed candidate, and PR plus post-main checks passed.
 The four newer staged source roots are now present on staging main; the original
 aggregate branches and dirty quality worktree remain preserved.
@@ -429,7 +429,10 @@ aggregate branches and dirty quality worktree remain preserved.
 | Sysmon generated-view entity repair | [PR #12](https://github.com/nathanmcnulty/azd-sysmon/pull/12) | `719915e6adb36881085a0aad2275c45933490edb` |
 | Sysmon recoverable receipt writes | [PR #13](https://github.com/nathanmcnulty/azd-sysmon/pull/13) | `c20bbdb63e03279aec524ead39cdf1359ebc5701` |
 | Reference Intune source-only pilot | [PR #70](https://github.com/nathanmcnulty/azd-reference/pull/70) | `73009c6ebb91b29a48c3de376e43a8d1da889630` |
-| Maester Azure DevOps manifest normalization | [PR #18](https://github.com/nathanmcnulty/maester-azuredevops/pull/18) | `6d1930742b93b16dfaf61bc0ceb8f215f6eff5f4` |
+| Maester Azure DevOps temporary staging fallback | [PR #18](https://github.com/nathanmcnulty/maester-azuredevops/pull/18) | `6d1930742b93b16dfaf61bc0ceb8f215f6eff5f4` |
+| Reference security automation source-only pilots | [PR #71](https://github.com/nathanmcnulty/azd-reference/pull/71) | `1d126470ec0144820bd89e0eebb588cc183b6fbd` |
+| Entra IGA authentication-contract reconciliation | [PR #19](https://github.com/nathanmcnulty/azd-entra-iga/pull/19) | `91aa2cf45321983d282091109e9c7932797b03c2` |
+| Four-consumer security runtime 0.1.7 upgrade | [PR #39](https://github.com/nathanmcnulty/azd-work-in-progress/pull/39) | `cd455be45e620cd07d662ac1bfa206094317e751` |
 
 The staged packet passed 278 local tests, four Bicep builds, immutable vendor and
 permission checks, and committed-source combined packaging before push. Its
@@ -499,11 +502,11 @@ retained integration receipt has SHA-256
 all four PR and two post-main checks passed on merged tree
 `9f06fcb1a70a8e5e1595937b5fa806312427cfe4`.
 
-MADO-007 now hashes the normalized staged manifest representation that is written
-to Git, rather than pairing a working-tree CRLF hash with an LF index blob. Its
-disposable fixture also contains command exit-code state. The exact reviewed
-tree `6dd78081` passed 39 tests, 23 script parses, all four PR checks and both
-post-main workflows. The retained integration receipt has SHA-256
+MADO-007 now stages repositories when `TEMP` is absent by falling back to
+`[IO.Path]::GetTempPath()`. Focused no-change and clone-failure cleanup tests
+preserve and restore process state. The exact reviewed tree `6dd78081` passed 39
+tests, 23 script parses, all four PR checks and both post-main workflows. No
+authentication or network behavior changed. The retained integration receipt has SHA-256
 `91c7a8658e68fe6ad5bf73b2ed6f91cde5907f1cca02cb7f13d033e887b0a6ae`.
 
 ### Canonical permission metadata and accounting
@@ -536,7 +539,7 @@ or in-progress records. This includes the current Reference packet. REF-005's
 metadata reconciliation and HEALTH-003's bounded fixture work are complete; the
 new REF-009, REF-010 and REF-011 records explain the generator correction and
 the two source-only pilot qualifications. Schema, dependency, evidence
-and generated-view checks passed for every root. Done includes reconciliation
+and generated-view checks passed for all 30 roots. Done includes reconciliation
 and previously implemented fixes, rather than a count of newly delivered features.
 
 Local Reference validation passed a full 301-test run on the preliminary
@@ -566,9 +569,9 @@ source compatibility only; it does not create a release or endpoint acceptance.
 [Reference PR #70](https://github.com/nathanmcnulty/azd-reference/pull/70)
 merged that exact reviewed Intune tree as
 `73009c6ebb91b29a48c3de376e43a8d1da889630`. All five PR checks and post-main
-Windows/Linux validation plus CodeQL passed. The current security automation
-candidate imports the remaining 20 preserved source/test paths, retains host
-0.1.4, and advances runtime to 0.1.7. The repair rejects traversal, encoded or
+Windows/Linux validation plus CodeQL passed. The security automation source-only
+pilot imports the remaining 20 preserved source/test paths, retains host 0.1.4,
+and advances runtime to 0.1.7. The repair rejects traversal, encoded or
 backslash separators, mismatched hashes, uppercase blob names and final-newline
 suffixes before token acquisition or download. Four focused suites pass 43 tests;
 compiled-template assertions cover default-none behavior, schedule/hash gating
@@ -584,7 +587,50 @@ fixture-local commit/tag signing isolation, SecurityPackage passed 11/11 normall
 and 11/11 with a hostile inherited signing configuration. Registered parsing and
 analysis, backlog and generated-view checks, catalog audit plus 11 tests/build,
 component/version and skeleton checks, and all Bicep builds/assertions passed.
-Hosted CI must run the complete suite on the exact reviewed commit.
+Hosted CI ran the complete suite on the exact reviewed commit.
+
+The shared CurrentUser Pester 5.7.1 installation was repaired separately after
+independent review. Only the missing `Pester.ps1` runner was copied with
+overwrite disabled; all 18 pre-existing files, including installation metadata,
+remained byte-identical. The final module has 18/18 trusted payload files, and a
+fresh default-module process passed the 10 backlog tests. This repaired the local
+validation environment only; no repository file, module version or runtime was
+changed. Receipt SHA-256:
+`39ed633fd6abe292e60e642ab3036b7576d632439dbe00c24ad38ac1ebe1b2d0`.
+
+[Reference PR #71](https://github.com/nathanmcnulty/azd-reference/pull/71)
+merged as `1d126470ec0144820bd89e0eebb588cc183b6fbd`; its tree exactly matches the
+independently reviewed candidate. All five PR checks and post-main Windows/Linux
+validation plus CodeQL passed. The retained integration receipt has SHA-256
+`6420692a33f0960217e96f097615df4f9b00ac4bbbbf16f23f7df748b7147118`.
+The source branch was restored at the exact reviewed head. No tag, release,
+deployment, identity, grant, schedule or endpoint operation was performed.
+
+IGA-004 reconciled four documentation files in
+[PR #19](https://github.com/nathanmcnulty/azd-entra-iga/pull/19). The grant script
+and all 58 SDK files are unchanged, and no coordinator or component lock was
+adopted. IGA-004 remains proposed because an implementation still needs an exact
+tenant/account contract, delegated-scope selection, a successful read-only probe,
+an interaction/consent boundary and safe handling or replacement of an existing
+Graph context. The exact reviewed tree passed PR and post-main validation. Its
+retained integration receipt has SHA-256
+`92250c8d85e662dccbfcdd89f01024f8f9c8a7d5aa0ce0f30992cd52e4a70e38`.
+
+The four current staged security consumers upgraded only their runtime lock,
+vendored runbook and hardened permission schema in
+[PR #39](https://github.com/nathanmcnulty/azd-work-in-progress/pull/39). Each now
+pins runtime 0.1.7 to canonical Reference
+`1d126470ec0144820bd89e0eebb588cc183b6fbd`; all 48 managed runtime targets match.
+Host 0.1.4, Intune 0.1.6, domain/provider/cloud configuration and the historical
+Phase 0 root are unchanged. A committed-source combined package verified four
+solutions, one source revision, one canonical runtime revision and 123 declared
+file hashes. Local validation passed 278 tests, parsing and Bicep compilation;
+all three PR and all three post-main checks passed on merged staging main
+`cd455be45e620cd07d662ac1bfa206094317e751`, tree
+`838421eaef236cbeb9a787d6ec751a00371efc66`. The retained integration receipt has SHA-256
+`8b093790f7c8043642fffce15f529271ada59a8b48089fe6b6fcd5f0b03b689a`.
+This proves immutable consumer adoption and package provenance, not enabled
+hosting, identity propagation, live schedules, endpoint state or teardown.
 
 ### Remaining reconciliation and acceptance
 
@@ -597,11 +643,14 @@ remain unassessed. Keep those gaps separate from the completed callback source f
 
 The 119 proposals still include ordinary engineering that can be selected without
 a rollout decision. Proposed status does not mean every item needs human judgment.
-The source-only host/runtime pilot does not complete enabled-hosting, shared
-identity, consumer upgrade or lifecycle acceptance. Four current mainline staged
-consumers still require separate immutable runtime 0.1.7 lock/vendor updates;
-the historical Phase 0 App Control root has no runtime lock on current staging
-main and remains untouched.
+The source-only host/runtime pilot and four immutable consumer upgrades do not
+complete enabled-hosting, shared identity or lifecycle acceptance. The historical
+Phase 0 App Control root has no runtime lock on current staging main and remains
+untouched. Historical aggregate branches, dirty quality lineages and other
+preserved working copies were intentionally not absorbed or mutated. Retained
+runtime 0.1.6 snapshots should not enable Automation or Logic App jobs until
+their lineage is selected and upgraded; new work should start from verified
+merged main. The source validation finding does not establish deployed exposure.
 The gates requiring a concrete target or human acceptance remain Windows GUI/WAM
 acceptance, Santa Mac configuration delivery, populated App Control/Defender
 pilot endpoints and effective-state/update/rollback proof, real notification or
