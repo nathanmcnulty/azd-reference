@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "repository": "nathanmcnulty/azd-reference",
-  "sourceRevision": "06d22bcf2ff819f8c0bfa58d6c67decbb9076c0b",
+  "sourceRevision": "d3da9b0bd0d2df50bf55f736fd5f8986b3751341",
   "capturedAt": "2026-10-07",
   "items": [
     {
@@ -364,6 +364,54 @@
         "2026-10-06 independent exact-source review passed base 06d22bcf, two-path tree 67b78e705b8764aaa662b9a7e5cf3ec96bb2f73c and patch SHA-256 a6b88ad073690f3405665d0c26f9e10958a3b6c0e699e016e07ce651e2deea6d. The literal hash escape now excludes numeric entities already produced by HtmlEncode.",
         "Focused regression passed 10/10 locally and independently; script analysis and diff checks passed. Tests cover apostrophes, Unicode, literal headings and raw entity text alongside existing hostile Markdown.",
         "Independent consumer review passed only docs/backlog.md changes: one Auth Notifications entity and three Sysmon canary apostrophe entities. Canonical JSON and runtime source hashes are unchanged. Consumer publication results are recorded in docs/portfolio-execution.md."
+      ],
+      "blocker": null,
+      "claim": null
+    },
+    {
+      "id": "REF-010",
+      "title": "Qualify Intune Remediations 0.1.6 as a source-only pilot",
+      "kind": "maintenance",
+      "priority": "P1",
+      "status": "done",
+      "wave": 1,
+      "problem": "The reviewed Intune publication/readback component remained only on preserved branch e5265492 and in two immutable staged consumer locks, so canonical source and tests were unavailable from main.",
+      "scope": [
+        "components/powershell/intune-remediations",
+        "tests/IntuneRemediations.Tests.ps1",
+        "Exact validation compatibility for the reviewed 0.1.6 bytes",
+        "Source-only pilot documentation"
+      ],
+      "acceptance": [
+        "Import the nine reviewed component/test paths from e5265492a949f2e111d3dac88d043b4f63175d3a without changing their blobs or reusing version 0.1.6 for different content.",
+        "Cross-check the AV and Firewall immutable locks and vendored hashes without changing consumer files or pins.",
+        "Keep every inherited analyzer finding bound to the exact module hash and finding tuple; changed, missing or additional findings fail validation.",
+        "Retain pilot status and make no tag, release, deployment, authentication, grant, assignment or endpoint acceptance claim."
+      ],
+      "validation": [
+        "Invoke-Pester ./tests/IntuneRemediations.Tests.ps1 -PassThru",
+        "Run the complete registered validation workflow locally, including PowerShell analysis, full Pester, catalog build, component/version/drift checks and Bicep assertions.",
+        "Compare the exact e5265492 component sources with the AV and Firewall locks and vendored files on staging main fd1e708f26e01d7ccfc2d1fb1eaa0a6e80c99799.",
+        "Independently review the exact source and final integration packets before commit and publication."
+      ],
+      "dependencies": [
+        "REF-005"
+      ],
+      "authorization": "local-only",
+      "components": [
+        "intune-remediations"
+      ],
+      "sources": [
+        "standards/component-lifecycle.md",
+        "components/powershell/intune-remediations/README.md",
+        "https://github.com/nathanmcnulty/azd-reference/commit/e5265492a949f2e111d3dac88d043b4f63175d3a",
+        "https://github.com/nathanmcnulty/azd-work-in-progress/tree/fd1e708f26e01d7ccfc2d1fb1eaa0a6e80c99799/azd-defender-av-exclusions",
+        "https://github.com/nathanmcnulty/azd-work-in-progress/tree/fd1e708f26e01d7ccfc2d1fb1eaa0a6e80c99799/azd-defender-firewall"
+      ],
+      "evidence": [
+        "The nine imported source/test paths match preserved revision e5265492a949f2e111d3dac88d043b4f63175d3a at the Git blob level. Focused PowerShell parsing and IntuneRemediations.Tests.ps1 passed 32/32; the complete registered local validation passed 333 Pester tests, exact PowerShell analysis, 11 catalog tests/build, component/version and skeleton lock/drift/sync checks, and all registered Bicep builds and positive/negative assertions.",
+        "AV and Firewall each pin intune-remediations 0.1.6 to e5265492 with six managed files. All 12 lock hashes match both the imported source and current vendored files on staging main fd1e708f26e01d7ccfc2d1fb1eaa0a6e80c99799; neither consumer lock nor vendored file changes in this packet.",
+        "AV publication, assignment and readback succeeded but the later SYSTEM result was visibility-blocked and value-free. Firewall produced a bounded 8-of-250 report with 242 omitted and a LocalOnly full artifact. These results qualify the transport boundary only; they do not prove inventory completeness, policy delivery, migration or enforcement acceptance."
       ],
       "blocker": null,
       "claim": null
