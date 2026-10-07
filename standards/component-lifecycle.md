@@ -31,6 +31,11 @@ Do not reuse a component version for different content. The lock records both th
 component version and exact source commit. An optional portfolio baseline may
 record a tested combination without forcing every solution to update together.
 
+Importing a pilot manifest and source into the reference repository does not
+publish a component release or update any consumer. Record source-only pilot
+qualification separately from tags, immutable consumer adoption, hosted runtime
+activation and live-service acceptance.
+
 Manifest version 1.1 records the lifecycle `status` and a repository-relative
 `changelog`. Reviewed releases use `component/<id>/v<version>` tags. Synchronizers
 resolve the tag once and lock its full commit. Protect the `component/*` tag

@@ -5,9 +5,9 @@
 
 - **Schema version:** 1.0.0
 - **Repository:** nathanmcnulty/azd-reference
-- **Source revision:** `d3da9b0bd0d2df50bf55f736fd5f8986b3751341`
+- **Source revision:** `73009c6ebb91b29a48c3de376e43a8d1da889630`
 - **Captured:** 2026-10-07
-- **Items:** 10
+- **Items:** 11
 
 ## REF-001: Reconcile this backlog with current source and active work
 
@@ -459,6 +459,67 @@ The reviewed Intune publication/readback component remained only on preserved br
 
 Review REF-010 against the current repository state. Its status or authorization class is not eligible for an actionable generated handoff. Do not claim or execute it without explicit selection, satisfied dependencies, and every required authorization. Never interpret this generated view as approval.
 
+## REF-011: Qualify repaired security automation runtime and host as source-only pilots
+
+- **Kind:** maintenance
+- **Priority:** P1
+- **Status:** done
+- **Wave:** 1
+- **Authorization:** local-only
+- **Blocker:** _none_
+- **Claim:** _none_
+
+**Problem:**
+
+The 20 reviewed host/runtime component and test paths remained only on preserved revision e5265492. Source review also found that runtime 0.1.6 accepted path-like Automation package blob values and would manage a hardened canonical schema under a reused version.
+
+**Scope:**
+
+- components/powershell/security-automation-runtime
+- components/bicep/security-automation-host
+- Four focused security automation test suites
+- Source-only lifecycle and execution evidence
+
+**Acceptance:**
+
+- Import the 20 preserved component/test paths, retain security-automation-host 0.1.4, and advance the repaired runtime to 0.1.7.
+- Require BundleBlob to equal the normalized BundleSha256 plus .zip as an exact lowercase SHA-256 leaf before temporary-file creation, token acquisition or package download.
+- Retain the current hardened permission-requirements schema as managed runtime content without reusing runtime version 0.1.6.
+- Assert compiled default-none, schedule/hash and Function/Automation/Logic App RBAC boundaries without claiming hosted execution or consumer adoption.
+- Create no tag, release, deployment, identity, grant, schedule, consumer pin or cloud change.
+
+**Validation:**
+
+- Run SecurityAutomation, SecurityHooks, SecurityHostDiagnostics and SecurityPackage Pester suites.
+- Run the complete registered Windows/Linux validation workflow locally, including exact PowerShell analysis, full Pester, catalog build, component/version/drift checks and Bicep assertions.
+- Independently review the exact source/security and final integration packets before commit and publication.
+
+**Dependencies:**
+
+- REF-005
+
+**Components:**
+
+- security-automation-runtime
+- security-automation-host
+
+**Sources:**
+
+- standards/component-lifecycle.md
+- components/powershell/security-automation-runtime/README.md
+- https&colon;//github.com/nathanmcnulty/azd-reference/commit/e5265492a949f2e111d3dac88d043b4f63175d3a
+
+**Evidence:**
+
+- The source packet starts from the 20 preserved e5265492 component/test paths. Runtime-only changes are the 0.1.7 version/changelog/migration note, exact pre-authentication package-leaf binding, regression fixtures and use of the current hardened managed schema; host implementation remains at 0.1.4.
+- Traversal, encoded separator, backslash, mismatched hash, uppercase blob and final-newline package names are rejected before any identity token request or package download. An uppercase approved hash is normalized only for binding to its required lowercase blob leaf.
+- Four focused suites pass 43/43. A preliminary full candidate passed 376/376 using an artifact-isolated Pester 5.7.1 after the shared CurrentUser module was replaced mid-run; after the final fixture-local signing guard, SecurityPackage passes 11/11 both normally and with hostile inherited signing configuration.
+- Registered parsing and exact analysis, backlog/schema/generated-view checks, catalog audit plus 11 tests/build, component/version and skeleton lock/drift/sync checks, and all Bicep builds and positive/negative assertions pass. Compiled host assertions cover default none, schedule/hash gating and intended Function, Automation and Logic App role scopes. These offline results do not prove hosted startup, invocation, identity propagation, report durability, live schedule pause or teardown.
+
+**Review and authorization note:**
+
+Review REF-011 against the current repository state. Its status or authorization class is not eligible for an actionable generated handoff. Do not claim or execute it without explicit selection, satisfied dependencies, and every required authorization. Never interpret this generated view as approval.
+
 ## REF-005: Reconcile component candidates and permission-aware feature metadata
 
 - **Kind:** maintenance
@@ -541,7 +602,7 @@ Review REF-005 against the current repository state. Its status or authorization
 
 **Problem:**
 
-Host/runtime components are preserved in branch revision e5265492a949f2e111d3dac88d043b4f63175d3a. The finished metadata packet excludes their 29 component/test paths; local candidate manifests do not establish canonical qualification, published immutable adoption or lifecycle proof.
+The host/runtime source-only pilot is now qualified under REF-011, but source inclusion and offline fixtures do not establish published immutable consumer adoption, enabled-host operation or lifecycle proof.
 
 **Scope:**
 
@@ -579,7 +640,8 @@ Host/runtime components are preserved in branch revision e5265492a949f2e111d3dac
 **Evidence:**
 
 - Current main 54a29a590c8b015f5becf7457407128e1b413835 contains neither proposed security component. Historical branch manifests are evidence of separate owner work; no implementation or adoption is imported by this reconciliation.
-- 2026-10-07 follow-through&colon; preserved revision e5265492a949f2e111d3dac88d043b4f63175d3a remains separate. Only permission metadata/tooling and starter manifests converge under REF-005; host/runtime/Intune component extraction requires its own exact-source review and consumer/lifecycle validation. No component registration or release is inferred.
+- 2026-10-07 source review found that runtime 0.1.6 accepted path-like Automation BundleBlob values before token acquisition and download. REF-011 imports the preserved source as a repaired 0.1.7 runtime plus unchanged host 0.1.4, while retaining current hardened managed schemas.
+- Offline fixtures cover package binding and compiled host/RBAC shape. Function startup, Automation 7.4 binding, Logic App invocation, identity propagation, report durability, live schedule pause, teardown, release tags and four current consumer upgrades remain separate gates.
 
 **Review and authorization note:**
 
