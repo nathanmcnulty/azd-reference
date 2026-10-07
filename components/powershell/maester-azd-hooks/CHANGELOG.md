@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.6 - 2026-10-07
+
+- Validate the optional Web App security group Object ID as a non-empty GUID before persisting wizard settings.
+- Give interactive users group lookup and Web App skip guidance while keeping non-interactive failures explicit.
+
 ## 0.1.5 - 2026-09-20
 
 - Avoid passing mutually exclusive tenant and subscription selectors to Azure CLI token acquisition.
