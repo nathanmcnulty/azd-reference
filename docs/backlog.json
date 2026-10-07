@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "repository": "nathanmcnulty/azd-reference",
-  "sourceRevision": "73009c6ebb91b29a48c3de376e43a8d1da889630",
+  "sourceRevision": "1d126470ec0144820bd89e0eebb588cc183b6fbd",
   "capturedAt": "2026-10-07",
   "items": [
     {
@@ -252,7 +252,7 @@
       "priority": "P2",
       "status": "proposed",
       "wave": 1,
-      "problem": "The host/runtime source-only pilot is now qualified under REF-011, but source inclusion and offline fixtures do not establish published immutable consumer adoption, enabled-host operation or lifecycle proof.",
+      "problem": "The host/runtime source-only pilot and four immutable consumer upgrades are qualified, but offline source, package and lock evidence do not establish enabled-host operation or lifecycle proof.",
       "scope": [
         "Proposed components/security-automation-host and security-automation-runtime",
         "docs/",
@@ -260,8 +260,8 @@
       ],
       "acceptance": [
         "Coordinate with the active owner and inspect an exact finished diff; preserve their unrelated source and tests.",
-        "Separate host-neutral engine logic from Function/Automation/Logic App adapters; require two compatible consumer examples before shared runtime extraction.",
-        "Document identity, optional permission switches, state, failure and teardown isolation; no registration, release or adoption from self-labelled pilot status."
+        "Keep host-neutral engine logic separate from Function/Automation/Logic App adapters and preserve independently deployable consumers.",
+        "Document identity, optional permission switches, state, failure and teardown isolation; no release or enabled-host acceptance from pilot source and lock status."
       ],
       "validation": [
         "Use the offline commands in the registered validation workflow; record the exact commands, revision and results before implementation is complete.",
@@ -276,13 +276,17 @@
       "sources": [
         "docs/component-candidates.md",
         "standards/component-lifecycle.md",
-        "https://github.com/nathanmcnulty/azd-reference/blob/9ed4c575cc057a4a96c05ce91c7dd9b7694da7b7/components/bicep/security-automation-host/component.json",
-        "https://github.com/nathanmcnulty/azd-reference/blob/9ed4c575cc057a4a96c05ce91c7dd9b7694da7b7/components/powershell/security-automation-runtime/component.json"
+        "components/bicep/security-automation-host/component.json",
+        "components/powershell/security-automation-runtime/component.json",
+        "https://github.com/nathanmcnulty/azd-reference/commit/1d126470ec0144820bd89e0eebb588cc183b6fbd",
+        "https://github.com/nathanmcnulty/azd-work-in-progress/commit/cd455be45e620cd07d662ac1bfa206094317e751"
       ],
       "evidence": [
-        "Current main 54a29a590c8b015f5becf7457407128e1b413835 contains neither proposed security component. Historical branch manifests are evidence of separate owner work; no implementation or adoption is imported by this reconciliation.",
+        "At the initial 54a29a590c8b015f5becf7457407128e1b413835 baseline, main contained neither proposed security component. Historical branch manifests alone were evidence of separate owner work and did not establish implementation or adoption; REF-011 and the later four-consumer upgrade now supply the bounded source and immutable-lock evidence recorded below.",
         "2026-10-07 source review found that runtime 0.1.6 accepted path-like Automation BundleBlob values before token acquisition and download. REF-011 imports the preserved source as a repaired 0.1.7 runtime plus unchanged host 0.1.4, while retaining current hardened managed schemas.",
-        "Offline fixtures cover package binding and compiled host/RBAC shape. Function startup, Automation 7.4 binding, Logic App invocation, identity propagation, report durability, live schedule pause, teardown, release tags and four current consumer upgrades remain separate gates."
+        "Four current consumers independently preserve their solution-owned domains while pinning runtime 0.1.7 to canonical revision 1d126470ec0144820bd89e0eebb588cc183b6fbd. All 48 managed runtime targets match; host 0.1.4 and Intune 0.1.6 remain unchanged. The reviewed combined package binds four solutions, one source revision, one runtime revision and 123 declared file hashes.",
+        "Historical aggregate branches, dirty quality lineages and other preserved working copies were intentionally not absorbed or mutated. Retained runtime 0.1.6 snapshots should not enable Automation or Logic App jobs before that lineage is selected and upgraded; new work should start from verified merged main. This source finding is not evidence of deployed exposure.",
+        "Offline fixtures cover package binding and compiled host/RBAC shape. Function startup, Automation 7.4 binding, Logic App invocation, identity propagation, report durability, live schedule pause, teardown and release tags remain separate gates."
       ],
       "blocker": null
     },
@@ -460,7 +464,8 @@
         "The source packet starts from the 20 preserved e5265492 component/test paths. Runtime-only changes are the 0.1.7 version/changelog/migration note, exact pre-authentication package-leaf binding, regression fixtures and use of the current hardened managed schema; host implementation remains at 0.1.4.",
         "Traversal, encoded separator, backslash, mismatched hash, uppercase blob and final-newline package names are rejected before any identity token request or package download. An uppercase approved hash is normalized only for binding to its required lowercase blob leaf.",
         "Four focused suites pass 43/43. A preliminary full candidate passed 376/376 using an artifact-isolated Pester 5.7.1 after the shared CurrentUser module was replaced mid-run; after the final fixture-local signing guard, SecurityPackage passes 11/11 both normally and with hostile inherited signing configuration.",
-        "Registered parsing and exact analysis, backlog/schema/generated-view checks, catalog audit plus 11 tests/build, component/version and skeleton lock/drift/sync checks, and all Bicep builds and positive/negative assertions pass. Compiled host assertions cover default none, schedule/hash gating and intended Function, Automation and Logic App role scopes. These offline results do not prove hosted startup, invocation, identity propagation, report durability, live schedule pause or teardown."
+        "Registered parsing and exact analysis, backlog/schema/generated-view checks, catalog audit plus 11 tests/build, component/version and skeleton lock/drift/sync checks, and all Bicep builds and positive/negative assertions pass. Compiled host assertions cover default none, schedule/hash gating and intended Function, Automation and Logic App role scopes. These offline results do not prove hosted startup, invocation, identity propagation, report durability, live schedule pause or teardown.",
+        "PR #71 merged the exact independently reviewed tree as 1d126470ec0144820bd89e0eebb588cc183b6fbd. All five PR checks and post-main Windows/Linux validation plus CodeQL passed; the reviewed source branch remains preserved. No component tag or release was created."
       ],
       "blocker": null,
       "claim": null

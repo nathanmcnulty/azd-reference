@@ -35,12 +35,21 @@ The 20 security host/runtime component and test paths are separately qualified a
 source-only pilots. The host remains 0.1.4. Runtime 0.1.7 binds the Automation
 package blob to the exact lowercase SHA-256 ZIP leaf before authentication or
 download and manages the current hardened permission schema under a new version.
-The four newer staged security solutions retain their existing 0.1.6/0.1.4 locks
-until a separately reviewed consumer upgrade. Shared-host identities, lifecycle
-isolation, actual Function/Automation/Logic App operation, endpoint policy
-convergence and component release remain separate qualification gates. Teams
+The four newer staged security solutions now pin runtime 0.1.7 to canonical
+Reference revision `1d126470ec0144820bd89e0eebb588cc183b6fbd`; their host
+0.1.4 and Intune 0.1.6 pins are unchanged. All 48 managed runtime targets match
+their locks, and a combined package verified four solutions, one source revision,
+one runtime revision and 123 declared file hashes. Shared-host identities,
+lifecycle isolation, actual Function/Automation/Logic App operation, endpoint
+policy convergence and component release remain separate qualification gates. Teams
 personal-bot and managed-connector extraction still needs the delivery and
 lifecycle evidence described below.
+
+Historical aggregate branches, dirty quality lineages and other preserved
+working copies were intentionally not absorbed or mutated. Retained runtime
+0.1.6 snapshots should not enable Automation or Logic App jobs until their
+lineage is selected and upgraded; new work should start from verified merged
+main. The source validation finding does not establish deployed exposure.
 
 ## Sysmon deployment
 
