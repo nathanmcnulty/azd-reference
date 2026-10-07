@@ -15,7 +15,7 @@ state; the union of optional requirements is not a grant recommendation.
 
 Current main manifests classify `deployment-validation@1.1.1` as stable;
 `notification-contracts@1.0.0`, `graph-delegated-authentication@0.1.1`,
-`maester-azd-hooks@0.1.5`, `maester-report-webapp@0.1.1`,
+`maester-azd-hooks@0.1.6`, `maester-report-webapp@0.1.1`,
 `azure-monitor-scheduled-query-notifications@0.1.0` and
 `flex-scheduled-poller-host@0.1.0`, `intune-remediations@0.1.6`,
 `security-automation-runtime@0.1.7` and `security-automation-host@0.1.4` as pilots; and
@@ -147,11 +147,34 @@ through the initial pilots.
 The four Maester hosting shapes share two pilot components while retaining their
 host-specific runners and provisioning behavior:
 
-- `maester-azd-hooks@0.1.5` carries the shared azd lifecycle hooks, target-context
-  helpers, and optional Graph permission setup.
+- `maester-azd-hooks@0.1.6` carries the shared azd lifecycle hooks,
+  target-context helpers, and optional Graph permission setup. When the optional
+  Web App is enabled, its wizard rejects blank, malformed and nil security-group
+  IDs and normalizes a valid value to GUID `D` format before the first
+  environment write. It does not query or create groups, verify directory-object
+  properties, or change Graph permissions; the disabled path does not require or
+  persist a group ID.
 - `maester-report-webapp@0.1.1` carries the optional report web app resources,
   publishing controls, host identity permission, tags, and delete lock.
 
 Maester module execution is pinned independently to the stable `2.2.0` release.
-The two reference components remain pilots until all four consumers validate the
-same vendored files and optional-feature permissions in their normal azd flows.
+All four standalone hosts now pin `maester-azd-hooks@0.1.6` to immutable
+Reference revision `a09cac311aac7362f56d2a31833ed90ce5812649`; their 36
+managed component files (32 hook files and four report-webapp files) match their
+locks. Azure Automation, Container App Job, Function App and Azure DevOps
+passed 48, 43, 42 and 39 repository tests respectively. A separate nine-case
+suite exercised GUID validation against the actual Azure DevOps vendored bytes.
+Each host also passed its four PR checks and both
+post-main validation workflows. The `maester-report-webapp@0.1.1` pins and host
+specific runners remain unchanged.
+
+Each host permission manifest is partial and source-bound. It records 24 proven
+requirements: eight Minimal application roles, eleven Extended additions, four
+deployment-operator delegated scopes used by the shared grant helper, and
+optional `Mail.Send`. Azure RBAC, host-specific setup authority, Exchange,
+Teams, optional Azure/report-webapp operations and cleanup remain explicit gaps.
+These manifests do not prove tenant consent or effective grants.
+
+The two reference components remain pilots. Source and immutable consumer
+adoption do not create a component release, catalog enforcement, live host
+execution, directory-group verification or lifecycle acceptance.

@@ -429,7 +429,7 @@ aggregate branches and dirty quality worktree remain preserved.
 | Sysmon generated-view entity repair | [PR #12](https://github.com/nathanmcnulty/azd-sysmon/pull/12) | `719915e6adb36881085a0aad2275c45933490edb` |
 | Sysmon recoverable receipt writes | [PR #13](https://github.com/nathanmcnulty/azd-sysmon/pull/13) | `c20bbdb63e03279aec524ead39cdf1359ebc5701` |
 | Reference Intune source-only pilot | [PR #70](https://github.com/nathanmcnulty/azd-reference/pull/70) | `73009c6ebb91b29a48c3de376e43a8d1da889630` |
-| Maester Azure DevOps temporary staging fallback | [PR #18](https://github.com/nathanmcnulty/maester-azuredevops/pull/18) | `6d1930742b93b16dfaf61bc0ceb8f215f6eff5f4` |
+| Maester Azure DevOps temporary staging fallback | [PR #18](https://github.com/nathanmcnulty/azd-maester-azuredevops/pull/18) | `6d1930742b93b16dfaf61bc0ceb8f215f6eff5f4` |
 | Reference security automation source-only pilots | [PR #71](https://github.com/nathanmcnulty/azd-reference/pull/71) | `1d126470ec0144820bd89e0eebb588cc183b6fbd` |
 | Entra IGA authentication-contract reconciliation | [PR #19](https://github.com/nathanmcnulty/azd-entra-iga/pull/19) | `91aa2cf45321983d282091109e9c7932797b03c2` |
 | Four-consumer security runtime 0.1.7 upgrade | [PR #39](https://github.com/nathanmcnulty/azd-work-in-progress/pull/39) | `cd455be45e620cd07d662ac1bfa206094317e751` |
@@ -509,6 +509,80 @@ tests, 23 script parses, all four PR checks and both post-main workflows. No
 authentication or network behavior changed. The retained integration receipt has SHA-256
 `91c7a8658e68fe6ad5bf73b2ed6f91cde5907f1cca02cb7f13d033e887b0a6ae`.
 
+## Maester standalone source and consumer convergence, 7 October 2026
+
+[Reference PR #73](https://github.com/nathanmcnulty/azd-reference/pull/73)
+advanced the pilot `maester-azd-hooks` component to 0.1.6 at immutable main
+`a09cac311aac7362f56d2a31833ed90ce5812649`, tree
+`3f559a800a31870a461b2168b3018554e26c7ccd`. When the optional Web App is
+enabled, the shared wizard rejects blank, malformed and nil security-group IDs
+and normalizes a valid value to GUID `D` format before the first environment
+write. The disabled path does not require or persist a group ID. The change does
+not query or create groups, verify directory-object properties or change Graph
+permissions. Local source validation passed the complete 383-test matrix before
+the final guidance-only wording correction and then the exact final focused
+9-test suite; all five PR checks and hosted validation on the final head,
+including post-main CodeQL
+`37675236902` plus Windows/Linux validation `37675236975` passed. No component
+tag or release was created.
+
+[Catalog PR #32](https://github.com/nathanmcnulty/azd-maester/pull/32) maps the
+four retained legacy folders to the corresponding standalone repositories and
+host backlogs while keeping the catalog root non-deployable. Its exact reviewed
+tree passed 124 tests, four Bicep builds, parser and root-guard checks, all four
+PR checks and both post-main workflows. The retained receipt has SHA-256
+`25410271a37e4825a99b838e6500e10037bb9ffcdf75245d851c18fc0a3a4b7b`.
+No folder was removed or archived.
+
+[Azure DevOps PR #19](https://github.com/nathanmcnulty/azd-maester-azuredevops/pull/19)
+records MADO-008's bounded empty-repository investigation at main
+`80e99c8acc486e985988d06b9ddce75990e4fd38`, tree
+`f5dc70b270b22025a6c3ab6698688e55bf79372d`. Four offline cases prove ordinary
+empty-repository bootstrap, preservation of existing history/unrelated files,
+an identical rerun no-op and native clone-failure propagation with cleanup.
+MADO-008 remains proposed because no Azure DevOps provider, account, permission,
+timing or REST branch-resolution behavior was exercised or repaired.
+
+All four standalone hosts then adopted only `maester-azd-hooks@0.1.6` from the
+immutable Reference revision. Their report-webapp 0.1.1 pins, host-specific
+runners and pilot catalog enforcement remain unchanged.
+
+| Standalone host | Reviewed integration | Verified main and tree | Offline and hosted proof |
+| --- | --- | --- | --- |
+| Azure Automation | [PR #21](https://github.com/nathanmcnulty/azd-maester-azureautomation/pull/21), `5a974c8887acfe5bbd2809549ebbd4b2fffea3a3` | `e3fce00620e147fef4ae210007af923d9ad78ef4`, tree `3428b306bca9235d6a70590dce607c6d8f3bdc94` | 48 tests; four PR checks; post-main validation `37678543910` and CodeQL `37678543749` passed |
+| Container App Job | [PR #23](https://github.com/nathanmcnulty/azd-maester-containerappjob/pull/23), `2f2353c8f388e9a31a068e4d8d1e942ae5761615` | `215d7bb703595ed460c9132014a6b9c5c503ace8`, tree `d697518ae670c1684d0ecd9fb81d6c4d12b24a17` | 43 tests; four PR checks; post-main validation `37678564129` and CodeQL `37678563365` passed |
+| Function App | [PR #23](https://github.com/nathanmcnulty/azd-maester-functionapp/pull/23), `0242fa68a4ee652d9bfe75f53f832c77d9aed8e2` | `0c7462e942ac4d8b5bd4b8ac5a51d5fba7a6d94d`, tree `504c4982b9c1d4cfcb1001ef8d347436073d0aa8` | 42 tests; four PR checks; post-main validation `37678617200` and CodeQL `37678616654` passed |
+| Azure DevOps | [PR #20](https://github.com/nathanmcnulty/azd-maester-azuredevops/pull/20), `4a9fe04ce6cf6d397d2f55d2f9301ef773d60317` | `76ac648c7172981a22259f6d6fd701c2a085cb57`, tree `6fb0bad34ff7f9a96e27649728c3ea474a299dc4` | 39 repository tests plus nine actual-vendor GUID cases; four PR checks; post-main validation `37678168871` and CodeQL `37678169652` passed |
+
+All 36 managed component files (32 hook files and four report-webapp files)
+match their locks. The three-consumer publication
+receipt has SHA-256
+`67f01a5064affd5dfd474565f6d0441c12488ceefd0bfbe073bb989b1930c48d`;
+its publication artifact manifest has SHA-256
+`962c57247e8f85012620966c4ddb5078a8bfc949a05d16b1fd1693e33fe832cd`.
+The Azure DevOps integration receipt has SHA-256
+`9639da62e4e5edd27cfb5fe05af98d659510acc2011fac3c61d7024570951079`.
+Source branches and clean worktrees remain preserved.
+
+Each host now has a partial, source-bound inventory of 24 requirements: eight
+Minimal application roles, eleven Extended additions, four deployment-operator
+delegated scopes used by the shared grant helper and optional `Mail.Send`.
+Azure RBAC, host-specific setup authority, Exchange, Teams, optional Azure and
+report-webapp operations, and cleanup remain explicit gaps. The inventories do
+not prove consent or effective grants and did not add roles or permissions.
+
+The four host reconciliation items and Azure DevOps MADO-006 are done.
+MADO-002 live pipeline/report-webapp acceptance, MADO-005 authentication sync
+and MADO-008 provider failure classification remain proposed. This source and
+consumer evidence does not claim live deployment, group existence/type, pipeline
+execution, report publication, cleanup acceptance, component release or required
+catalog enforcement.
+
+The refreshed exact 30-root aggregate has 210 records: 97 done and 113
+proposed, with no ready or in-progress records; all 30 generated views pass.
+Eighty proposed items are classified `local-only`, so proposed status must not
+be read as a claim that all remaining work requires a human product decision.
+
 ### Canonical permission metadata and accounting
 
 This Reference packet reconciles the finished permission schema, standard,
@@ -534,8 +608,8 @@ runtime/discovery requirements; all three inventories remained partial with
 `comparisonComplete: false`. That is an incomplete inventory, not a permission-free
 or least-privilege conclusion.
 
-The 30-root aggregate candidate has 209 records: 90 done and 119 proposed, with no ready
-or in-progress records. This includes the current Reference packet. REF-005's
+The earlier pre-Maester-adoption 30-root aggregate snapshot had 209 records: 90
+done and 119 proposed, with no ready or in-progress records. REF-005's
 metadata reconciliation and HEALTH-003's bounded fixture work are complete; the
 new REF-009, REF-010 and REF-011 records explain the generator correction and
 the two source-only pilot qualifications. Schema, dependency, evidence
@@ -641,7 +715,7 @@ credential value was displayed/copied, and no rotation or environment removal
 ran. Historical terminal/CI/artifact locations and tenant-side subscriptions
 remain unassessed. Keep those gaps separate from the completed callback source fix.
 
-The 119 proposals still include ordinary engineering that can be selected without
+The remaining proposals still include ordinary engineering that can be selected without
 a rollout decision. Proposed status does not mean every item needs human judgment.
 The source-only host/runtime pilot and four immutable consumer upgrades do not
 complete enabled-hosting, shared identity or lifecycle acceptance. The historical
