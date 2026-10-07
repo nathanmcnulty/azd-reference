@@ -17,7 +17,8 @@ Current main manifests classify `deployment-validation@1.1.1` as stable;
 `notification-contracts@1.0.0`, `graph-delegated-authentication@0.1.1`,
 `maester-azd-hooks@0.1.5`, `maester-report-webapp@0.1.1`,
 `azure-monitor-scheduled-query-notifications@0.1.0` and
-`flex-scheduled-poller-host@0.1.0` and `intune-remediations@0.1.6` as pilots; and
+`flex-scheduled-poller-host@0.1.0`, `intune-remediations@0.1.6`,
+`security-automation-runtime@0.1.7` and `security-automation-host@0.1.4` as pilots; and
 `deployment-receipt@0.2.1` as a candidate. Versions and lifecycle labels are
 evidence of their respective contracts, not blanket deployment or release approval.
 
@@ -30,12 +31,16 @@ no consumer update, component tag or release is part of the import. Their live
 evidence qualifies the reusable publication/readback boundary, not complete
 endpoint inventory, delivery, policy migration or enforcement acceptance.
 
-The 20 security host/runtime component and test paths remain outside main. The
-four newer staged security solutions retain their own immutable vendor locks and
-remain independently deployable. Shared-host identities, lifecycle isolation,
-actual endpoint policy convergence and component release remain separate
-qualification gates. Teams personal-bot and managed-connector extraction still
-needs the delivery and lifecycle evidence described below.
+The 20 security host/runtime component and test paths are separately qualified as
+source-only pilots. The host remains 0.1.4. Runtime 0.1.7 binds the Automation
+package blob to the exact lowercase SHA-256 ZIP leaf before authentication or
+download and manages the current hardened permission schema under a new version.
+The four newer staged security solutions retain their existing 0.1.6/0.1.4 locks
+until a separately reviewed consumer upgrade. Shared-host identities, lifecycle
+isolation, actual Function/Automation/Logic App operation, endpoint policy
+convergence and component release remain separate qualification gates. Teams
+personal-bot and managed-connector extraction still needs the delivery and
+lifecycle evidence described below.
 
 ## Sysmon deployment
 

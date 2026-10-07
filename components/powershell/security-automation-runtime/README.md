@@ -1,0 +1,119 @@
+# Security automation runtime (pilot)
+
+This component runs a vendored PowerShell domain engine against an explicit JSON
+evidence snapshot. Local, Function, Automation and Logic App orchestration use
+the same CLI contract: `scripts/Invoke-Solution.ps1 -InputPath -OutputDirectory`.
+The runtime emits review artifacts. It has no policy publisher or enforcement
+API. Engine-specific evidence freshness and coverage checks remain in the engine.
+
+## Deployment
+
+Vendor both `security-automation-runtime` and `security-automation-host` at an
+immutable reference revision. A solution's main Bicep selects `none` (default),
+`function`, `automation` or `logic-app`. No Graph grants are provisioned. Containers
+are private, storage shared keys are disabled, and hosted access uses managed
+identity. This initial implementation supports Azure public cloud only.
+
+Commit reviewed source, then build an immutable package with `Build-SecurityBundle.ps1 -SolutionRoot <paths>
+-OutputPath <new.zip>`. Multiple roots produce a combined host package; each
+engine and its local dependencies are copied into the package. No sibling repo
+or private reference repository is contacted at runtime. The package contains
+a SHA256 file inventory and exact source commits. Dirty tracked source, component
+drift and mixed runtime revisions are rejected. The Automation runbook verifies the full ZIP SHA256
+before extraction. Rollback means redeploying a retained approved ZIP/hash.
+
+Runtime 0.1.7 also requires the Automation package blob to be the exact lowercase
+`<sha256>.zip` leaf bound to the normalized approved bundle hash before it requests
+a managed-identity token or downloads content. Runtime 0.1.6 accepted path-like
+blob values that could normalize outside the packages container. This was found
+by source review; it is not evidence that a vulnerable job was deployed or run.
+Retained 0.1.6 snapshots must not enable Automation or Logic App jobs until their
+runtime lock and vendored runbook are upgraded to 0.1.7. Function and local modes
+do not use this runbook package-download path.
+
+`Publish-SecurityHost.ps1` uploads the package using cached Azure CLI credentials
+and publishes Function source or an Automation runbook. It supports `-WhatIf`.
+Publishing does not enable scheduling or grant permissions. Upload each explicit
+snapshot as `<solution-id>.json` to the evidence container; hosted runs place
+artifacts in a unique run directory in reports. A run is complete only when its
+final `completed.json` marker exists and every listed artifact hash matches;
+partial prefixes are never accepted as completed runs. Evidence writers can influence
+the review result and must be trusted administrators. Use retention controls for
+endpoint names, paths and identifiers; no input or token values are logged by
+the transport.
+
+For Automation and Logic App modes, the azd postdeploy hook records the published
+blob/hash and refreshes provisioned job parameters without republishing another
+package. Manual source publication requires a parameter refresh with its output.
+Set a future `automationScheduleStartTime` for the
+Automation schedule. Only then enable scheduling. Logic App mode is an independent
+deployment which invokes its own PowerShell runbook every six hours; it adds
+Automation Job Operator for its identity at the Automation account scope. It does
+not attempt to execute PowerShell inside a Consumption Logic App action.
+
+## Permission boundary
+
+Local engines require no cloud credentials. The snapshot runtime itself requires
+storage access, not Graph permissions. Optional read collectors use Graph permissions
+listed in each solution's permission manifest. Combined collectors need the exact
+union of selected features; this does not imply all engines should share a broadly
+privileged publishing identity. Separate discovery and approved publishing identities.
+
+Function timer hosts use Storage Blob Data Owner on a separate host/deployment
+storage account. Both compute identities have only Blob Data Reader on evidence;
+Automation also has Reader on approved packages. Reports use Blob Data Contributor
+at the reports container scope. Deployment requires Azure resource
+write and scoped role-assignment permissions; source upload additionally requires
+Blob Data Contributor on packages. Pass an explicitly selected publisher object ID
+to assign that container role during provisioning, or use an existing approved
+assignment. The evidence writer is a separate administrator/collection identity.
+
+## Verification limits
+
+Offline tests and Bicep compilation do not establish Function startup, Automation
+7.4 runtime binding, Logic App job delivery, Graph consent, endpoint acceptance or
+policy enforcement. Those remain tenant pilot gates. See Microsoft's
+[PowerShell Functions guidance](https://learn.microsoft.com/azure/azure-functions/functions-reference-powershell),
+[timer storage permissions](https://learn.microsoft.com/azure/azure-functions/functions-bindings-timer),
+and [Automation managed identity guidance](https://learn.microsoft.com/azure/automation/enable-managed-identity-for-automation).
+
+Automation schedules are created only with an enabled, configured package. The azd
+preprovision hook explicitly pauses and verifies any existing Automation schedule
+when the flag is false. Direct ARM callers must use Set-SecuritySchedule.ps1 to
+pause a retained schedule; incremental ARM omission does not remove it. Direct
+template callers cannot enable a default/empty package hash. Logic App and Function
+schedules have explicit disabled settings. Use separate azd environments for compute
+alternatives; the hook rejects changing the compute kind of an existing deployment.
+
+## Companion evidence files
+
+An engine that references XML or approval JSON files declares each companion in
+its committed `security-bundle.json` solution entry as `artifactFiles`:
+
+```json
+{"blob":"reviews/base.xml","path":"policies/base.xml","sha256":"<64 lowercase hexadecimal characters>"}
+```
+
+Upload the file to that private evidence blob. The host downloads it under the
+input root, verifies its exact hash, and sets `SECURITY_EVIDENCE_ROOT` while the
+engine runs. Input JSON references must resolve beneath that root. Duplicate or
+escaping paths, missing files, and hash mismatches stop processing before report
+publication. The package builder preserves the reviewed artifact declarations.
+Changing an artifact requires a new reviewed configuration and package.
+
+Hosted processing requires the builder's `bundle-manifest.json`. It verifies
+listed file hashes and configuration/runner coverage before downloading evidence.
+The final `completed.json` records that manifest's SHA-256, exact source/runtime
+revisions, and hashes of the actual downloaded inputs and companion artifacts,
+alongside the output hashes. Compare the manifest hash with the approved package
+to associate a report with its source. These are content bindings; they do not
+authenticate evidence authors, establish reviewer identity, or prove endpoint
+delivery. A package ZIP hash remains separate deployment/transport evidence.
+Input bindings are captured before engine execution. If an engine alters or
+removes downloaded evidence, processing fails before uploading any reports.
+
+For a combined deployment, select one independently deployable solution's host,
+then invoke its vendored `Deploy-SecuritySource.ps1 -SolutionRoot <roots>`.
+It packages every selected engine, publishes once, and refreshes Automation job
+parameters. Shared permission requirements are the union of selected manifest
+features, not a prerequisite to running credential-free snapshot engines.

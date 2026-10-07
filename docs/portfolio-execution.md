@@ -414,7 +414,7 @@ environment state, preservation commits and raw lab proof remain retained.
 
 ## Follow-through reconciliation, 6–7 October 2026
 
-Seven independently reviewed follow-through packets are merged into main. Each
+Nine independently reviewed follow-through packets are merged into main. Each
 merged tree matches its reviewed candidate, and PR plus post-main checks passed.
 The four newer staged source roots are now present on staging main; the original
 aggregate branches and dirty quality worktree remain preserved.
@@ -428,6 +428,8 @@ aggregate branches and dirty quality worktree remain preserved.
 | Auth Notifications generated-view entity repair | [PR #11](https://github.com/nathanmcnulty/azd-auth-notifications/pull/11) | `016a9ded4b9777c95a975b271fb678a8d84ef615` |
 | Sysmon generated-view entity repair | [PR #12](https://github.com/nathanmcnulty/azd-sysmon/pull/12) | `719915e6adb36881085a0aad2275c45933490edb` |
 | Sysmon recoverable receipt writes | [PR #13](https://github.com/nathanmcnulty/azd-sysmon/pull/13) | `c20bbdb63e03279aec524ead39cdf1359ebc5701` |
+| Reference Intune source-only pilot | [PR #70](https://github.com/nathanmcnulty/azd-reference/pull/70) | `73009c6ebb91b29a48c3de376e43a8d1da889630` |
+| Maester Azure DevOps manifest normalization | [PR #18](https://github.com/nathanmcnulty/maester-azuredevops/pull/18) | `6d1930742b93b16dfaf61bc0ceb8f215f6eff5f4` |
 
 The staged packet passed 278 local tests, four Bicep builds, immutable vendor and
 permission checks, and committed-source combined packaging before push. Its
@@ -497,6 +499,13 @@ retained integration receipt has SHA-256
 all four PR and two post-main checks passed on merged tree
 `9f06fcb1a70a8e5e1595937b5fa806312427cfe4`.
 
+MADO-007 now hashes the normalized staged manifest representation that is written
+to Git, rather than pairing a working-tree CRLF hash with an LF index blob. Its
+disposable fixture also contains command exit-code state. The exact reviewed
+tree `6dd78081` passed 39 tests, 23 script parses, all four PR checks and both
+post-main workflows. The retained integration receipt has SHA-256
+`91c7a8658e68fe6ad5bf73b2ed6f91cde5907f1cca02cb7f13d033e887b0a6ae`.
+
 ### Canonical permission metadata and accounting
 
 This Reference packet reconciles the finished permission schema, standard,
@@ -504,14 +513,15 @@ registry, comparison tool/tests and starter manifests from immutable preserved
 branch `e5265492a949f2e111d3dac88d043b4f63175d3a`, plus bounded path-safety and
 selection-receipt corrections required by independent review. That metadata
 snapshot excluded 29 security-host/runtime/Intune component and test paths. The
-later Intune qualification imports nine of those paths as source-only pilot
-0.1.6; the 20 host/runtime paths remain excluded. Registry files are review
+later Intune qualification imported nine of those paths as source-only pilot
+0.1.6, and the current candidate imports the remaining 20 host/runtime paths with
+the reviewed runtime repair. Registry files are review
 metadata; deployment hooks do not execute them or grant roles.
 Colon-bearing manifest/evidence paths, including NTFS alternate data streams,
 are rejected. Saved JSON records enabled/excluded features and optional-union
 selection, without claiming Git tracking or effective tenant permissions.
 
-The nine main component manifests now comprise one stable, seven pilots and one
+The candidate's 11 component manifests comprise one stable, nine pilots and one
 candidate. The added Intune pilot retains its reviewed 0.1.6 bytes; existing
 immutable consumer pins are unchanged and no component tag or release was created. Teams
 personal-bot and managed-connector extraction, shared-host isolation and identity
@@ -521,13 +531,13 @@ runtime/discovery requirements; all three inventories remained partial with
 `comparisonComplete: false`. That is an incomplete inventory, not a permission-free
 or least-privilege conclusion.
 
-The 30-root aggregate now has 208 records: 88 done and 120 proposed, with no ready
+The 30-root aggregate candidate has 209 records: 90 done and 119 proposed, with no ready
 or in-progress records. This includes the current Reference packet. REF-005's
 metadata reconciliation and HEALTH-003's bounded fixture work are complete; the
-new REF-009 and REF-010 records explain the generator correction and source-only
-Intune qualification. Schema, dependency, evidence
+new REF-009, REF-010 and REF-011 records explain the generator correction and
+the two source-only pilot qualifications. Schema, dependency, evidence
 and generated-view checks passed for every root. Done includes reconciliation
-and previously implemented fixes, not 86 newly delivered features.
+and previously implemented fixes, rather than a count of newly delivered features.
 
 Local Reference validation passed a full 301-test run on the preliminary
 candidate, followed by the focused 19-test permission/backlog suite for final
@@ -553,6 +563,29 @@ match both the imported source and current vendored files on staging main
 `fd1e708f26e01d7ccfc2d1fb1eaa0a6e80c99799`. This evidence qualifies canonical
 source compatibility only; it does not create a release or endpoint acceptance.
 
+[Reference PR #70](https://github.com/nathanmcnulty/azd-reference/pull/70)
+merged that exact reviewed Intune tree as
+`73009c6ebb91b29a48c3de376e43a8d1da889630`. All five PR checks and post-main
+Windows/Linux validation plus CodeQL passed. The current security automation
+candidate imports the remaining 20 preserved source/test paths, retains host
+0.1.4, and advances runtime to 0.1.7. The repair rejects traversal, encoded or
+backslash separators, mismatched hashes, uppercase blob names and final-newline
+suffixes before token acquisition or download. Four focused suites pass 43 tests;
+compiled-template assertions cover default-none behavior, schedule/hash gating
+and Function, Automation and Logic App role scopes. This is offline source proof,
+not Function startup, Automation binding, Logic delivery, identity propagation,
+report durability, schedule pause, teardown or endpoint acceptance.
+
+A preliminary full runtime/host candidate passed 376/376 tests with an
+artifact-isolated Pester 5.7.1. The first attempt remains retained: a concurrent
+replacement of the shared CurrentUser module removed `Pester.ps1` after the long
+ComponentSync suite, invalidating 320 later container results. After adding
+fixture-local commit/tag signing isolation, SecurityPackage passed 11/11 normally
+and 11/11 with a hostile inherited signing configuration. Registered parsing and
+analysis, backlog and generated-view checks, catalog audit plus 11 tests/build,
+component/version and skeleton checks, and all Bicep builds/assertions passed.
+Hosted CI must run the complete suite on the exact reviewed commit.
+
 ### Remaining reconciliation and acceptance
 
 HEALTH-006 has a partial value-safe historical assessment: one selected retained
@@ -562,15 +595,13 @@ credential value was displayed/copied, and no rotation or environment removal
 ran. Historical terminal/CI/artifact locations and tenant-side subscriptions
 remain unassessed. Keep those gaps separate from the completed callback source fix.
 
-The 120 proposals still include ordinary engineering that can be selected without
+The 119 proposals still include ordinary engineering that can be selected without
 a rollout decision. Proposed status does not mean every item needs human judgment.
-Further canonical convergence of the preserved 20 host/runtime component and
-test paths requires a separate exact-source review and compatible
-consumer/lifecycle proof. The Intune source-only pilot does not satisfy those
-host, identity or lifecycle gates. The preserved runtime must also reject
-non-leaf, mismatched or uppercase bundle blob names before obtaining a token or
-downloading content, and its changed managed permission schema requires a new
-component version rather than reusing runtime 0.1.6.
+The source-only host/runtime pilot does not complete enabled-hosting, shared
+identity, consumer upgrade or lifecycle acceptance. Four current mainline staged
+consumers still require separate immutable runtime 0.1.7 lock/vendor updates;
+the historical Phase 0 App Control root has no runtime lock on current staging
+main and remains untouched.
 The gates requiring a concrete target or human acceptance remain Windows GUI/WAM
 acceptance, Santa Mac configuration delivery, populated App Control/Defender
 pilot endpoints and effective-state/update/rollback proof, real notification or
