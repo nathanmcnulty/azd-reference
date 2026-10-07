@@ -4,6 +4,32 @@ The initial portfolio review found useful duplication, but most runtime patterns
 do not yet share one safe abstraction. This inventory records the intended
 boundaries without promoting them prematurely.
 
+## Permission metadata and current lifecycle boundaries
+
+Use the [permission tracking standard](../standards/permission-requirements.md)
+and [comparison guide](permission-comparison.md) alongside component manifests
+and immutable consumer locks. The registry records declared requirements and
+known gaps. It does not inspect effective grants or provide deployment input.
+Optional features preserve their principal, phase, exact scope and evidence
+state; the union of optional requirements is not a grant recommendation.
+
+Current main manifests classify `deployment-validation@1.1.1` as stable;
+`notification-contracts@1.0.0`, `graph-delegated-authentication@0.1.1`,
+`maester-azd-hooks@0.1.5`, `maester-report-webapp@0.1.1`,
+`azure-monitor-scheduled-query-notifications@0.1.0` and
+`flex-scheduled-poller-host@0.1.0` as pilots; and
+`deployment-receipt@0.2.1` as a candidate. Versions and lifecycle labels are
+evidence of their respective contracts, not blanket deployment or release approval.
+
+The permission schema, registry and comparison tool were reconciled separately
+from preserved security host/runtime and Intune collection component work.
+Those component sources remain outside this main packet. The four newer staged
+security solutions retain their own immutable vendor locks and remain
+independently deployable. Shared-host identities, lifecycle isolation, actual
+endpoint policy convergence and component release remain separate qualification
+gates. Teams personal-bot and managed-connector extraction still needs the
+delivery and lifecycle evidence described below.
+
 ## Sysmon deployment
 
 The public `nathanmcnulty/azd-sysmon` consumer vendors

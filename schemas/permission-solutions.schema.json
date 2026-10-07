@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "azd permission inventory locations",
+  "type": "object", "additionalProperties": false,
+  "required": ["schemaVersion", "solutions", "legacyCopies", "scope"],
+  "properties": {
+    "schemaVersion": { "const": "1.0" },
+    "scope": { "type": "string", "minLength": 1 },
+    "solutions": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object", "additionalProperties": false, "required": ["id", "manifest"],
+        "properties": { "id": { "$ref": "#/$defs/id" }, "manifest": { "$ref": "#/$defs/path" } }
+      }
+    },
+    "legacyCopies": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false, "required": ["path", "canonicalSolution", "reason"],
+        "properties": {
+          "path": { "$ref": "#/$defs/path" }, "canonicalSolution": { "$ref": "#/$defs/id" },
+          "reason": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]+$" },
+    "path": { "type": "string", "pattern": "^(?!.*:)(?![A-Za-z]:)(?!/)(?!\\.{1,2}(?:/|$))(?!.*?/\\.{1,2}(?:/|$))[^\\\\\\u0000-\\u001F]+$" }
+  }
+}

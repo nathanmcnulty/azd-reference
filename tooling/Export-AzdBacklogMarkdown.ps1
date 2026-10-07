@@ -18,7 +18,11 @@ function ConvertTo-MarkdownText {
             @('[', '&lbrack;'), @(']', '&rbrack;'), @('(', '&lpar;'), @(')', '&rpar;'),
             @('!', '&excl;'), @('#', '&num;'), @('|', '&vert;'), @(':', '&colon;')
         )) {
-        $text = $text.Replace($replacement[0], $replacement[1])
+        if ($replacement[0] -eq '#') {
+            # HtmlEncode already produced numeric entities; do not escape their marker.
+            $text = [regex]::Replace($text, '(?<!&)#', $replacement[1])
+        }
+        else { $text = $text.Replace($replacement[0], $replacement[1]) }
     }
     $text = $text.Replace("`r`n", '<br>').Replace("`n", '<br>')
     $text
