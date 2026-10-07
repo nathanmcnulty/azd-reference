@@ -1,0 +1,34 @@
+{
+  "manifestVersion": "1.1",
+  "id": "intune-remediations",
+  "version": "0.1.6",
+  "status": "pilot",
+  "description": "Explicit caller-authenticated Intune data-gathering script publication and readback with package hashes and assignment verification.",
+  "changelog": "components/powershell/intune-remediations/CHANGELOG.md",
+  "files": [
+    {
+      "source": "components/powershell/intune-remediations/Request-IntuneCollectorRun.ps1",
+      "target": "scripts/vendor/Azd.IntuneRemediations/Request-IntuneCollectorRun.ps1"
+    },
+    {
+      "source": "components/powershell/intune-remediations/Intune.DeviceHealthScripts.psm1",
+      "target": "scripts/vendor/Azd.IntuneRemediations/Intune.DeviceHealthScripts.psm1"
+    },
+    {
+      "source": "components/powershell/intune-remediations/remediation-package.schema.json",
+      "target": "scripts/vendor/Azd.IntuneRemediations/remediation-package.schema.json"
+    },
+    {
+      "source": "components/powershell/intune-remediations/remediation-package.schema.json",
+      "target": "schemas/remediation-package.schema.json"
+    },
+    {
+      "source": "components/powershell/intune-remediations/reviewed-noops/Av.ps1",
+      "target": "scripts/vendor/Azd.IntuneRemediations/reviewed-noops/Av.ps1"
+    },
+    {
+      "source": "components/powershell/intune-remediations/reviewed-noops/Firewall.ps1",
+      "target": "scripts/vendor/Azd.IntuneRemediations/reviewed-noops/Firewall.ps1"
+    }
+  ]
+}

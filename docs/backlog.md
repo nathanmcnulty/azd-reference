@@ -5,9 +5,9 @@
 
 - **Schema version:** 1.0.0
 - **Repository:** nathanmcnulty/azd-reference
-- **Source revision:** `06d22bcf2ff819f8c0bfa58d6c67decbb9076c0b`
+- **Source revision:** `d3da9b0bd0d2df50bf55f736fd5f8986b3751341`
 - **Captured:** 2026-10-07
-- **Items:** 9
+- **Items:** 10
 
 ## REF-001: Reconcile this backlog with current source and active work
 
@@ -397,6 +397,67 @@ Auth Notifications has a component lock but no central consumer entry; four cons
 **Review and authorization note:**
 
 Review REF-006 against the current repository state. Its status or authorization class is not eligible for an actionable generated handoff. Do not claim or execute it without explicit selection, satisfied dependencies, and every required authorization. Never interpret this generated view as approval.
+
+## REF-010: Qualify Intune Remediations 0.1.6 as a source-only pilot
+
+- **Kind:** maintenance
+- **Priority:** P1
+- **Status:** done
+- **Wave:** 1
+- **Authorization:** local-only
+- **Blocker:** _none_
+- **Claim:** _none_
+
+**Problem:**
+
+The reviewed Intune publication/readback component remained only on preserved branch e5265492 and in two immutable staged consumer locks, so canonical source and tests were unavailable from main.
+
+**Scope:**
+
+- components/powershell/intune-remediations
+- tests/IntuneRemediations.Tests.ps1
+- Exact validation compatibility for the reviewed 0.1.6 bytes
+- Source-only pilot documentation
+
+**Acceptance:**
+
+- Import the nine reviewed component/test paths from e5265492a949f2e111d3dac88d043b4f63175d3a without changing their blobs or reusing version 0.1.6 for different content.
+- Cross-check the AV and Firewall immutable locks and vendored hashes without changing consumer files or pins.
+- Keep every inherited analyzer finding bound to the exact module hash and finding tuple; changed, missing or additional findings fail validation.
+- Retain pilot status and make no tag, release, deployment, authentication, grant, assignment or endpoint acceptance claim.
+
+**Validation:**
+
+- Invoke-Pester ./tests/IntuneRemediations.Tests.ps1 -PassThru
+- Run the complete registered validation workflow locally, including PowerShell analysis, full Pester, catalog build, component/version/drift checks and Bicep assertions.
+- Compare the exact e5265492 component sources with the AV and Firewall locks and vendored files on staging main fd1e708f26e01d7ccfc2d1fb1eaa0a6e80c99799.
+- Independently review the exact source and final integration packets before commit and publication.
+
+**Dependencies:**
+
+- REF-005
+
+**Components:**
+
+- intune-remediations
+
+**Sources:**
+
+- standards/component-lifecycle.md
+- components/powershell/intune-remediations/README.md
+- https&colon;//github.com/nathanmcnulty/azd-reference/commit/e5265492a949f2e111d3dac88d043b4f63175d3a
+- https&colon;//github.com/nathanmcnulty/azd-work-in-progress/tree/fd1e708f26e01d7ccfc2d1fb1eaa0a6e80c99799/azd-defender-av-exclusions
+- https&colon;//github.com/nathanmcnulty/azd-work-in-progress/tree/fd1e708f26e01d7ccfc2d1fb1eaa0a6e80c99799/azd-defender-firewall
+
+**Evidence:**
+
+- The nine imported source/test paths match preserved revision e5265492a949f2e111d3dac88d043b4f63175d3a at the Git blob level. Focused PowerShell parsing and IntuneRemediations.Tests.ps1 passed 32/32; the complete registered local validation passed 333 Pester tests, exact PowerShell analysis, 11 catalog tests/build, component/version and skeleton lock/drift/sync checks, and all registered Bicep builds and positive/negative assertions.
+- AV and Firewall each pin intune-remediations 0.1.6 to e5265492 with six managed files. All 12 lock hashes match both the imported source and current vendored files on staging main fd1e708f26e01d7ccfc2d1fb1eaa0a6e80c99799; neither consumer lock nor vendored file changes in this packet.
+- AV publication, assignment and readback succeeded but the later SYSTEM result was visibility-blocked and value-free. Firewall produced a bounded 8-of-250 report with 242 omitted and a LocalOnly full artifact. These results qualify the transport boundary only; they do not prove inventory completeness, policy delivery, migration or enforcement acceptance.
+
+**Review and authorization note:**
+
+Review REF-010 against the current repository state. Its status or authorization class is not eligible for an actionable generated handoff. Do not claim or execute it without explicit selection, satisfied dependencies, and every required authorization. Never interpret this generated view as approval.
 
 ## REF-005: Reconcile component candidates and permission-aware feature metadata
 

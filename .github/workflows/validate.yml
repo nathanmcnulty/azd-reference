@@ -47,7 +47,31 @@ jobs:
                 Recurse = $true
                 Settings = './PSScriptAnalyzerSettings.psd1'
               }
-              if ($manifest.Directory.Name -eq 'maester-azd-hooks') {
+              if ($manifest.Directory.Name -eq 'intune-remediations') {
+                $modulePath = Join-Path $manifest.Directory.FullName 'Intune.DeviceHealthScripts.psm1'
+                $moduleSha256 = (Get-FileHash -LiteralPath $modulePath -Algorithm SHA256).Hash.ToLowerInvariant()
+                if ($moduleSha256 -cne '580ef85d0a0f24c16c9a2d418cd18fb5704fd62870556ee210e5fae8b639d9f0') {
+                  throw "The Intune Remediations 0.1.6 module changed without a component version update."
+                }
+                $expectedFindings = @(
+                  'PSUseSingularNouns|Intune.DeviceHealthScripts.psm1|22|10'
+                  'PSUseSingularNouns|Intune.DeviceHealthScripts.psm1|339|10'
+                  'PSAvoidAssignmentToAutomaticVariable|Intune.DeviceHealthScripts.psm1|508|5'
+                  'PSAvoidUsingEmptyCatchBlock|Intune.DeviceHealthScripts.psm1|534|310'
+                  'PSAvoidUsingEmptyCatchBlock|Intune.DeviceHealthScripts.psm1|590|359'
+                  'PSAvoidUsingEmptyCatchBlock|Intune.DeviceHealthScripts.psm1|617|364'
+                )
+                $observedFindings = @(
+                  Invoke-ScriptAnalyzer @analyzerArguments | ForEach-Object {
+                    '{0}|{1}|{2}|{3}' -f $_.RuleName, $_.ScriptName, $_.Line, $_.Column
+                  }
+                )
+                $findingDrift = @(Compare-Object -ReferenceObject $expectedFindings -DifferenceObject $observedFindings)
+                if ($findingDrift.Count) {
+                  throw "The exact reviewed Intune Remediations 0.1.6 analyzer finding set changed:`n$($findingDrift | Out-String)"
+                }
+              }
+              elseif ($manifest.Directory.Name -eq 'maester-azd-hooks') {
                 # These shared compatibility hooks intentionally preserve their
                 # public command names and best-effort cleanup behavior.
                 $analyzerArguments.ExcludeRule = @(
@@ -56,8 +80,11 @@ jobs:
                   'PSUseBOMForUnicodeEncodedFile',
                   'PSUseSingularNouns'
                 )
+                Invoke-ScriptAnalyzer @analyzerArguments
               }
-              Invoke-ScriptAnalyzer @analyzerArguments
+              else {
+                Invoke-ScriptAnalyzer @analyzerArguments
+              }
             }
             foreach ($path in './tooling', './skeleton', './examples') {
               Invoke-ScriptAnalyzer -Path $path -Recurse -Settings ./PSScriptAnalyzerSettings.psd1
