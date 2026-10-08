@@ -548,10 +548,48 @@ private compiler configuration. All four PR checks and post-main validation
 plus CodeQL passed on merged main. Both changes passed independent review. No lab resource, authentication,
 message, permission, assignment, endpoint action or catalog enforcement changed.
 
-The refreshed 30-root aggregate has 210 records: 101 done and 109 proposed,
+After the runtime/notification batch, the 30-root snapshot had 210 records: 101 done and 109 proposed,
 including 76 proposed records classified `local-only`. All schemas and generated
 views pass, with no ready or in-progress records. Ordinary implementation and
 fixture work remain available alongside the separate live acceptance gates.
+
+## Device Cleanup archive safety, 7 October 2026
+
+CLEAN-012 is complete in
+[Device Cleanup PR #15](https://github.com/nathanmcnulty/azd-device-cleanup/pull/15).
+Default discovery uses tags for both single and multiple matches and reads no
+recovery value. Explicit recovery requires one unambiguous record. Missing
+optional tags and duplicate hostnames are covered, and request authority,
+collection-only continuations and sanitized failure output are checked.
+Reviewed head `d56d3b0d88cab8f24ace4c937953618d8ac26788` merged as
+`f21713c7e58b897db2124a49060a15c5a6f13f54`, with identical tree
+`41b2916bb70ef2922c5df638bf03fbf85e624c46`. Independent review and 26 tests
+passed, along with all four PR and both post-main workflows.
+
+CLEAN-008 and CLEAN-013 are complete in
+[Device Cleanup PR #16](https://github.com/nathanmcnulty/azd-device-cleanup/pull/16).
+The existing 24,000-byte compact UTF-8 ceiling and refusal before deletion now
+have exact-limit, multibyte, writer and full-job fixtures. The job failure is
+bound to the production size refusal with zero token, PUT and Entra DELETE
+calls. Testing exposed a prior PowerShell interpolation defect in archive PUT
+and explicit recovery GET; braced variable boundaries fix both expressions,
+and production helper tests assert the exact request URIs.
+Reviewed head `488ec24a12980f888c44cefd707ffde2f0be1971` merged as
+`c7b3e6eaa2a76722fc45c61b95084c41f93bab24`, with identical tree
+`ab444ec52deeedc9db9b4f7692bbcdc688a30fdf`. Independent review and 32 tests
+passed, along with all four PR checks and both post-main workflows. The earlier
+review coverage finding was corrected before publication.
+
+Both packets passed local parsing, JSON, Bicep and canonical backlog/generated
+view checks. Cleanup eligibility, retention settings, grants, infrastructure
+and lifecycle action flags are unchanged. Soft-delete retention remains a
+recovery window rather than automatic active-archive expiration. No Azure/tenant
+authentication, Key Vault recovery/archive reads, lab cloud resources or device
+actions ran.
+CLEAN-006 primary-user indexing and CLEAN-002 human recovery acceptance remain
+proposed. The older aggregate counts above are a historical snapshot; this
+packet records repository-local completions without claiming a fresh portfolio
+inventory or live recovery qualification.
 
 ## Sysmon promotion and path evidence guides, 7 October 2026
 
