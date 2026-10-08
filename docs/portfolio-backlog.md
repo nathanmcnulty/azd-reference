@@ -1,8 +1,10 @@
 # Portfolio backlog preparation and reconciliation
 
-Prepared 3 October and reconciled 4 October 2026. This is an aggregate review view of repository-local backlogs, not a second task database. Regenerate counts and links from `docs/backlog.json`; update task status only in the owning repository. The proposed order favors reliability and deployment readiness before new capabilities. No feature implementation, tenant deployment, delivery, release, merge, cleanup or required-check change is authorized by this report.
+Prepared 3 October and refreshed from fetched default branches on 7 October 2026. This is an aggregate review view of repository-local backlogs, not a second task database. Regenerate counts and links from `docs/backlog.json`; update task status only in the owning repository. The proposed order favors reliability and deployment readiness before new capabilities. No feature implementation, tenant deployment, delivery, release, merge, cleanup or required-check change is authorized by this report.
 
-Coverage: 25 current GitHub `nathanmcnulty/azd-*` repositories and five staged solutions. The refreshed aggregate has 206 records: 5 ready, 126 proposed and 75 done. Tracking for all 25 repositories and the existing staged App Control solution is reconciled on main; four unpublished staged solutions retain owner snapshots. Reference REF-002 is included as done in the report/CI-pilot packet, contingent on that packet passing hosted validation before merge. Done includes bounded source reconciliation and previously implemented fixes, not 75 newly delivered features. The initial preparation had 202 records: 31 ready, 152 proposed and 19 done. All 30 AZD issues open at initial capture are linked in task sources, with 15 then-open PRs recorded for reconciliation. Execution reconciliation added 28 further open-report candidates and confirmed Device Cleanup PR #10 and staged App Control PR #32 as merged. The earlier read-only refresh recorded Health issue #6 / PR #8 as resolved at c2c63371ec182060b0e7e24f534e37e62c84d84e; it remains a completed record, with a separate historical-exposure assessment candidate. These GitHub search results are a dated snapshot, not a guarantee about changes after capture.
+Coverage: 25 GitHub `nathanmcnulty/azd-*` repositories and five staged solutions, totaling 30 backlog roots. The exact default-branch revisions linked below have 212 records: 104 done and 108 proposed, with no ready, in-progress, blocked or deferred records in that snapshot. Of the proposed records, 75 are local-only; that classification does not establish satisfied dependencies, readiness or approval. All 30 backlogs passed the canonical schema and cross-repository dependency validator. The snapshot excludes newer working-tree claims, including the current CLEAN-006 implementation, and is not an atomic portfolio revision.
+
+Done includes bounded source reconciliation and previously implemented fixes, not 104 newly delivered features or live acceptance passes. The initial preparation had 202 records: 31 ready, 152 proposed and 19 done. The earlier 206-record review and later 210-record execution counts are historical snapshots. All 30 AZD issues open at initial capture were linked in task sources, with 15 then-open PRs recorded for reconciliation; those issue/PR inventory numbers have not been refreshed here. See the execution record for reviewed publication and validation evidence.
 
 `azd-nathanmcnulty` was retired on 4 October 2026 after maintainer approval. Its complete Git history and local files are archived; its two coordination-only records are excluded from this active aggregate. Portfolio coordination is owned by azd-reference. See the [retirement record](portfolio-execution.md#portfolio-coordination-stub-retirement). `AZD-for-beginners` is Microsoft-owned and excluded. Duplicate acceptance/build worktrees are not independent portfolio repositories. The legacy staged `azd-pim` copy is preserved and excluded from a competing implementation backlog pending history/owner reconciliation.
 
@@ -21,8 +23,8 @@ Coverage: 25 current GitHub `nathanmcnulty/azd-*` repositories and five staged s
 
 | Wave | Purpose | Current records | Exit gate |
 | --- | --- | ---: | --- |
-| 0 | Reconcile current source, issue/PR state and active owners | 65 | Actual offline commands and remaining work verified; no duplicate owner |
-| 1 | Fix failure/secret boundaries and shared tracking/provenance gaps | 51 | Focused regressions pass; component decisions use exact hashes |
+| 0 | Reconcile current source, issue/PR state and active owners | 66 | Actual offline commands and remaining work verified; no duplicate owner |
+| 1 | Fix failure/secret boundaries and shared tracking/provenance gaps | 56 | Focused regressions pass; component decisions use exact hashes |
 | 2 | Validate selected deployment paths and improve bounded operational behavior | 52 | Current-source service and human/endpoint evidence retained for authorized targets |
 | 3 | Add selected new capabilities and optional components | 35 | Narrow design accepted; permission additions, rollout and rollback are explicit |
 | 4 | Release/promotion packets | 3 | Named publication approval plus verified source/artifacts; cleanup separately authorized |
@@ -36,12 +38,14 @@ failure semantics, Health callback source fix and staged App Control DoD mapping
 The active local staging branch can still predate the main mapping correction.
 
 Select one bounded proposed item after checking current source, dependencies and
-the active owner. Suitable engineering work without a new rollout decision is
-Website WEB-004 dependency assessment, Health HEALTH-003 offline receiver/lifecycle
-fixtures and HEALTH-006 value-safe historical assessment, then compatible optional
-component qualification. Four unpublished endpoint-security source baselines and
-Reference permission/security-component proposals require exact comparison of
-preserved owner histories before integration. They do not require inventing a product decision.
+the active owner. CLEAN-006 primary-user archive indexing is being implemented in
+an isolated worktree from Device Cleanup `c7b3e6e`; it is not complete in this
+snapshot and must not receive a second implementation owner. HEALTH-003 fixtures,
+WEB-004 dependency assessment, DEVICE-003 taxonomy and the Maester component
+adoptions are already done in their source backlogs. HEALTH-006 remains proposed
+with explicit historical-exposure gaps. Other ordinary engineering proposals
+remain selectable without inventing a rollout decision; consult the owning
+backlog rather than redispatching an old next-task label.
 
 Reserve live GUI/Mac/endpoint/recipient acceptance and publication/enforcement
 decisions for the explicit gates in the [current reconciliation record](portfolio-execution.md#current-main-reconciliation).
@@ -50,44 +54,50 @@ retain one owner per mutable worktree and the coordinator's integration claim.
 
 ## Repository backlogs
 
-| Repository / solution | Records | Next local starting point |
-| --- | ---: | --- |
-| [azd-advanced-auditing](https://github.com/nathanmcnulty/azd-advanced-auditing/blob/main/docs/backlog.md) | 6 | AUD-002: Prepare and execute the supported Exchange/Purview compatibility retest |
-| [azd-auth-notifications](https://github.com/nathanmcnulty/azd-auth-notifications/blob/main/docs/backlog.md) | 10 | AUTH-008: Evaluate the optional shared Flex poller host |
-| [azd-cloud-pc-recommendations](https://github.com/nathanmcnulty/azd-cloud-pc-recommendations/blob/main/docs/backlog.md) | 5 | CPC-004: Evaluate shared notification and deployment contracts |
-| [azd-defender-reporting](https://github.com/nathanmcnulty/azd-defender-reporting/blob/main/docs/backlog.md) | 4 | REPORT-002: Qualify the locked compute and hosted-surface deployment matrix |
-| [azd-device-cleanup](https://github.com/nathanmcnulty/azd-device-cleanup/blob/main/docs/backlog.md) | 11 | CLEAN-002: Prove recovery before expanding disable or deletion scope |
-| [azd-device-notifications](https://github.com/nathanmcnulty/azd-device-notifications/blob/main/docs/backlog.md) | 5 | DEVICE-003: Compare retry/ambiguity taxonomy with authentication notifications |
-| [azd-emergency-access](https://github.com/nathanmcnulty/azd-emergency-access/blob/main/docs/backlog.md) | 5 | EA-002: Qualify onboarding, alert routes and independent recovery drill |
-| [azd-entra-health-monitoring](https://github.com/nathanmcnulty/azd-entra-health-monitoring/blob/main/docs/backlog.md) | 6 | HEALTH-003: Use secret, stable clientState with lifecycle behavior tests |
-| [azd-entra-iga](https://github.com/nathanmcnulty/azd-entra-iga/blob/main/docs/backlog.md) | 6 | IGA-004: Reconcile unlocked delegated-Graph vendoring with canonical lock adoption |
-| [azd-global-secure-access](https://github.com/nathanmcnulty/azd-global-secure-access/blob/main/docs/backlog.md) | 4 | GSA-002: Qualify the read-only readiness and exact-feature pilot |
-| [azd-gui](https://github.com/nathanmcnulty/azd-gui/blob/main/docs/backlog.md) | 16 | GUI-002: Complete exact-candidate Windows 11 human acceptance |
-| [azd-maester](https://github.com/nathanmcnulty/azd-maester/blob/main/docs/backlog.md) | 8 | MCAT-002: Make standalone migration and remaining catalog support explicit |
-| [azd-maester-azureautomation](https://github.com/nathanmcnulty/azd-maester-azureautomation/blob/main/docs/backlog.md) | 5 | MAUTO-003: Reconcile shared hook/webapp versions and host permission deltas |
-| [azd-maester-azuredevops](https://github.com/nathanmcnulty/azd-maester-azuredevops/blob/main/docs/backlog.md) | 9 | MADO-005: Azure DevOps solution - Authentication Sync between az and azd |
-| [azd-maester-containerappjob](https://github.com/nathanmcnulty/azd-maester-containerappjob/blob/main/docs/backlog.md) | 6 | MCAJ-003: Reconcile shared hook/webapp versions and host permission deltas |
-| [azd-maester-functionapp](https://github.com/nathanmcnulty/azd-maester-functionapp/blob/main/docs/backlog.md) | 6 | MFUNC-003: Reconcile shared hook/webapp versions and host permission deltas |
-| [azd-myworkid](https://github.com/nathanmcnulty/azd-myworkid/blob/main/docs/backlog.md) | 5 | MWID-002: Qualify package, domain, authentication-context and optional Verified ID paths |
-| [azd-pim](https://github.com/nathanmcnulty/azd-pim/blob/main/docs/backlog.md) | 6 | PIM-002: Qualify a selected-role authentication and notification pilot |
-| [azd-reference](https://github.com/nathanmcnulty/azd-reference/blob/main/docs/backlog.md) | 8 | REF-004: Qualify identity-only Flex host storage before widening adoption |
-| [azd-risk-based-ca](https://github.com/nathanmcnulty/azd-risk-based-ca/blob/main/docs/backlog.md) | 5 | RISK-002: Qualify report-only canary, routes and migration rollback |
-| [azd-santa](https://github.com/nathanmcnulty/azd-santa/blob/main/docs/backlog.md) | 6 | SANTA-006: Evaluate delegated Graph session coordinator for Intune publishing |
-| [azd-sysmon](https://github.com/nathanmcnulty/azd-sysmon/blob/main/docs/backlog.md) | 23 | SYS-010: Add a manual Windows integration workflow that runs only with explicitly supplied disposable Azure, Graph, Intune, and Sentinel targets |
-| [azd-verified-id](https://github.com/nathanmcnulty/azd-verified-id/blob/main/docs/backlog.md) | 6 | VID-002: Qualify DNS/domain verification, issuance and presentation |
-| [azd-website](https://github.com/nathanmcnulty/azd-website/blob/main/docs/backlog.md) | 4 | WEB-004: Triage affected build and deploy dependencies with explicit reachability evidence |
-| [azd-work-in-progress](https://github.com/nathanmcnulty/azd-work-in-progress/blob/main/docs/backlog.md) | 5 | STAGE-004: Integrate the reviewed Firewall pagination fix after source-owner handoff |
-| [azd-work-in-progress/azd-app-control](https://github.com/nathanmcnulty/azd-work-in-progress/blob/main/azd-app-control/docs/backlog.md) | 4 | APP0-003: Reconcile the old Phase 0 architecture with the newer App Control product |
-| azd-work-in-progress/azd-app-control-for-business | 7 | ACFB-001: Reconcile this backlog with current source and active work (owner snapshot) |
-| azd-work-in-progress/azd-defender-asr-rules | 5 | ASR-001: Reconcile this backlog with current source and active work (owner snapshot) |
-| azd-work-in-progress/azd-defender-av-exclusions | 5 | AV-001: Reconcile this backlog with current source and active work (owner snapshot) |
-| azd-work-in-progress/azd-defender-firewall | 5 | FW-001: Reconcile this backlog with current source and active work (owner snapshot) |
+| Repository / solution | Records | Done | Proposed | Reviewed source |
+| --- | ---: | ---: | ---: | --- |
+| [azd-advanced-auditing](https://github.com/nathanmcnulty/azd-advanced-auditing/blob/main/docs/backlog.md) | 6 | 4 | 2 | [edd48cd5ac38](https://github.com/nathanmcnulty/azd-advanced-auditing/blob/edd48cd5ac3866b13ddbe3640ae6181b7871975c/docs/backlog.json) |
+| [azd-auth-notifications](https://github.com/nathanmcnulty/azd-auth-notifications/blob/main/docs/backlog.md) | 10 | 5 | 5 | [016a9ded4b97](https://github.com/nathanmcnulty/azd-auth-notifications/blob/016a9ded4b9777c95a975b271fb678a8d84ef615/docs/backlog.json) |
+| [azd-cloud-pc-recommendations](https://github.com/nathanmcnulty/azd-cloud-pc-recommendations/blob/main/docs/backlog.md) | 5 | 2 | 3 | [f035b101ebe9](https://github.com/nathanmcnulty/azd-cloud-pc-recommendations/blob/f035b101ebe9c5928dae058ad871979a23b56e1e/docs/backlog.json) |
+| [azd-defender-reporting](https://github.com/nathanmcnulty/azd-defender-reporting/blob/main/docs/backlog.md) | 4 | 2 | 2 | [8f258252417c](https://github.com/nathanmcnulty/azd-defender-reporting/blob/8f258252417cb9f675a8b1ec3a8649582bdca91c/docs/backlog.json) |
+| [azd-device-cleanup](https://github.com/nathanmcnulty/azd-device-cleanup/blob/main/docs/backlog.md) | 13 | 7 | 6 | [c7b3e6eaa2a7](https://github.com/nathanmcnulty/azd-device-cleanup/blob/c7b3e6eaa2a76722fc45c61b95084c41f93bab24/docs/backlog.json) |
+| [azd-device-notifications](https://github.com/nathanmcnulty/azd-device-notifications/blob/main/docs/backlog.md) | 5 | 4 | 1 | [6774c6509ea3](https://github.com/nathanmcnulty/azd-device-notifications/blob/6774c6509ea34388b61ce24eee025264dcee08d7/docs/backlog.json) |
+| [azd-emergency-access](https://github.com/nathanmcnulty/azd-emergency-access/blob/main/docs/backlog.md) | 5 | 2 | 3 | [15a39144529f](https://github.com/nathanmcnulty/azd-emergency-access/blob/15a39144529f48faa7628a8dd02e3f8750879dcc/docs/backlog.json) |
+| [azd-entra-health-monitoring](https://github.com/nathanmcnulty/azd-entra-health-monitoring/blob/main/docs/backlog.md) | 6 | 3 | 3 | [b5e3a57db7f2](https://github.com/nathanmcnulty/azd-entra-health-monitoring/blob/b5e3a57db7f20c49d01f4dcf52a0bed6801bdf94/docs/backlog.json) |
+| [azd-entra-iga](https://github.com/nathanmcnulty/azd-entra-iga/blob/main/docs/backlog.md) | 6 | 3 | 3 | [91aa2cf45321](https://github.com/nathanmcnulty/azd-entra-iga/blob/91aa2cf45321983d282091109e9c7932797b03c2/docs/backlog.json) |
+| [azd-global-secure-access](https://github.com/nathanmcnulty/azd-global-secure-access/blob/main/docs/backlog.md) | 4 | 2 | 2 | [2f153eb8e04f](https://github.com/nathanmcnulty/azd-global-secure-access/blob/2f153eb8e04f1cc0c7ac9f446e9b293fce94ff13/docs/backlog.json) |
+| [azd-gui](https://github.com/nathanmcnulty/azd-gui/blob/main/docs/backlog.md) | 16 | 3 | 13 | [6432d90be206](https://github.com/nathanmcnulty/azd-gui/blob/6432d90be206aff52e053b70b2a92a1bb014c77f/docs/backlog.json) |
+| [azd-maester](https://github.com/nathanmcnulty/azd-maester/blob/main/docs/backlog.md) | 8 | 4 | 4 | [d232b49e5d72](https://github.com/nathanmcnulty/azd-maester/blob/d232b49e5d727cb8427004bd798dcd6385ddedfe/docs/backlog.json) |
+| [azd-maester-azureautomation](https://github.com/nathanmcnulty/azd-maester-azureautomation/blob/main/docs/backlog.md) | 5 | 4 | 1 | [e3fce00620e1](https://github.com/nathanmcnulty/azd-maester-azureautomation/blob/e3fce00620e147fef4ae210007af923d9ad78ef4/docs/backlog.json) |
+| [azd-maester-azuredevops](https://github.com/nathanmcnulty/azd-maester-azuredevops/blob/main/docs/backlog.md) | 9 | 6 | 3 | [76ac648c7172](https://github.com/nathanmcnulty/azd-maester-azuredevops/blob/76ac648c7172981a22259f6d6fd701c2a085cb57/docs/backlog.json) |
+| [azd-maester-containerappjob](https://github.com/nathanmcnulty/azd-maester-containerappjob/blob/main/docs/backlog.md) | 6 | 5 | 1 | [215d7bb70359](https://github.com/nathanmcnulty/azd-maester-containerappjob/blob/215d7bb703595ed460c9132014a6b9c5c503ace8/docs/backlog.json) |
+| [azd-maester-functionapp](https://github.com/nathanmcnulty/azd-maester-functionapp/blob/main/docs/backlog.md) | 6 | 5 | 1 | [0c7462e942ac](https://github.com/nathanmcnulty/azd-maester-functionapp/blob/0c7462e942ac4d8b5bd4b8ac5a51d5fba7a6d94d/docs/backlog.json) |
+| [azd-myworkid](https://github.com/nathanmcnulty/azd-myworkid/blob/main/docs/backlog.md) | 5 | 3 | 2 | [6b4f53868973](https://github.com/nathanmcnulty/azd-myworkid/blob/6b4f538689731a2bb8e90061f44929466fcaac2b/docs/backlog.json) |
+| [azd-pim](https://github.com/nathanmcnulty/azd-pim/blob/main/docs/backlog.md) | 6 | 4 | 2 | [4c6ddfdb1cc0](https://github.com/nathanmcnulty/azd-pim/blob/4c6ddfdb1cc0d5f30c9cac817a259decd181cc31/docs/backlog.json) |
+| [azd-reference](https://github.com/nathanmcnulty/azd-reference/blob/main/docs/backlog.md) | 12 | 10 | 2 | [5fc4bd7e952b](https://github.com/nathanmcnulty/azd-reference/blob/5fc4bd7e952b6ec0a2d39b6d03098b21d7acb2f4/docs/backlog.json) |
+| [azd-risk-based-ca](https://github.com/nathanmcnulty/azd-risk-based-ca/blob/main/docs/backlog.md) | 5 | 3 | 2 | [1028ba8f0fba](https://github.com/nathanmcnulty/azd-risk-based-ca/blob/1028ba8f0fbaacd9c7d09807c36cf4e9207a1e3d/docs/backlog.json) |
+| [azd-santa](https://github.com/nathanmcnulty/azd-santa/blob/main/docs/backlog.md) | 6 | 1 | 5 | [82c17ed961fa](https://github.com/nathanmcnulty/azd-santa/blob/82c17ed961fad5f38499f8b212a2889ece249b97/docs/backlog.json) |
+| [azd-sysmon](https://github.com/nathanmcnulty/azd-sysmon/blob/main/docs/backlog.md) | 23 | 6 | 17 | [1d59a4381212](https://github.com/nathanmcnulty/azd-sysmon/blob/1d59a4381212900796d7f3bfaaf94d35a840a1e3/docs/backlog.json) |
+| [azd-verified-id](https://github.com/nathanmcnulty/azd-verified-id/blob/main/docs/backlog.md) | 6 | 4 | 2 | [4d34f9a1c87c](https://github.com/nathanmcnulty/azd-verified-id/blob/4d34f9a1c87c948190bd188fd2aa97d7ca58798b/docs/backlog.json) |
+| [azd-website](https://github.com/nathanmcnulty/azd-website/blob/main/docs/backlog.md) | 4 | 2 | 2 | [a6b63f8ba2cb](https://github.com/nathanmcnulty/azd-website/blob/a6b63f8ba2cb4e394d922a9b3f7c1db06e6875c9/docs/backlog.json) |
+| [azd-work-in-progress](https://github.com/nathanmcnulty/azd-work-in-progress/blob/main/docs/backlog.md) | 5 | 3 | 2 | [cd455be45e62](https://github.com/nathanmcnulty/azd-work-in-progress/blob/cd455be45e620cd07d662ac1bfa206094317e751/docs/backlog.json) |
+| [azd-work-in-progress/azd-app-control](https://github.com/nathanmcnulty/azd-work-in-progress/blob/main/azd-app-control/docs/backlog.md) | 4 | 3 | 1 | [cd455be45e62](https://github.com/nathanmcnulty/azd-work-in-progress/blob/cd455be45e620cd07d662ac1bfa206094317e751/azd-app-control/docs/backlog.json) |
+| [azd-work-in-progress/azd-app-control-for-business](https://github.com/nathanmcnulty/azd-work-in-progress/blob/main/azd-app-control-for-business/docs/backlog.md) | 7 | 1 | 6 | [cd455be45e62](https://github.com/nathanmcnulty/azd-work-in-progress/blob/cd455be45e620cd07d662ac1bfa206094317e751/azd-app-control-for-business/docs/backlog.json) |
+| [azd-work-in-progress/azd-defender-asr-rules](https://github.com/nathanmcnulty/azd-work-in-progress/blob/main/azd-defender-asr-rules/docs/backlog.md) | 5 | 1 | 4 | [cd455be45e62](https://github.com/nathanmcnulty/azd-work-in-progress/blob/cd455be45e620cd07d662ac1bfa206094317e751/azd-defender-asr-rules/docs/backlog.json) |
+| [azd-work-in-progress/azd-defender-av-exclusions](https://github.com/nathanmcnulty/azd-work-in-progress/blob/main/azd-defender-av-exclusions/docs/backlog.md) | 5 | 1 | 4 | [cd455be45e62](https://github.com/nathanmcnulty/azd-work-in-progress/blob/cd455be45e620cd07d662ac1bfa206094317e751/azd-defender-av-exclusions/docs/backlog.json) |
+| [azd-work-in-progress/azd-defender-firewall](https://github.com/nathanmcnulty/azd-work-in-progress/blob/main/azd-defender-firewall/docs/backlog.md) | 5 | 1 | 4 | [cd455be45e62](https://github.com/nathanmcnulty/azd-work-in-progress/blob/cd455be45e620cd07d662ac1bfa206094317e751/azd-defender-firewall/docs/backlog.json) |
 
 ## Component opportunities
 
 [Per-repository component decisions](component-opportunities.md) distinguish existing adoption, compatible proposals and deferred extraction. The strongest near-term opportunities are stable deployment-validation, portable notification contracts, delegated Graph coordination in compatible PowerShell flows, and the existing Maester hook/report modules. Flex hosting needs identity/storage compatibility first; candidate deployment receipts do not replace domain or real-endpoint evidence.
 
-The historical review captured security-automation host/runtime proposals on a separate owner branch at 9ed4c575cc057a4a96c05ce91c7dd9b7694da7b7. Neither component is in the main snapshot used for this backlog integration; their code remains with the active owner. The three staged Defender engines and optional host/bundle adapters remain on preserved source branches; they were not imported by this tracking reconciliation. Qualify exact component pins, host/engine boundaries, independent identities and lifecycle evidence before adoption or deployment; local pilot labels alone do not establish published support.
+The earlier owner-branch-only assessment has been superseded by reviewed
+source integration: Reference now contains security host 0.1.4 and runtime 0.1.7,
+and the four current staged security consumers pin the runtime immutably. Their
+source and package provenance evidence is recorded in the execution record.
+Preserved older owner branches remain untouched. Enabled hosting, shared
+identity, schedules, endpoint state and teardown still require their separate
+acceptance gates; source integration does not establish deployed support.
 
 ## Selection, validation and handoff
 
