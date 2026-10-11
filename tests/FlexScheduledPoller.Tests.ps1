@@ -8,7 +8,7 @@ Describe 'Flex scheduled-poller host component' {
 
     It 'publishes one independently versioned pilot module' {
         $script:manifest.id | Should -Be 'flex-scheduled-poller-host'
-        $script:manifest.version | Should -Be '0.1.0'
+        $script:manifest.version | Should -Be '0.2.0'
         $script:manifest.status | Should -Be 'pilot'
         @($script:manifest.files.source) | Should -Be @(
             'components/bicep/flex-scheduled-poller-host/flex-scheduled-poller-host.bicep'
@@ -50,5 +50,28 @@ Describe 'Flex scheduled-poller host component' {
     It 'keeps secrets and storage connection strings out of outputs' {
         $script:source | Should -Not -Match 'output\s+\w*(connection|string|key|url)\w*'
         $script:source | Should -Match 'Storage Blob Data Contributor'
+    }
+
+    It 'preserves immutable consumer wrapper bytes apart from the two declared offline adaptations' {
+        $root = Join-Path $script:repoRoot 'tests/fixtures/bicep/flex-scheduled-poller-host'
+        $provenance = Get-Content (Join-Path $root 'provenance.json') -Raw | ConvertFrom-Json
+        foreach ($consumer in $provenance.consumers) {
+            $shape = if ($consumer.repository.EndsWith('/azd-pim')) { 'pim' } else { 'risk' }
+            $adapted = [IO.File]::ReadAllText((Join-Path $root "$shape-wrapper.bicep")).Replace("`r`n", "`n")
+            $original = $adapted.Replace("param identityOnlyStorage bool = false`n", '').Replace("    identityOnlyStorage: identityOnlyStorage`n", '').Replace(
+                "'../../../../components/bicep/flex-scheduled-poller-host/flex-scheduled-poller-host.bicep'",
+                "'../vendor/Azd.FlexScheduledPoller/flex-scheduled-poller-host.bicep'"
+            )
+            [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($original))) | Should -BeExactly $consumer.wrapperSha256
+            $consumer.componentVersion | Should -BeExactly '0.1.0'
+            $consumer.componentRevision | Should -BeExactly 'a79ed9ab9ae2ec10ff3d3c50a011d878c9524592'
+        }
+    }
+
+    It 'preserves the canonical legacy component for default parity without reusing its version' {
+        $root = Join-Path $script:repoRoot 'tests/fixtures/bicep/flex-scheduled-poller-host'
+        $provenance = Get-Content (Join-Path $root 'provenance.json') -Raw | ConvertFrom-Json
+        (Get-FileHash (Join-Path $root 'legacy-0.1.0.bicep')).Hash | Should -BeExactly $provenance.legacyComponent.sha256
+        $script:manifest.version | Should -BeExactly '0.2.0'
     }
 }

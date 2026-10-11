@@ -100,7 +100,7 @@ Describe 'Component synchronization' {
         $lock = Get-Content -LiteralPath (Join-Path $consumer 'azd-components.lock.json') -Raw | ConvertFrom-Json
         $lock.components.Count | Should -Be 1
         $lock.components[0].id | Should -Be 'flex-scheduled-poller-host'
-        $lock.components[0].version | Should -Be '0.1.0'
+        $lock.components[0].version | Should -Be '0.2.0'
         $lock.components[0].sourceRevision | Should -Match '^[0-9a-f]{40}$'
         $lock.components[0].files.Count | Should -Be 1
         $lock.components[0].files[0].target | Should -Be 'infra/vendor/Azd.FlexScheduledPoller/flex-scheduled-poller-host.bicep'

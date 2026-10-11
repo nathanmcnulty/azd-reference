@@ -1,0 +1,30 @@
+{
+  "purpose": "Offline adaptation of immutable consumer wrappers; no consumer adoption",
+  "adaptations": ["local component path", "identityOnlyStorage parameter and pass-through"],
+  "legacyComponent": {
+    "sourceRevision": "a29e222181ce8cdce5de148cf88e39bd3202cf91",
+    "path": "components/bicep/flex-scheduled-poller-host/flex-scheduled-poller-host.bicep",
+    "version": "0.1.0",
+    "sha256": "1440B6E809C4642E3CF9AF4CF3F50377A2CADFD9713E7C9E6E2E155A2D1BC70B"
+  },
+  "consumers": [
+    {
+      "repository": "https://github.com/nathanmcnulty/azd-pim",
+      "sourceRevision": "4c6ddfdb1cc0d5f30c9cac817a259decd181cc31",
+      "path": "infra/modules/polling-function.bicep",
+      "wrapperSha256": "C4E3D93486DF62FC529A81DDD99A9E8720423220B29C5A79806CEBD8F8E87673",
+      "lockSha256": "23FB467D392D0C334333DCC43D0C9459BE99DE625CFAC4E99B53728D394E37B6",
+      "componentVersion": "0.1.0",
+      "componentRevision": "a79ed9ab9ae2ec10ff3d3c50a011d878c9524592"
+    },
+    {
+      "repository": "https://github.com/nathanmcnulty/azd-risk-based-ca",
+      "sourceRevision": "f8eda4504566e0521204fd884fd630c3a9910d24",
+      "path": "infra/modules/graph-notifications.bicep",
+      "wrapperSha256": "A09A38A8EEB62AEE90046E4DD19A1E8AFB5DC365431EFFA1142829D4907D4DEB",
+      "lockSha256": "DCC31188C490CD1F2257CBD59F5884B256E0F77B83531CF079696CC683E239C1",
+      "componentVersion": "0.1.0",
+      "componentRevision": "a79ed9ab9ae2ec10ff3d3c50a011d878c9524592"
+    }
+  ]
+}

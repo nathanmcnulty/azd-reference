@@ -173,6 +173,15 @@ jobs:
           $pollerTemplate = Join-Path $env:RUNNER_TEMP 'flex-scheduled-poller-migration.json'
           az bicep build --file ./tests/fixtures/bicep/flex-scheduled-poller-host/migration-wrapper.bicep --outfile $pollerTemplate
           ./tests/Assert-FlexScheduledPollerCompiledTemplate.ps1 -TemplatePath $pollerTemplate
+          $pimIdentityTemplate = Join-Path $env:RUNNER_TEMP 'flex-pim-identity.json'
+          $riskIdentityTemplate = Join-Path $env:RUNNER_TEMP 'flex-risk-identity.json'
+          az bicep build --file ./tests/fixtures/bicep/flex-scheduled-poller-host/pim-wrapper.bicep --outfile $pimIdentityTemplate
+          az bicep build --file ./tests/fixtures/bicep/flex-scheduled-poller-host/risk-wrapper.bicep --outfile $riskIdentityTemplate
+          ./tests/Assert-FlexIdentityCompiledTemplate.ps1 -Shape Pim -TemplatePath $pimIdentityTemplate
+          ./tests/Assert-FlexIdentityCompiledTemplate.ps1 -Shape Risk -TemplatePath $riskIdentityTemplate
+          $legacyFlexTemplate = Join-Path $env:RUNNER_TEMP 'flex-legacy-0.1.0.json'
+          az bicep build --file ./tests/fixtures/bicep/flex-scheduled-poller-host/legacy-0.1.0.bicep --outfile $legacyFlexTemplate
+          ./tests/Test-FlexIdentityCompiledNegative.ps1 -PimTemplatePath $pimIdentityTemplate -RiskTemplatePath $riskIdentityTemplate -LegacyTemplatePath $legacyFlexTemplate
           $compiledRoot = Join-Path $env:RUNNER_TEMP 'azure-monitor-notification-fixtures'
           New-Item -ItemType Directory -Path $compiledRoot -Force | Out-Null
           $pimTemplate = Join-Path $compiledRoot 'pim-wrapper.json'
