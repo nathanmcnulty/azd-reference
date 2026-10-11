@@ -887,3 +887,49 @@ reconciled component opportunity guidance against 11 current manifests and
 post-main Windows/Linux and CodeQL workflows passed. These documentation
 changes establish current source and component provenance, not live deployment
 or endpoint acceptance.
+
+## Reviewed backlog follow-through, 10 October 2026
+
+Four further repository-local tasks are complete on reviewed main revisions.
+Each exact reviewed head passed hosted PR checks, merged through its named PR,
+and has a matching merged Git tree. Post-main validation and security workflows
+passed, and the reviewed source branches remain preserved. New local validation
+used PowerShell 7.6.6; older results remain historical evidence.
+
+| Task | Reviewed source and merge | Result and validation boundary |
+| --- | --- | --- |
+| RISK-003 | [PR #25](https://github.com/nathanmcnulty/azd-risk-based-ca/pull/25), head `41aff6de5c138958f5ba29f152420901491a4062`, main `f8eda4504566e0521204fd884fd630c3a9910d24` | Feature/route matrix, partial source-bound permission inventory and actual-handler failure fixtures. Independent review and full repository validation: 117 Pester and 25 Node tests; canonical permission evidence, component checks and Bicep passed. Permission gaps remain explicit; no grant, CA/KQL migration, delivery or live pilot is claimed. |
+| AUTH-008 | [PR #12](https://github.com/nathanmcnulty/azd-auth-notifications/pull/12), head `e7c6d61fec6e37aa9806978ab5d647e9a73ea007`, main `549f5a02443b9c82ada2010a776a6958f76eb036` | Technical defer of unchanged Flex host 0.1.0 after immutable identity/storage comparison. Its shared-key/system-identity/Blob contract cannot preserve this consumer's identity-only UAMI/Table state. Independent assessment review; registered repository validation with 55 Node tests, TypeScript and Bicep passed. No host migration or permission change. |
+| REPORT-003 | [PR #19](https://github.com/nathanmcnulty/azd-defender-reporting/pull/19), head `dd8772e6b03cac698cc299f216e6ac0c0cf703c4`, main `087d0d22303d837d31821f787a09821b26e67609` | Technical defer of unchanged Maester Web App 0.1.1: Blob synchronization, reader identity, Easy Auth and publisher ownership need consumer adapters. Upstream exporter/dashboard authority and independent compute/web choices remain. Independent review, 4 Pester tests and all registered upstream/build contracts passed. No App Service migration or live browser/auth claim. |
+| CLEAN-006 | [PR #17](https://github.com/nathanmcnulty/azd-device-cleanup/pull/17), head `22405c2088a1b82915c136a90efcf0eadfe15f55`, main `08f5efa647f94d1414447973b6ee036a130c68b1` | Bounded primary-user metadata index, exact archived-version recovery and optional relationship collection defaulting false. Independent source review and 86 Pester tests, strict permission/schema/hash checks, Bicep parity and native HTTP JSON-string proof passed. Exact pinned helpers also passed synthetic live Key Vault acceptance and owned cleanup. |
+
+The source/merge tree identities are respectively
+`3089035a02f9d646be4d448f084bd3c2095c63e1`,
+`899a47b7f3111620f95678b797b7a2adcb172d32`,
+`21e32415190dc3fca18f13cc5771a1758e6ca5cb` and
+`b366e74fcb4bf03625ca90313e0eb48147237b44`.
+
+The repaired CLEAN-006 reader preserves wire JSON timestamp strings instead of
+allowing native date coercion to reject valid metadata or alter recovery strings.
+Strict record validation remains intact. Its independently reviewed private
+harness exercised the actual pinned writer/reader helpers against a disposable
+Key Vault with synthetic data: default discovery made only metadata reads,
+legacy recovery used the latest alias, and indexed recovery read the exact
+recorded archive version. An independent reviewer reconstructed both expected
+recovery hashes and the version-bound index name from the frozen fixtures.
+
+The exact temporary vault-scoped Azure role, vault including its soft-deleted
+copy, and resource group were removed. Separate fresh inventory verified zero
+remaining matching resources/direct roles and unchanged default subscription.
+All failed attempts and their cleanup evidence remain preserved privately.
+This proves the bounded synthetic helper integration, not production managed
+identity, device lifecycle, actual recovery material or a human recovery drill.
+The earlier Graph managed-device read returned HTTP 403 before the user
+relationship route was reached; its cause remains unknown. No Graph scope or
+application-role grant was made.
+
+The refreshed aggregate counts include only captured published backlogs.
+Unmerged website work and other local claims remain excluded. Ordinary
+engineering proposals remain selectable after checking their original scope,
+dependencies and current owner; live recipient/device and rollout gates remain
+separate.
