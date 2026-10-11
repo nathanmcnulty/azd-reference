@@ -334,7 +334,7 @@ The Flex host is a pilot; its existing storage credential boundary should be com
 
 **Evidence:**
 
-- _none_
+- 2026-10-11 source-only pilot0.2.0 adds opt-in identityOnlyStorage with compatibility defaultfalse, host Blob Data Owner scoped to the shared account, SystemAssignedIdentity deployment, actual service endpoint host settings and identity-only reserved-name filtering. Exact PIM4c6ddfdb1cc0d5f30c9cac817a259decd181cc31 and riskf8eda4504566e0521204fd884fd630c3a9910d24 wrapper/lock shapes preserve naming, settings, aliases, state and7/14day retention. Compiled two-shape assertions,13 security negatives,72 actual compiled predicate cases and default resource/settings parity are offline evidence only. Incremental ARM conditions do not delete existing roles&colon; adoption/rollback need separately reviewed exact role inventory/reconciliation, and fresh-shape proofs do not establish in-place migration. Full registered validation and independent review remain separate evidence gates; no tag, consumer adoption, native package/runtime/checkpoint or effective grant claim. REF-004 remains proposed with original acceptance and separate live/release gates preserved.
 
 **Review and authorization note:**
 

@@ -9,7 +9,7 @@ Read-only suitability review of published default-branch manifests and consumer 
 | deployment-validation | 1.1.1 | stable |
 | deployment-receipt | 0.2.1 | candidate |
 | notification-contracts | 1.0.0 | pilot |
-| flex-scheduled-poller-host | 0.1.0 | pilot |
+| flex-scheduled-poller-host | 0.2.0 | pilot |
 | azure-monitor-scheduled-query-notifications | 0.1.0 | pilot |
 | graph-delegated-authentication | 0.1.1 | pilot |
 | maester-azd-hooks | 0.1.6 | pilot |

@@ -71,8 +71,11 @@ param blobDeleteRetentionDays int = 7
 @description('Resource tags applied to all poller resources.')
 param tags object = {}
 
-var storageConnectionString = 'DefaultEndpointsProtocol=https;AccountName=${storage.name};EndpointSuffix=${environment().suffixes.storage};AccountKey=${storage.listKeys().keys[0].value}'
-var solutionSettings = [for setting in items(applicationSettings): {
+@description('Opt in to managed identity for host and deployment storage; the compatibility default retains shared keys.')
+param identityOnlyStorage bool = false
+
+var storageConnectionString = identityOnlyStorage ? '' : 'DefaultEndpointsProtocol=https;AccountName=${storage.name};EndpointSuffix=${environment().suffixes.storage};AccountKey=${storage.listKeys().keys[0].value}'
+var solutionSettings = [for setting in filter(items(applicationSettings), setting => !identityOnlyStorage || (!startsWith(toLower(replace(setting.key, ':', '__')), 'azurewebjobsstorage') && !startsWith(toLower(replace(setting.key, ':', '__')), 'deployment_storage_connection_string') && !startsWith(toLower(replace(setting.key, ':', '__')), 'azd_poller_') && !startsWith(toLower(replace(setting.key, ':', '__')), 'azure_env_name') && toLower(replace(setting.key, ':', '__')) != 'azurewebjobsdashboard' && toLower(replace(setting.key, ':', '__')) != 'website_contentazurefileconnectionstring' && toLower(replace(setting.key, ':', '__')) != 'website_run_from_package')): {
   name: setting.key
   value: string(setting.value)
 }]
@@ -88,11 +91,22 @@ var deadLetterContainerCompatibilitySettings = [for settingName in deadLetterCon
   name: settingName
   value: deadLetterContainer.name
 }]
-var compatibilitySettings = concat(
+var allCompatibilitySettings = concat(
   storageAccountCompatibilitySettings,
   stateContainerCompatibilitySettings,
   deadLetterContainerCompatibilitySettings
 )
+
+var compatibilitySettings = filter(allCompatibilitySettings, setting => !identityOnlyStorage || (!startsWith(toLower(replace(setting.name, ':', '__')), 'azurewebjobsstorage') && !startsWith(toLower(replace(setting.name, ':', '__')), 'deployment_storage_connection_string') && !startsWith(toLower(replace(setting.name, ':', '__')), 'azd_poller_') && !startsWith(toLower(replace(setting.name, ':', '__')), 'azure_env_name') && toLower(replace(setting.name, ':', '__')) != 'azurewebjobsdashboard' && toLower(replace(setting.name, ':', '__')) != 'website_contentazurefileconnectionstring' && toLower(replace(setting.name, ':', '__')) != 'website_run_from_package'))
+var storageSettings = identityOnlyStorage ? [
+  { name: 'AzureWebJobsStorage__blobServiceUri', value: storage.properties.primaryEndpoints.blob }
+  { name: 'AzureWebJobsStorage__queueServiceUri', value: storage.properties.primaryEndpoints.queue }
+  { name: 'AzureWebJobsStorage__tableServiceUri', value: storage.properties.primaryEndpoints.table }
+  { name: 'AzureWebJobsStorage__credential', value: 'managedidentity' }
+] : [
+  { name: 'AzureWebJobsStorage', value: storageConnectionString }
+  { name: 'DEPLOYMENT_STORAGE_CONNECTION_STRING', value: storageConnectionString }
+]
 
 resource storage 'Microsoft.Storage/storageAccounts@2023-05-01' = {
   name: storageAccountName
@@ -104,7 +118,7 @@ resource storage 'Microsoft.Storage/storageAccounts@2023-05-01' = {
   kind: 'StorageV2'
   properties: {
     allowBlobPublicAccess: false
-    allowSharedKeyAccess: true
+    allowSharedKeyAccess: !identityOnlyStorage
     defaultToOAuthAuthentication: true
     minimumTlsVersion: 'TLS1_2'
     supportsHttpsTrafficOnly: true
@@ -177,9 +191,7 @@ resource functionApp 'Microsoft.Web/sites@2024-04-01' = {
     siteConfig: {
       minTlsVersion: '1.2'
       ftpsState: 'Disabled'
-      appSettings: concat(solutionSettings, compatibilitySettings, [
-        { name: 'AzureWebJobsStorage', value: storageConnectionString }
-        { name: 'DEPLOYMENT_STORAGE_CONNECTION_STRING', value: storageConnectionString }
+      appSettings: concat(solutionSettings, compatibilitySettings, storageSettings, [
         { name: 'AZD_POLLER_STORAGE_ACCOUNT_NAME', value: storage.name }
         { name: 'AZD_POLLER_STATE_CONTAINER', value: stateContainer.name }
         { name: 'AZD_POLLER_DEAD_LETTER_CONTAINER', value: deadLetterContainer.name }
@@ -200,7 +212,9 @@ resource functionApp 'Microsoft.Web/sites@2024-04-01' = {
         storage: {
           type: 'blobContainer'
           value: '${storage.properties.primaryEndpoints.blob}${deploymentContainer.name}'
-          authentication: {
+          authentication: identityOnlyStorage ? {
+            type: 'SystemAssignedIdentity'
+          } : {
             type: 'StorageAccountConnectionString'
             storageAccountConnectionStringName: 'DEPLOYMENT_STORAGE_CONNECTION_STRING'
           }
@@ -210,7 +224,17 @@ resource functionApp 'Microsoft.Web/sites@2024-04-01' = {
   }
 }
 
-resource stateBlobContributor 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+resource hostBlobOwner 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (identityOnlyStorage) {
+  name: guid(storage.id, functionApp.id, 'Storage Blob Data Owner')
+  scope: storage
+  properties: {
+    principalId: functionApp.identity.principalId
+    principalType: 'ServicePrincipal'
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'b7e6dc6d-f1e8-4753-8033-0f276bb0955b')
+  }
+}
+
+resource stateBlobContributor 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!identityOnlyStorage) {
   name: guid(storage.id, functionApp.id, 'Storage Blob Data Contributor')
   scope: storage
   properties: {

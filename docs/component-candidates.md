@@ -17,7 +17,7 @@ Current main manifests classify `deployment-validation@1.1.1` as stable;
 `notification-contracts@1.0.0`, `graph-delegated-authentication@0.1.1`,
 `maester-azd-hooks@0.1.6`, `maester-report-webapp@0.1.1`,
 `azure-monitor-scheduled-query-notifications@0.1.0` and
-`flex-scheduled-poller-host@0.1.0`, `intune-remediations@0.1.6`,
+`flex-scheduled-poller-host@0.2.0`, `intune-remediations@0.1.6`,
 `security-automation-runtime@0.1.7` and `security-automation-host@0.1.4` as pilots; and
 `deployment-receipt@0.2.1` as a candidate. Versions and lifecycle labels are
 evidence of their respective contracts, not blanket deployment or release approval.
@@ -131,8 +131,9 @@ Remaining promotion order:
    available as the `azure-monitor-scheduled-query-notifications@0.1.0` pilot
    component.
 3. Flex Consumption host and durable Blob state: available as the
-   `flex-scheduled-poller-host@0.1.0` pilot component. Identity-only host and
-   deployment storage remains a hardening candidate.
+   `flex-scheduled-poller-host@0.2.0` source-only pilot component. Identity-only
+   host/deployment storage is opt-in; native two-shape qualification, consumer
+   adoption and separately authorized immutable release remain pending.
 4. Teams managed-connector authorization and delivery proof.
 5. Application-role planning beyond the delegated Graph authentication component.
 6. Polling contracts and fixtures; shared runtime only after compatible state and
