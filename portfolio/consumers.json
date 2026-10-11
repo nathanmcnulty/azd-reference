@@ -148,7 +148,12 @@
       "rolloutRing": "pilot",
       "adoption": "adopted",
       "desiredBaseline": "2026.09",
-      "components": [],
+      "components": [
+        {
+          "id": "deployment-validation",
+          "desiredVersion": "1.1.1"
+        }
+      ],
       "validation": {
         "entryPoint": "scripts/Test-SantaTemplate.ps1",
         "timeoutMinutes": 15
