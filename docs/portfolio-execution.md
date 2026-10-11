@@ -933,3 +933,63 @@ Unmerged website work and other local claims remain excluded. Ordinary
 engineering proposals remain selectable after checking their original scope,
 dependencies and current owner; live recipient/device and rollout gates remain
 separate.
+
+## Published follow-through and held work, 11 October 2026
+
+A fresh immutable capture resolved all 25 default branches and read the JSON and
+generated Markdown for all 30 backlog roots. At captured Reference
+`6dc5841a3156b904b89f0f4ff8d97207a26ec15a`, canonical validation, cross-root
+dependencies and all 30 generated views passed. The 60 captured backlog blobs
+and three canonical tooling/schema blobs were checked against Git blob IDs and
+SHA-256 hashes. This per-repository capture is not an atomic portfolio transaction.
+
+The published snapshot has 215 records: 113 done, 101 proposed and one blocked;
+68 proposed records are local-only. Waves 0–4 contain 66, 59, 52, 35 and three
+records respectively. Compared with the 212-record snapshot, CPC-004, MWID-003
+and VID-003 moved from proposed to done; CPC-006 and MWID-006 were added as done
+and MWID-007 as blocked. No records were removed. Reference's default revision
+also advanced without changing its backlog items. The earlier counts remain
+historical evidence. Done remains bounded task completion, not live acceptance.
+
+| Task | Reviewed integration | Validation and remaining boundary |
+| --- | --- | --- |
+| CPC-004 | [PR #8](https://github.com/nathanmcnulty/azd-cloud-pc-recommendations/pull/8), head `5e8111cd4322428b4b30173b6efe9f09adc81d5b`, main `26dab2d321c305bbb6bf724f47faa13d12779d26`, equal tree `9a5408a042355e6582fb19b995afbc0fdd594368` | Independently reviewed compatibility assessment; 17 Python tests and registered Bicep/parser validation. Three post-main workflows passed. Flex 0.1.0 adoption is deferred for Python/identity-only storage compatibility; no component lock, infrastructure migration or delivery claim. |
+| CPC-006 | Runtime [PR #9](https://github.com/nathanmcnulty/azd-cloud-pc-recommendations/pull/9), head `b3b59f206a64c16c16927a5ea51427c2e4ffa6cd`, main `adb48c20e0e57101d608f8735b4b5cb051f89a58`, equal tree `3cbe37dddbc3be2093ef2599ad37cdf81112cc91`; closure [PR #10](https://github.com/nathanmcnulty/azd-cloud-pc-recommendations/pull/10), main `2707bdb9e32c02e40b9a421e4393c82be80e972d` | Fixed allowlisted provider diagnostics and exception sanitization. Independent actual timer/monitor/notifier fixtures, 24 Python tests, 13 focused methods and registered validation passed; three source and three closure post-main workflows passed. No hosted telemetry or recipient-visible delivery; CPC-002 retains live acceptance. |
+| MWID-003 | Source [PR #43](https://github.com/nathanmcnulty/azd-myworkid/pull/43), head `54d8b572eef26f9a034cfa7c61f9c4a1661810a2`, main `599c10c407b1b0058cd182284d1139a2f77a77a9`, equal tree `aa812aa7a0fecdebde75b2983dfe7b4b21f5afbf`; closure [PR #45](https://github.com/nathanmcnulty/azd-myworkid/pull/45) | Repository-owned read-only status, actionable optional gates and partial source-hashed permissions. Independent review, 39 PowerShell 7.6.6 tests, 22 unit and 72 integration tests; all six source-head checks and post-main CodeQL passed. Test CI is PR-only, inherited from the identical merge tree. Bounded native wrong-subscription refusal preserved cached context; no positive tenant, DNS/TLS or user-journey acceptance. MWID-002 remains proposed. |
+| MWID-006 | Source [PR #46](https://github.com/nathanmcnulty/azd-myworkid/pull/46), head `22d469514c187327bb78895d5fc0a41443e6cd72`, main `090c4d4da64d4e8a0e4a9d0630bf980059812de9`, equal tree `3f5d031ce72d15f1e029320f5394dfbdc7534fd5`; closure [PR #48](https://github.com/nathanmcnulty/azd-myworkid/pull/48), main `730df60022ca701725b18af3493af55e53c0aabf` | Available compatible client dependency fixes and exact upstream integrity reviewed; isolated npm install/build passed. Six source-head checks, main CodeQL/build, six closure-head checks and closure-main CodeQL passed. Nine high development dependency entries remain MWID-007 blocked; no security all-clear, Linux/macOS/ia32 execution or tenant acceptance. |
+| VID-003 | [PR #12](https://github.com/nathanmcnulty/azd-verified-id/pull/12), head `f16227c854adf358c683b26194d8c8af8b1126d8`, main `a3c368e605852f30a66d82304b51907bb037ea67`, equal tree `60c48589d13e266235646b4b514f0d8740c5d433` | Repository-owned read-only setup status with exact authority binding and explicit permission/component decisions. Independent review, 86 PowerShell 7.6.6 tests, analyzer/schema/source-hash/Bicep validation passed; both post-main workflows passed. Unsigned claims remain observations. No live DNS/admin authorization, issuance or presentation; VID-002 remains proposed. |
+
+Retained source integration receipts for CPC-004, MWID-003 and MWID-006 have
+SHA-256 `582c2302d1e257d137458c150cd61e02232a1afb57d02b513b76e5c41a992710`,
+`433706012d6c7feba47fb1c831bc8608c2d0ceb24ac570b79db7f7596ae9207f` and
+`80ac0a8ae87cd3ea363af9a4706bdc41684dc8406c12991baf101ecf3a1ba4ea`.
+CPC-006 and MWID-006 closure receipts and VID-003 integration receipt have
+SHA-256 `bff53e3789085252d53677a9b16838bde92f6eef8fbf6607a36f18c1cdbf004e`,
+`3d1120e86cfc3d2d1ab685632f0456dd7f2da8f1b2f28e0dd591bf3656c848eb` and
+`f4e8e009400613c30be5eb9a44cbcd7140fe35bf07bd90a03fe8fe4da59a7e5d`.
+They identify exact reviewed source/merge trees and hosted checks, and retain
+the qualification boundaries above; they do not confer permission grants.
+
+Three source drafts remain separately held and excluded from these counts:
+
+- [AUD PR #19](https://github.com/nathanmcnulty/azd-advanced-auditing/pull/19),
+  head `371af1841167f952118c337f56688c80f2df453b`: 46 reviewed offline cases and
+  source-bound optional diagnostics/alerts, defaulting false. Retention state
+  is bootstrap-observed, not effective Purview policy; native KQL/diagnostic
+  qualification and live audit gates remain. No adopted consumer registration.
+- [CLEAN PR #18](https://github.com/nathanmcnulty/azd-device-cleanup/pull/18),
+  head `03ae762107e191955227a21b4648d6d252428b99`: 100 reviewed offline tests and
+  notification-contract formatting. Native candidate workflow PUT returned
+  HTTP 400 before route cases ran. Independently reviewed owned cleanup and
+  fresh 404 readback removed the lab group and receiver workflows; failed
+  evidence is preserved. No successful native route or recipient delivery.
+- [Website PR #65](https://github.com/nathanmcnulty/azd-website/pull/65),
+  head `5f69e4656a60b066ce5e90e753cd7f8bc3700f79`: reviewed source-bound catalogue
+  and quickstarts with 17 catalogue and four dependency tests, typecheck/build
+  and CLI evidence. Merge remains held because main triggers production
+  Cloudflare build/deploy while WEB-002 acceptance says no production deploy.
+  Local source/SSR tests do not prove live website, clipboard or browser flow.
+
+These are dated source and evidence bindings, not permission to widen adoption,
+grant roles, select recipients or bypass publication/rollout gates. Ordinary
+local proposals remain selectable after dependency and owner reconciliation.
