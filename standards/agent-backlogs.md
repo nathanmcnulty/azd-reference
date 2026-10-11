@@ -6,6 +6,11 @@ must not be edited independently. Historical roadmaps, TODO files, issues, and
 release plans remain useful sources, but they do not become executable merely
 because they are mentioned by a backlog item.
 
+New PowerShell implementation and validation work in this portfolio targets
+PowerShell 7.6 or later. Do not add or run compatibility work for earlier
+versions. Preserve older validation results as historical evidence; they do not
+set the baseline for new work.
+
 Validate one repository with:
 
 ```powershell

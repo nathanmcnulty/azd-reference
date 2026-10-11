@@ -864,3 +864,26 @@ code to migrate. Canonical dirty checkouts, retained environments, immutable
 preservation branches, failed lab evidence and successful ignored validation
 artifacts remain preserved. Use reviewed current-main sources for new work;
 older local snapshots must not overwrite the reconciled backlogs or source.
+
+## Validation baseline and guidance reconciliation, 10 October 2026
+
+The maintainer selected PowerShell 7.6 or later for further implementation and
+validation. Earlier version results remain historical evidence; no additional
+lower-version compatibility work is planned.
+
+[Reference PR #78](https://github.com/nathanmcnulty/azd-reference/pull/78)
+refreshed the aggregate review view from 30 fetched default-branch backlogs.
+Its reviewed head `d186d16bb37fcbf70063cacb42c10558ad1d95e6` merged as
+`af7377574377d2a0161f85232c2e0d7b0ee86aa1`, with identical tree
+`b54260044da47e0420e5f5998f1e1ac56314bcd0`. All five PR checks and both
+post-main Windows/Linux and CodeQL workflows passed.
+
+[Reference PR #79](https://github.com/nathanmcnulty/azd-reference/pull/79)
+reconciled component opportunity guidance against 11 current manifests and
+30 published consumer locks. The reviewed head
+`ac4c1aae40bc9ae36accafb51e542fcb7ed15e3f` merged as
+`77b5f83468b0d60d534efd4a52ca389a77e37637`, with identical tree
+`7bd8c7398d6ce19eea65a996f25e5f36bfba84c9`. All five PR checks and both
+post-main Windows/Linux and CodeQL workflows passed. These documentation
+changes establish current source and component provenance, not live deployment
+or endpoint acceptance.
