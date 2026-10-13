@@ -18,9 +18,13 @@ Current main manifests classify `deployment-validation@1.1.1` as stable;
 `maester-azd-hooks@0.1.6`, `maester-report-webapp@0.1.1`,
 `azure-monitor-scheduled-query-notifications@0.1.0` and
 `flex-scheduled-poller-host@0.2.0`, `intune-remediations@0.1.6`,
-`security-automation-runtime@0.1.7` and `security-automation-host@0.1.4` as pilots; and
+`security-automation-runtime@0.1.7` and `security-automation-host@0.1.5` as pilots; and
 `deployment-receipt@0.2.1` as a candidate. Versions and lifecycle labels are
 evidence of their respective contracts, not blanket deployment or release approval.
+
+The host's [PowerShell 7.6 runtime boundary](security-automation-host-runtime.md)
+is a source-only update. Existing immutable consumer locks continue to identify
+their adopted version until a separately reviewed update.
 
 The permission schema, registry and comparison tool were reconciled separately
 from preserved security host/runtime and Intune collection component work. A
