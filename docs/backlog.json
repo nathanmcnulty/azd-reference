@@ -523,6 +523,46 @@
       ],
       "blocker": null,
       "claim": null
+    },
+    {
+      "id": "REF-013",
+      "title": "Align optional security automation hosts with PowerShell 7.6",
+      "kind": "maintenance",
+      "priority": "P1",
+      "status": "done",
+      "wave": 1,
+      "problem": "Optional host templates still select PowerShell 7.4 despite the selected PowerShell 7.6+ baseline and review engines requiring that runtime.",
+      "scope": [
+        "components/bicep/security-automation-host",
+        "tests/SecurityHostDiagnostics.Tests.ps1",
+        "docs/"
+      ],
+      "acceptance": [
+        "Select PowerShell 7.6 in Functions Flex and the Automation runtime used by Automation and Logic App modes; bind the runbook to its explicit 7.6 environment.",
+        "Preserve the compute-free default, disabled scheduling, host identity and permission scopes, pilot lifecycle and existing retained environments.",
+        "Record current primary platform support and exact compiled-source validation, keeping consumer adoption and native startup, execution, report, pause and teardown evidence separate."
+      ],
+      "validation": [
+        "Run compiled security-host contract tests on PowerShell 7.6+ with the pinned Bicep compiler.",
+        "Run the registered reference tests, schema, component-version and generated-backlog checks.",
+        "Review the exact source and hosted checks before committing, pushing and merging; do not deploy or enable schedules in this source-only task."
+      ],
+      "dependencies": [],
+      "authorization": "local-only",
+      "components": [
+        "security-automation-host"
+      ],
+      "sources": [
+        "components/bicep/security-automation-host/component.json",
+        "docs/security-automation-host-runtime.md",
+        "https://learn.microsoft.com/en-us/azure/azure-functions/functions-reference-powershell",
+        "https://learn.microsoft.com/en-us/azure/automation/automation-runbook-types"
+      ],
+      "evidence": [
+        "Source candidate changes only the host runtime selections and named Automation environment, advances the pilot to 0.1.5 and checks the compiled Function/runtime/runbook contract. Microsoft primary documentation checked on 13 October 2026 lists PowerShell 7.6 for Functions Flex and Automation runtime environments. No consumer source, deployed host, permission grant, schedule, Graph access or native execution is changed or accepted by this candidate. The exact source commit 4a2c205ec6de08ad890f3eb9a1cb025232bf0bb8 passed independent source and published-head review. Hosted run 38366541096 passed the complete 386-test suite on both Windows and Linux with PowerShell 7.6.6, zero failures or skips, 11 catalog tests on each platform, exact PowerShell analysis, backlog and component-version checks, skeleton validation, all registered Bicep builds, and clean-checkout checks. All five PR checks passed. This completes the source runtime alignment only; the documentation completion change and final merged main still require their own review and hosted verification. Consumer adoption and native startup, execution, report, pause and teardown remain separate."
+      ],
+      "blocker": null,
+      "claim": null
     }
   ]
 }

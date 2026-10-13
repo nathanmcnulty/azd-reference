@@ -138,7 +138,7 @@ resource function 'Microsoft.Web/sites@2024-04-01' = if (useFunction) {
       ]
     }
     functionAppConfig: {
-      runtime: { name: 'powershell', version: '7.4' }
+      runtime: { name: 'powershell', version: '7.6' }
       scaleAndConcurrency: { maximumInstanceCount: 1, instanceMemoryMB: 2048 }
       deployment: {
         storage: {
@@ -169,9 +169,9 @@ resource automation 'Microsoft.Automation/automationAccounts@2024-10-23' = if (u
 }
 resource runtime 'Microsoft.Automation/automationAccounts/runtimeEnvironments@2024-10-23' = if (useAutomation) {
   parent: automation
-  name: 'SecurityPowerShell74'
+  name: 'SecurityPowerShell76'
   location: location
-  properties: { runtime: { language: 'PowerShell', version: '7.4' } }
+  properties: { runtime: { language: 'PowerShell', version: '7.6' } }
 }
 resource runbook 'Microsoft.Automation/automationAccounts/runbooks@2024-10-23' = if (useAutomation) {
   parent: automation

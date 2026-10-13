@@ -21,6 +21,22 @@ Describe 'Function diagnostics deployment contract' {
 }
 
 Describe 'Compiled security host boundaries' {
+    It 'selects the supported PowerShell 7.6 host and binds runbooks to its explicit runtime environment' {
+        $function = @($template.resources | Where-Object type -eq 'Microsoft.Web/sites')
+        $runtime = @($template.resources | Where-Object type -eq 'Microsoft.Automation/automationAccounts/runtimeEnvironments')
+        $runbook = @($template.resources | Where-Object type -eq 'Microsoft.Automation/automationAccounts/runbooks')
+        $function.Count | Should -Be 1
+        $runtime.Count | Should -Be 1
+        $runbook.Count | Should -Be 1
+        $function[0].properties.functionAppConfig.runtime.name | Should -BeExactly 'powershell'
+        $function[0].properties.functionAppConfig.runtime.version | Should -BeExactly '7.6'
+        $runtime[0].properties.runtime.language | Should -BeExactly 'PowerShell'
+        $runtime[0].properties.runtime.version | Should -BeExactly '7.6'
+        $runtime[0].name | Should -Match 'SecurityPowerShell76'
+        $runbook[0].properties.runtimeEnvironment | Should -BeExactly 'SecurityPowerShell76'
+        $runtime[0].condition | Should -Be $runbook[0].condition
+    }
+
     It 'defaults to no hosted resources and binds scheduling to the lowercase package hash' {
         $template.parameters.computeMode.defaultValue | Should -BeExactly 'none'
         $template.variables.hosted | Should -BeExactly "[not(equals(parameters('computeMode'), 'none'))]"

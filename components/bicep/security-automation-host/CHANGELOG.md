@@ -28,3 +28,9 @@
 ## 0.1.4
 
 - Add workspace-backed Function diagnostics with 30-day retention and a 0.1 GB daily ingestion cap so invocation and deployment failures can be investigated.
+
+## 0.1.5
+
+- Select PowerShell 7.6 for Functions Flex and the Automation runtime shared by Automation and Logic App modes.
+- Bind runbooks to the separately named SecurityPowerShell76 runtime environment, preserving any retained older environment.
+- Keep the source-only pilot lifecycle, compute-free default, disabled scheduling and existing identity/permission boundaries. Native startup and execution remain separate validation gates.

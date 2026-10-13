@@ -15,10 +15,10 @@ Read-only suitability review of published default-branch manifests and consumer 
 | maester-azd-hooks | 0.1.6 | pilot |
 | maester-report-webapp | 0.1.1 | pilot |
 | intune-remediations | 0.1.6 | pilot |
-| security-automation-host | 0.1.4 | pilot |
+| security-automation-host | 0.1.5 | pilot |
 | security-automation-runtime | 0.1.7 | pilot |
 
-This table is reconciled to [Reference main 6dc5841a](https://github.com/nathanmcnulty/azd-reference/tree/6dc5841a3156b904b89f0f4ff8d97207a26ec15a/components). Main manifests are authoritative for the authored version; immutable revisions and consumer locks record source delivery. Candidate and pilot status remain explicit. See [component candidates](component-candidates.md) for extraction boundaries.
+This table starts from [Reference main 6dc5841a](https://github.com/nathanmcnulty/azd-reference/tree/6dc5841a3156b904b89f0f4ff8d97207a26ec15a/components), with the security host's [PowerShell 7.6 source-only update](security-automation-host-runtime.md) reconciled on 13 October 2026. Main manifests are authoritative for the authored version; immutable revisions and consumer locks record source delivery. Candidate and pilot status remain explicit. The consumer rows below retain their captured adopted versions. See [component candidates](component-candidates.md) for extraction boundaries.
 
 ## Suitability by repository
 

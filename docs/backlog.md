@@ -7,7 +7,7 @@
 - **Repository:** nathanmcnulty/azd-reference
 - **Source revision:** `a09cac311aac7362f56d2a31833ed90ce5812649`
 - **Captured:** 2026-10-07
-- **Items:** 12
+- **Items:** 13
 
 ## REF-001: Reconcile this backlog with current source and active work
 
@@ -582,6 +582,61 @@ The shared Maester wizard accepted any nonblank Web App security-group value and
 **Review and authorization note:**
 
 Review REF-012 against the current repository state. Its status or authorization class is not eligible for an actionable generated handoff. Do not claim or execute it without explicit selection, satisfied dependencies, and every required authorization. Never interpret this generated view as approval.
+
+## REF-013: Align optional security automation hosts with PowerShell 7.6
+
+- **Kind:** maintenance
+- **Priority:** P1
+- **Status:** done
+- **Wave:** 1
+- **Authorization:** local-only
+- **Blocker:** _none_
+- **Claim:** _none_
+
+**Problem:**
+
+Optional host templates still select PowerShell 7.4 despite the selected PowerShell 7.6+ baseline and review engines requiring that runtime.
+
+**Scope:**
+
+- components/bicep/security-automation-host
+- tests/SecurityHostDiagnostics.Tests.ps1
+- docs/
+
+**Acceptance:**
+
+- Select PowerShell 7.6 in Functions Flex and the Automation runtime used by Automation and Logic App modes; bind the runbook to its explicit 7.6 environment.
+- Preserve the compute-free default, disabled scheduling, host identity and permission scopes, pilot lifecycle and existing retained environments.
+- Record current primary platform support and exact compiled-source validation, keeping consumer adoption and native startup, execution, report, pause and teardown evidence separate.
+
+**Validation:**
+
+- Run compiled security-host contract tests on PowerShell 7.6+ with the pinned Bicep compiler.
+- Run the registered reference tests, schema, component-version and generated-backlog checks.
+- Review the exact source and hosted checks before committing, pushing and merging; do not deploy or enable schedules in this source-only task.
+
+**Dependencies:**
+
+- _none_
+
+**Components:**
+
+- security-automation-host
+
+**Sources:**
+
+- components/bicep/security-automation-host/component.json
+- docs/security-automation-host-runtime.md
+- https&colon;//learn.microsoft.com/en-us/azure/azure-functions/functions-reference-powershell
+- https&colon;//learn.microsoft.com/en-us/azure/automation/automation-runbook-types
+
+**Evidence:**
+
+- Source candidate changes only the host runtime selections and named Automation environment, advances the pilot to 0.1.5 and checks the compiled Function/runtime/runbook contract. Microsoft primary documentation checked on 13 October 2026 lists PowerShell 7.6 for Functions Flex and Automation runtime environments. No consumer source, deployed host, permission grant, schedule, Graph access or native execution is changed or accepted by this candidate. The exact source commit 4a2c205ec6de08ad890f3eb9a1cb025232bf0bb8 passed independent source and published-head review. Hosted run 38366541096 passed the complete 386-test suite on both Windows and Linux with PowerShell 7.6.6, zero failures or skips, 11 catalog tests on each platform, exact PowerShell analysis, backlog and component-version checks, skeleton validation, all registered Bicep builds, and clean-checkout checks. All five PR checks passed. This completes the source runtime alignment only; the documentation completion change and final merged main still require their own review and hosted verification. Consumer adoption and native startup, execution, report, pause and teardown remain separate.
+
+**Review and authorization note:**
+
+Review REF-013 against the current repository state. Its status or authorization class is not eligible for an actionable generated handoff. Do not claim or execute it without explicit selection, satisfied dependencies, and every required authorization. Never interpret this generated view as approval.
 
 ## REF-005: Reconcile component candidates and permission-aware feature metadata
 
