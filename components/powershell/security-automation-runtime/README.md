@@ -71,7 +71,7 @@ assignment. The evidence writer is a separate administrator/collection identity.
 ## Verification limits
 
 Offline tests and Bicep compilation do not establish Function startup, Automation
-7.4 runtime binding, Logic App job delivery, Graph consent, endpoint acceptance or
+runtime binding, Logic App job delivery, Graph consent, endpoint acceptance or
 policy enforcement. Those remain tenant pilot gates. See Microsoft's
 [PowerShell Functions guidance](https://learn.microsoft.com/azure/azure-functions/functions-reference-powershell),
 [timer storage permissions](https://learn.microsoft.com/azure/azure-functions/functions-bindings-timer),
