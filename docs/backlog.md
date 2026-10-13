@@ -7,7 +7,7 @@
 - **Repository:** nathanmcnulty/azd-reference
 - **Source revision:** `a09cac311aac7362f56d2a31833ed90ce5812649`
 - **Captured:** 2026-10-07
-- **Items:** 13
+- **Items:** 14
 
 ## REF-001: Reconcile this backlog with current source and active work
 
@@ -771,3 +771,57 @@ The host/runtime source-only pilot and four immutable consumer upgrades are qual
 **Review and authorization note:**
 
 Review REF-007 against the current repository state. Its status or authorization class is not eligible for an actionable generated handoff. Do not claim or execute it without explicit selection, satisfied dependencies, and every required authorization. Never interpret this generated view as approval.
+
+## REF-014: Configure the dedicated read-only GitHub governance audit App
+
+- **Kind:** maintenance
+- **Priority:** P2
+- **Status:** blocked
+- **Wave:** 1
+- **Authorization:** local-only
+- **Blocker:** Owner-controlled dedicated App identity, selected repository installation and secure client-ID/private-key configuration are needed before this workflow can run.
+- **Claim:** _none_
+
+**Problem:**
+
+The weekly governance audit stops before inspecting repositories because its dedicated GitHub App configuration is unavailable.
+
+**Scope:**
+
+- .github/workflows/github-governance-audit.yml
+- docs/github-governance-audit.md
+- portfolio/github-governance-repositories.json
+- docs/backlog.json
+
+**Acceptance:**
+
+- Reconcile the intended dedicated read-only App and selected repository installation against the current governance registry; keep the write-capable portfolio publisher separate.
+- Supply the owner-controlled client-ID variable and environment private-key secret through the secure credential setup; do not export credential values.
+- Run the normal read-only workflow and independently review its complete report without changing rulesets, catalog enforcement or repository settings.
+
+**Validation:**
+
+- Verify configuration existence using name-only metadata checks.
+- Verify the exact normal workflow source, terminal outcome and resulting audit report; a token-creation failure is not governance drift.
+
+**Dependencies:**
+
+- _none_
+
+**Components:**
+
+- _none_
+
+**Sources:**
+
+- docs/github-governance-audit.md
+- .github/workflows/github-governance-audit.yml
+- https&colon;//github.com/nathanmcnulty/azd-reference/issues/88
+
+**Evidence:**
+
+- Run 38265140194 on source 497f46740fcc310c8e7afb7e8cc84dee0a393883 failed at App token creation with an empty client-id before the audit ran. Fresh name-only checks on 13 October 2026 found no AZD&lowbar;GOVERNANCE&lowbar;APP&lowbar;CLIENT&lowbar;ID repository or environment variable and no AZD&lowbar;GOVERNANCE&lowbar;APP&lowbar;PRIVATE&lowbar;KEY secret in github-governance-audit. No credential value was read. Independent triage review passed, and open issue &num;88 preserves the owner setup dependency. No App, key, grant or governance setting was created or changed.
+
+**Review and authorization note:**
+
+Review REF-014 against the current repository state. Its status or authorization class is not eligible for an actionable generated handoff. Do not claim or execute it without explicit selection, satisfied dependencies, and every required authorization. Never interpret this generated view as approval.

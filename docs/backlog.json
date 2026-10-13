@@ -563,6 +563,43 @@
       ],
       "blocker": null,
       "claim": null
+    },
+    {
+      "id": "REF-014",
+      "title": "Configure the dedicated read-only GitHub governance audit App",
+      "kind": "maintenance",
+      "priority": "P2",
+      "status": "blocked",
+      "wave": 1,
+      "problem": "The weekly governance audit stops before inspecting repositories because its dedicated GitHub App configuration is unavailable.",
+      "scope": [
+        ".github/workflows/github-governance-audit.yml",
+        "docs/github-governance-audit.md",
+        "portfolio/github-governance-repositories.json",
+        "docs/backlog.json"
+      ],
+      "acceptance": [
+        "Reconcile the intended dedicated read-only App and selected repository installation against the current governance registry; keep the write-capable portfolio publisher separate.",
+        "Supply the owner-controlled client-ID variable and environment private-key secret through the secure credential setup; do not export credential values.",
+        "Run the normal read-only workflow and independently review its complete report without changing rulesets, catalog enforcement or repository settings."
+      ],
+      "validation": [
+        "Verify configuration existence using name-only metadata checks.",
+        "Verify the exact normal workflow source, terminal outcome and resulting audit report; a token-creation failure is not governance drift."
+      ],
+      "dependencies": [],
+      "authorization": "local-only",
+      "components": [],
+      "sources": [
+        "docs/github-governance-audit.md",
+        ".github/workflows/github-governance-audit.yml",
+        "https://github.com/nathanmcnulty/azd-reference/issues/88"
+      ],
+      "evidence": [
+        "Run 38265140194 on source 497f46740fcc310c8e7afb7e8cc84dee0a393883 failed at App token creation with an empty client-id before the audit ran. Fresh name-only checks on 13 October 2026 found no AZD_GOVERNANCE_APP_CLIENT_ID repository or environment variable and no AZD_GOVERNANCE_APP_PRIVATE_KEY secret in github-governance-audit. No credential value was read. Independent triage review passed, and open issue #88 preserves the owner setup dependency. No App, key, grant or governance setting was created or changed."
+      ],
+      "blocker": "Owner-controlled dedicated App identity, selected repository installation and secure client-ID/private-key configuration are needed before this workflow can run.",
+      "claim": null
     }
   ]
 }
