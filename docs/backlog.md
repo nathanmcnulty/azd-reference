@@ -587,7 +587,7 @@ Review REF-012 against the current repository state. Its status or authorization
 
 - **Kind:** maintenance
 - **Priority:** P1
-- **Status:** proposed
+- **Status:** done
 - **Wave:** 1
 - **Authorization:** local-only
 - **Blocker:** _none_
@@ -632,7 +632,7 @@ Optional host templates still select PowerShell 7.4 despite the selected PowerSh
 
 **Evidence:**
 
-- Source candidate changes only the host runtime selections and named Automation environment, advances the pilot to 0.1.5 and checks the compiled Function/runtime/runbook contract. Microsoft primary documentation checked on 13 October 2026 lists PowerShell 7.6 for Functions Flex and Automation runtime environments. No consumer source, deployed host, permission grant, schedule, Graph access or native execution is changed or accepted by this candidate. Independent review and publication validation remain pending.
+- Source candidate changes only the host runtime selections and named Automation environment, advances the pilot to 0.1.5 and checks the compiled Function/runtime/runbook contract. Microsoft primary documentation checked on 13 October 2026 lists PowerShell 7.6 for Functions Flex and Automation runtime environments. No consumer source, deployed host, permission grant, schedule, Graph access or native execution is changed or accepted by this candidate. The exact source commit 4a2c205ec6de08ad890f3eb9a1cb025232bf0bb8 passed independent source and published-head review. Hosted run 38366541096 passed the complete 386-test suite on both Windows and Linux with PowerShell 7.6.6, zero failures or skips, 11 catalog tests on each platform, exact PowerShell analysis, backlog and component-version checks, skeleton validation, all registered Bicep builds, and clean-checkout checks. All five PR checks passed. This completes the source runtime alignment only; the documentation completion change and final merged main still require their own review and hosted verification. Consumer adoption and native startup, execution, report, pause and teardown remain separate.
 
 **Review and authorization note:**
 
