@@ -715,7 +715,7 @@ Review REF-005 against the current repository state. Its status or authorization
 
 - **Kind:** discovery
 - **Priority:** P2
-- **Status:** proposed
+- **Status:** done
 - **Wave:** 1
 - **Authorization:** local-only
 - **Blocker:** _none_
@@ -723,7 +723,7 @@ Review REF-005 against the current repository state. Its status or authorization
 
 **Problem:**
 
-The host/runtime source-only pilot and four immutable consumer upgrades are qualified, but offline source, package and lock evidence do not establish enabled-host operation or lifecycle proof.
+The reviewed host/runtime pilots and immutable consumer adoption need an explicit extraction and isolation contract; source review must remain separate from release and enabled-host acceptance.
 
 **Scope:**
 
@@ -764,9 +764,10 @@ The host/runtime source-only pilot and four immutable consumer upgrades are qual
 
 - At the initial 54a29a590c8b015f5becf7457407128e1b413835 baseline, main contained neither proposed security component. Historical branch manifests alone were evidence of separate owner work and did not establish implementation or adoption; REF-011 and the later four-consumer upgrade now supply the bounded source and immutable-lock evidence recorded below.
 - 2026-10-07 source review found that runtime 0.1.6 accepted path-like Automation BundleBlob values before token acquisition and download. REF-011 imports the preserved source as a repaired 0.1.7 runtime plus unchanged host 0.1.4, while retaining current hardened managed schemas.
-- Four current consumers independently preserve their solution-owned domains while pinning runtime 0.1.7 to canonical revision 1d126470ec0144820bd89e0eebb588cc183b6fbd. All 48 managed runtime targets match; host 0.1.4 and Intune 0.1.6 remain unchanged. The reviewed combined package binds four solutions, one source revision, one runtime revision and 123 declared file hashes.
+- At the initial four-consumer adoption, all four consumers independently preserve their solution-owned domains while pinning runtime 0.1.7 to canonical revision 1d126470ec0144820bd89e0eebb588cc183b6fbd. All 48 managed runtime targets match; host 0.1.4 and Intune 0.1.6 remain unchanged. The reviewed combined package binds four solutions, one source revision, one runtime revision and 123 declared file hashes.
 - Historical aggregate branches, dirty quality lineages and other preserved working copies were intentionally not absorbed or mutated. Retained runtime 0.1.6 snapshots should not enable Automation or Logic App jobs before that lineage is selected and upgraded; new work should start from verified merged main. This source finding is not evidence of deployed exposure.
-- Offline fixtures cover package binding and compiled host/RBAC shape. Function startup, Automation 7.4 binding, Logic App invocation, identity propagation, report durability, live schedule pause, teardown and release tags remain separate gates.
+- At the earlier host 0.1.4 stage, offline fixtures covered package binding and compiled host/RBAC shape while Automation 7.4 binding and other native lifecycle gates remained unproven. The later host 0.1.5 source selects PowerShell 7.6. Function startup, Automation and Logic App invocation, identity propagation, report durability, live schedule pause, teardown and release tags remain separate gates; no lower-version compatibility work or testing is part of this reconciliation.
+- Current source-bound reconciliation records host 0.1.5 at immutable revision 1f13ea06085fd1c7309a2b87601fd7dc5688355e and runtime 0.1.7 at 1d126470ec0144820bd89e0eebb588cc183b6fbd. docs/security-automation-host-runtime.md documents the engine/adapters contract, selected optional roles, solution-owned domain state, combined-host identity/process/container sharing, completion and failure boundaries, and deployment-owned teardown obligations. Exact independent documentation review passes all three original source-review criteria, with 258 protected tracked paths, the original acceptance and 13 other backlog items preserved. Fresh PowerShell 7.6.6 backlog schema/semantic, generated Markdown and diff checks pass. This completes local extraction review and does not establish release, enabled-host operation, effective permissions or live cleanup.
 
 **Review and authorization note:**
 
