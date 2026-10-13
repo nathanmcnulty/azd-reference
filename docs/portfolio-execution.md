@@ -993,3 +993,43 @@ Three source drafts remain separately held and excluded from these counts:
 These are dated source and evidence bindings, not permission to widen adoption,
 grant roles, select recipients or bypass publication/rollout gates. Ordinary
 local proposals remain selectable after dependency and owner reconciliation.
+
+## Published security follow-through and backlog refresh, 13 October 2026
+
+The refreshed immutable default-branch snapshot covers the same 30 backlog roots
+in 25 owning repositories: 217 records, 130 done, 85 proposed and two blocked.
+All captured JSON bytes, Git blob identities and original acceptance arrays are
+retained privately. The canonical schema and cross-repository dependency check
+passed for all 217 records on PowerShell 7.6.6. The capture is a point-in-time
+review view, not an atomic portfolio transaction or an implementation claim.
+Its composite evidence freeze is
+`52B11A72EE14511947A7D0B9677EA0A7185B435DDB90A08B05A0C2CB16B275B5`.
+The repository table in [the aggregate view](portfolio-backlog.md) links every
+captured backlog to its immutable revision. Owner-branch work remains excluded.
+
+| Published packet | Result and validation boundary |
+| --- | --- |
+| ASR/AV/Firewall discovery and proposal review | Staging [PR #42](https://github.com/nathanmcnulty/azd-work-in-progress/pull/42), [PR #44](https://github.com/nathanmcnulty/azd-work-in-progress/pull/44) and [PR #46](https://github.com/nathanmcnulty/azd-work-in-progress/pull/46) bind proposals to explicit review, evidence and exact cohorts. These are source/local acceptance; populated-device policy receipt and rollback remain separate. |
+| ACFB-004 | [PR #47](https://github.com/nathanmcnulty/azd-work-in-progress/pull/47), merged `c198f02198c6ecb478e8249ac9ae97db7285a3f0`, adds finite-inventory counterfactual trust review with limits and expiry. Broader records remain plan-only; metadata and asserted identities do not establish cryptographic approval or native signing. |
+| ACFB-005/006 | [PR #48](https://github.com/nathanmcnulty/azd-work-in-progress/pull/48), merged `b652ba5fe449b0ae34cbe311e48afc9cece7cd28`, completes the original local adapter and compatibility-assessment criteria. Shared artifact validation, default-off provider requests, XML regeneration and threshold refusal were independently reviewed. Main run `38471110583` passed 493 Windows tests and 492 Linux tests with the existing Windows-only ACL skip; both compiled all four roots and verified the combined package on PowerShell 7.6.6. Provider configuration, effective credentials, real enqueue/reconciliation and native endpoint acceptance remain unproven. |
+| Shared security host reconciliation | [PR #49](https://github.com/nathanmcnulty/azd-work-in-progress/pull/49), merged `4c974e1666000df6025fe8a1dd977de970353b77`, preserves the reviewed tree `7246b08962274bc0b5c32b9fcf106721f32be5c5`. Main run `38473888231` passed 499 Windows tests and 498 Linux tests with the same ACL skip; both compiled all four roots and verified the combined package on PowerShell 7.6.6. The source supplements cover real domain/bundle equivalence, failure propagation and host identity/role relationships. ASR-005, AV-005 and FW-005 remain proposed; native execution, effective permissions, temporal behavior and lifecycle evidence remain open. |
+| Reference host standards | [PR #87](https://github.com/nathanmcnulty/azd-reference/pull/87), [PR #90](https://github.com/nathanmcnulty/azd-reference/pull/90) and [PR #91](https://github.com/nathanmcnulty/azd-reference/pull/91) align PowerShell 7.6 host selection, runtime verification limits and shared-host review guidance. This is source/build adoption and documentation, without a new native-host acceptance claim. |
+
+The snapshot's staging revision `b652ba5` predates PR #49. That merge changes no
+backlog files or counts. Retained local package ZIPs belong to their reviewed
+source commits; merged-tree equivalence and hosted package success do not relabel
+those bytes as retained merged-main packages.
+
+IGA-003 is the next selected source feature, in a separate owner checkout. Its
+original bounded-summary, optional notification and disabled-path criteria remain
+intact. CLEAN-003/004 are subsequent source-only design candidates. GUI-004 is held
+for coordination with the existing Windows milestone owner. MADO-008's remaining
+Azure DevOps clone/refs evidence is separate from its already completed offline
+Git proofs. Maester's custom-test-package design is done; this does not establish
+execution of an upstream package.
+
+REF-014 and MWID-007 are the snapshot's blocked records. Recipient, populated
+device/group, Azure DevOps, website publication and native-host acceptance gates
+remain explicit. The earlier policy-rejected REF-004 native attempt is preserved
+and has not been retried. No task authorization, permission grant, delivery,
+component adoption or required catalog enforcement is inferred from this refresh.
