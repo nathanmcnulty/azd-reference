@@ -179,7 +179,7 @@ function Test-AzdFoundryAgentVersion {
         }
     }
     return [ordered]@{
-        schemaVersion = '1.0'; componentVersion = '0.1.0'; status = 'verified'
+        schemaVersion = '1.0'; componentVersion = '0.1.1'; status = 'verified'
         projectEndpoint = $endpoint; agentName = $AgentName; agentVersion = $AgentVersion
         modelDeployment = $Definition['model']; definitionSha256 = Get-AzdFoundryTextHash (ConvertTo-AzdFoundryCanonicalJson $Definition)
     }
@@ -220,7 +220,7 @@ function Invoke-AzdFoundryStatelessResponse {
     $endpoint = Resolve-AzdFoundryProjectEndpoint $ProjectEndpoint
     Assert-AzdFoundryDefinition $Definition
     $expected = [ordered]@{
-        schemaVersion = '1.0'; componentVersion = '0.1.0'; status = 'verified'
+        schemaVersion = '1.0'; componentVersion = '0.1.1'; status = 'verified'
         projectEndpoint = $endpoint; agentName = $AgentName; agentVersion = $AgentVersion
         modelDeployment = $Definition['model']; definitionSha256 = Get-AzdFoundryTextHash (ConvertTo-AzdFoundryCanonicalJson $Definition)
     }

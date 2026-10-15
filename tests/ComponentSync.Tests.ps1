@@ -114,7 +114,7 @@ Describe 'Component synchronization' {
         & $sync -Component foundry-stateless-agent -TargetPath $consumer | Out-Null
         $lock = Get-Content -LiteralPath (Join-Path $consumer 'azd-components.lock.json') -Raw | ConvertFrom-Json
         $lock.components[0].id | Should -BeExactly 'foundry-stateless-agent'
-        $lock.components[0].version | Should -BeExactly '0.1.0'
+        $lock.components[0].version | Should -BeExactly '0.1.1'
         $lock.components[0].sourceRevision | Should -Match '^[0-9a-f]{40}$'
         $lock.components[0].files.Count | Should -Be 3
         foreach ($file in $lock.components[0].files) {

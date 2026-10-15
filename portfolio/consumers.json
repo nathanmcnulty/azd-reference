@@ -300,7 +300,7 @@
         },
         {
           "id": "foundry-stateless-agent",
-          "desiredVersion": "0.1.0"
+          "desiredVersion": "0.1.1"
         }
       ]
     }

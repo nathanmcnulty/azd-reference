@@ -1,6 +1,6 @@
 # Optional stateless Foundry prompt agent
 
-`foundry-stateless-agent@0.1.0` is a source-only pilot. It uses the existing
+`foundry-stateless-agent@0.1.1` is a source-only pilot. It uses the existing
 component manifest, immutable source revision, SHA-256 lock, synchronization and
 drift checks. It is not a new deployment framework or a signed component release.
 Exchange is the first planned consumer; a generic report-advisory consumer is the

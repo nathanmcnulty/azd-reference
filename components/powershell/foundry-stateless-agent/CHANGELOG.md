@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.1
+
+- Enforce Azure's two-character project-name minimum and assert the compiled constraint.
+- Preserve the immutable 0.1.0 draft pin; existing pilot consumers upgrade through the standard sync tool and refresh their setup verification receipt.
+
 ## 0.1.0
 
 - Source-only pilot for optional Foundry resources, prompt-agent version creation/readback and exact-version one-shot structured responses.
