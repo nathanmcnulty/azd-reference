@@ -1,5 +1,9 @@
 # Deployment validation changelog
 
+## 2.0.0
+
+- Require PowerShell 7.6 or later. The public commands and data contracts are unchanged.
+
 ## 1.1.1
 
 - Reissue the unchanged stable 1.1 evidence-binding contract at a new immutable

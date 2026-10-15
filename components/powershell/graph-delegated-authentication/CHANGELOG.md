@@ -1,5 +1,9 @@
 # Delegated Graph authentication changelog
 
+## 0.2.0
+
+- Require PowerShell 7.6 or later. The public commands and data contracts are unchanged.
+
 ## 0.1.1
 
 - Add release metadata without changing the authentication API.

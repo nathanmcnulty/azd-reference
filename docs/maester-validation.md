@@ -5,6 +5,13 @@ vendored components. Validate them in layers so a passing unit test or GitHub
 workflow is not mistaken for proof that the deployed service, tenant boundary,
 or teardown behavior works.
 
+Use PowerShell 7.6 or later with Pester 6.2 or later. Import that Pester version
+explicitly before running the checks below:
+
+```powershell
+Import-Module Pester -MinimumVersion 6.2.0 -Force
+```
+
 ## Validation layers
 
 Run these checks from each consumer checkout:

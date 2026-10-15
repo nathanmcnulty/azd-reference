@@ -12,7 +12,9 @@ requires the explicit execution switch and exact caller/target tenant values.
 Choose All devices or a named group explicitly. Packages use SYSTEM, 64-bit
 Windows PowerShell and a daily UTC detection-only schedule. The companion
 remediation is dormant. Consumers must validate endpoint
-scripts on Windows PowerShell 5.1; PowerShell 7.4 authoring checks are separate.
+scripts on Windows PowerShell 5.1, the service-bound endpoint contract.
+Authoring and publishing require PowerShell 7.6 or later; tests require Pester
+6.2 or later.
 
 `Get-IntuneDeviceHealthScriptReadback` exports control-plane configuration,
 assignments and device run states. A successful create or matching assignment
