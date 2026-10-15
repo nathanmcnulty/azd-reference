@@ -7,6 +7,7 @@ BeforeAll {
 Describe 'Compiled optional Foundry resources' {
     It 'defaults disabled and creates no tools, storage, connections or compute hosts' {
         $template.parameters.enabled.defaultValue | Should -BeFalse
+        $template.parameters.projectName.minLength | Should -Be 2
         @($template.resources).Count | Should -Be 5
         foreach ($resource in $template.resources) { $resource.condition | Should -Match "parameters\('enabled'\)" }
         @($template.resources | Where-Object { $_.type -notin @('Microsoft.CognitiveServices/accounts','Microsoft.CognitiveServices/accounts/projects','Microsoft.CognitiveServices/accounts/deployments','Microsoft.Authorization/roleAssignments') }).Count | Should -Be 0

@@ -4,7 +4,7 @@ param location string = resourceGroup().location
 @minLength(3)
 @maxLength(64)
 param accountName string
-@minLength(1)
+@minLength(2)
 @maxLength(64)
 param projectName string
 @description('Explicit deployment name used by the prompt definition.')
