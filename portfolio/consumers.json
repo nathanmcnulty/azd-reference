@@ -283,6 +283,26 @@
         "entryPoint": "scripts/Test-Repository.ps1",
         "timeoutMinutes": 20
       }
+    },
+    {
+      "id": "azd-exchange-allow-list",
+      "repository": "https://github.com/nathanmcnulty/azd-work-in-progress",
+      "checkoutDirectory": "azd-work-in-progress",
+      "solutionRoot": "azd-exchange-allow-list",
+      "defaultBranch": "main",
+      "repositoryValidationWorkflow": ".github/workflows/validate.yml",
+      "rolloutRing": "pending",
+      "adoption": "pending",
+      "components": [
+        {
+          "id": "security-automation-host",
+          "desiredVersion": "0.2.0"
+        },
+        {
+          "id": "foundry-stateless-agent",
+          "desiredVersion": "0.1.0"
+        }
+      ]
     }
   ]
 }

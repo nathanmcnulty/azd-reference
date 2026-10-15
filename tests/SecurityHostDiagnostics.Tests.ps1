@@ -14,9 +14,7 @@ Describe 'Function diagnostics deployment contract' {
         $workspace.properties.retentionInDays | Should -Be 30
         $workspace.properties.workspaceCapping.dailyQuotaGb | Should -Be "[json('0.1')]"
         $insights.properties.WorkspaceResourceId | Should -Match 'Microsoft.OperationalInsights/workspaces'
-        $connection = @($site.properties.siteConfig.appSettings | Where-Object name -eq 'APPLICATIONINSIGHTS_CONNECTION_STRING')
-        $connection.Count | Should -Be 1
-        $connection[0].value | Should -Match 'Microsoft.Insights/components.*ConnectionString'
+        $site.properties.siteConfig.appSettings | Should -Match 'APPLICATIONINSIGHTS_CONNECTION_STRING.*Microsoft.Insights/components.*ConnectionString'
     }
 }
 
@@ -32,8 +30,9 @@ Describe 'Compiled security host boundaries' {
         $function[0].properties.functionAppConfig.runtime.version | Should -BeExactly '7.6'
         $runtime[0].properties.runtime.language | Should -BeExactly 'PowerShell'
         $runtime[0].properties.runtime.version | Should -BeExactly '7.6'
-        $runtime[0].name | Should -Match 'SecurityPowerShell76'
-        $runbook[0].properties.runtimeEnvironment | Should -BeExactly 'SecurityPowerShell76'
+        $template.parameters.automationRuntimeName.defaultValue | Should -BeExactly 'SecurityPowerShell76'
+        $runtime[0].name | Should -Match 'automationRuntimeName'
+        $runbook[0].properties.runtimeEnvironment | Should -BeExactly "[parameters('automationRuntimeName')]"
         $runtime[0].condition | Should -Be $runbook[0].condition
     }
 
@@ -57,8 +56,7 @@ Describe 'Compiled security host boundaries' {
         $jobSchedule[0].condition | Should -BeExactly $schedule[0].condition
         $workflow[0].condition | Should -Match "computeMode'.*logic-app"
         $workflow[0].properties.state | Should -Match 'effectiveScheduleEnabled'
-        (@($function[0].properties.siteConfig.appSettings | Where-Object name -eq 'AzureWebJobs.SecurityReview.Disabled'))[0].value |
-            Should -Match 'effectiveScheduleEnabled'
+        $function[0].properties.siteConfig.appSettings | Should -Match 'AzureWebJobs.SecurityReview.Disabled.*effectiveScheduleEnabled'
     }
 
     It 'keeps Function, Automation, and Logic App roles at their intended resource scopes' {
@@ -100,5 +98,22 @@ Describe 'Compiled security host boundaries' {
         $automationReaders[0].copy.count | Should -Match 'createArray\(0, 2\)'
         $automationReports.Count | Should -Be 1
         $logicJobs.Count | Should -Be 1
+    }
+}
+
+Describe 'Compiled additive worker configuration' {
+    It 'preserves historical defaults and binds custom Automation names and intervals' {
+        $template.parameters.automationRunbookName.defaultValue | Should -BeExactly 'Invoke-SecurityReview'
+        $template.parameters.automationRuntimeName.defaultValue | Should -BeExactly 'SecurityPowerShell76'
+        $template.parameters.automationScheduleName.defaultValue | Should -BeExactly 'SecurityReviewSixHourly'
+        $template.parameters.scheduleIntervalHours.defaultValue | Should -Be 6
+        $template.parameters.blobVersioningEnabled.defaultValue | Should -BeFalse
+        $schedule = @($template.resources | Where-Object type -eq 'Microsoft.Automation/automationAccounts/schedules')[0]
+        $schedule.name | Should -Match 'automationScheduleName'
+        $schedule.properties.interval | Should -BeExactly "[parameters('scheduleIntervalHours')]"
+        $job = @($template.resources | Where-Object type -eq 'Microsoft.Automation/automationAccounts/jobSchedules')[0]
+        $job.properties.parameters | Should -Match "union\(variables\('customJobParameters'\)"
+        $template.variables.customJobParameters | Should -Match 'toLower'
+        $template.variables.customAppSettings | Should -Match 'azurewebjobsstorage'
     }
 }

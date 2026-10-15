@@ -128,6 +128,9 @@ jobs:
           )
           if ($analysis.Count) { throw ($analysis | Format-Table | Out-String) }
 
+      - name: Select the pinned Bicep compiler before compiled contract tests
+        run: az bicep install --version v0.42.1
+
       - name: Run contract and synchronization tests
         run: |
           Install-Module Pester -RequiredVersion 5.7.1 -Force -Scope CurrentUser
@@ -164,7 +167,7 @@ jobs:
 
       - name: Build Bicep
         run: |
-          az bicep install --version v0.42.1
+          az bicep build --file ./components/powershell/foundry-stateless-agent/foundry-stateless-agent.bicep --stdout | Out-Null
           az bicep build --file ./skeleton/infra/main.bicep --stdout | Out-Null
           az bicep build --file ./examples/deployment-check/infra/main.bicep --stdout | Out-Null
           az bicep build --file ./components/bicep/azure-monitor-scheduled-query-notifications/logic-app-action-group.bicep --stdout | Out-Null

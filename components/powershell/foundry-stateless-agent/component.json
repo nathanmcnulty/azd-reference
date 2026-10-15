@@ -1,0 +1,13 @@
+{
+  "manifestVersion": "1.1",
+  "id": "foundry-stateless-agent",
+  "version": "0.1.0",
+  "status": "pilot",
+  "description": "Optional Foundry resources and a tool-free, exact-version prompt agent with bounded stateless structured responses.",
+  "changelog": "components/powershell/foundry-stateless-agent/CHANGELOG.md",
+  "files": [
+    { "source": "components/powershell/foundry-stateless-agent/Azd.FoundryStateless.psm1", "target": "scripts/vendor/Azd.FoundryStateless/Azd.FoundryStateless.psm1" },
+    { "source": "components/powershell/foundry-stateless-agent/Azd.FoundryStateless.psd1", "target": "scripts/vendor/Azd.FoundryStateless/Azd.FoundryStateless.psd1" },
+    { "source": "components/powershell/foundry-stateless-agent/foundry-stateless-agent.bicep", "target": "infra/vendor/Azd.FoundryStateless/foundry-stateless-agent.bicep" }
+  ]
+}

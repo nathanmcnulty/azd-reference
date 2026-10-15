@@ -56,3 +56,11 @@ source review, not component release, hosted activation or live lifecycle
 acceptance. Function startup, Automation and Logic App execution, identity
 propagation, durable report readback, schedule pause, teardown and endpoint
 outcomes still need evidence for the selected deployment and exact package.
+
+## Additive solution-owned worker seam
+
+The source-only 0.2.0 pilot preserves the defaults above and adds optional worker
+names, interval, non-secret parameters/app settings and Blob versioning. See the
+[Exchange composition review](exchange-component-composition.md). Existing
+snapshot-runtime wrappers remain unchanged; custom-name consumers own publishing,
+schedule control and exact readback. This is not existing-account adoption.

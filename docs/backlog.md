@@ -7,7 +7,7 @@
 - **Repository:** nathanmcnulty/azd-reference
 - **Source revision:** `a09cac311aac7362f56d2a31833ed90ce5812649`
 - **Captured:** 2026-10-07
-- **Items:** 14
+- **Items:** 15
 
 ## REF-001: Reconcile this backlog with current source and active work
 
@@ -826,3 +826,61 @@ The weekly governance audit stops before inspecting repositories because its ded
 **Review and authorization note:**
 
 Review REF-014 against the current repository state. Its status or authorization class is not eligible for an actionable generated handoff. Do not claim or execute it without explicit selection, satisfied dependencies, and every required authorization. Never interpret this generated view as approval.
+
+## REF-015: Qualify stateless Foundry and solution-owned security worker seams
+
+- **Kind:** feature
+- **Priority:** P1
+- **Status:** blocked
+- **Wave:** 2
+- **Authorization:** publication
+- **Blocker:** Live hosted behavior and exact runtime least-privilege authorization remain unqualified; no component release tag or automatic rollout.
+- **Claim:** _none_
+
+**Problem:**
+
+Exchange needs real deployable worker adapters and optional tool-free advisory inference without a second registry or broad runtime permission bundle.
+
+**Scope:**
+
+- components/powershell/foundry-stateless-agent
+- components/bicep/security-automation-host
+- docs/exchange-component-composition.md
+- portfolio/consumers.json
+- portfolio/permission-solutions.json
+
+**Acceptance:**
+
+- Version additive worker parameters without changing existing consumer defaults or role scopes.
+- Vendor the optional prompt-agent component by immutable revision and hashes; test readback, stateless exact-version invocation, output validation and drift.
+- Keep staged Exchange registration pending until consumer adoption is reviewed; disclose separately required hosted/API/RBAC acceptance.
+
+**Validation:**
+
+- Invoke-Pester ./tests/FoundryStateless.Tests.ps1,./tests/SecurityHostComposition.Tests.ps1,./tests/ComponentSync.Tests.ps1
+- Pinned Bicep compilation and compiled assertions in CI
+- Test-AzdBacklog.ps1 and Export-AzdBacklogMarkdown.ps1 -Check
+
+**Dependencies:**
+
+- REF-011
+- REF-013
+
+**Components:**
+
+- foundry-stateless-agent
+- security-automation-host
+
+**Sources:**
+
+- docs/foundry-stateless-agent.md
+- docs/exchange-component-composition.md
+- https&colon;//github.com/nathanmcnulty/azd-work-in-progress/pull/51
+
+**Evidence:**
+
+- 2026-10-15&colon; independent offline review passed 21 Foundry, 3 host composition and 30 synchronization tests. No live deployment, role grant or Foundry call was performed. Local compiled verification initially blocked by absent Bicep/Azure CLI; repository CI retains pinned compiler checks.
+
+**Review and authorization note:**
+
+Review REF-015 against the current repository state. Its status or authorization class is not eligible for an actionable generated handoff. Do not claim or execute it without explicit selection, satisfied dependencies, and every required authorization. Never interpret this generated view as approval.
