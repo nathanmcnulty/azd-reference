@@ -602,6 +602,50 @@
       ],
       "blocker": "Owner-controlled dedicated App identity, selected repository installation and secure client-ID/private-key configuration are needed before this workflow can run.",
       "claim": null
+    },
+    {
+      "id": "REF-015",
+      "title": "Qualify stateless Foundry and solution-owned security worker seams",
+      "kind": "feature",
+      "priority": "P1",
+      "status": "blocked",
+      "wave": 2,
+      "problem": "Exchange needs real deployable worker adapters and optional tool-free advisory inference without a second registry or broad runtime permission bundle.",
+      "scope": [
+        "components/powershell/foundry-stateless-agent",
+        "components/bicep/security-automation-host",
+        "docs/exchange-component-composition.md",
+        "portfolio/consumers.json",
+        "portfolio/permission-solutions.json"
+      ],
+      "acceptance": [
+        "Version additive worker parameters without changing existing consumer defaults or role scopes.",
+        "Vendor the optional prompt-agent component by immutable revision and hashes; test readback, stateless exact-version invocation, output validation and drift.",
+        "Keep staged Exchange registration pending until consumer adoption is reviewed; disclose separately required hosted/API/RBAC acceptance."
+      ],
+      "validation": [
+        "Invoke-Pester ./tests/FoundryStateless.Tests.ps1,./tests/SecurityHostComposition.Tests.ps1,./tests/ComponentSync.Tests.ps1",
+        "Pinned Bicep compilation and compiled assertions in CI",
+        "Test-AzdBacklog.ps1 and Export-AzdBacklogMarkdown.ps1 -Check"
+      ],
+      "dependencies": [
+        "REF-011",
+        "REF-013"
+      ],
+      "authorization": "publication",
+      "components": [
+        "foundry-stateless-agent",
+        "security-automation-host"
+      ],
+      "sources": [
+        "docs/foundry-stateless-agent.md",
+        "docs/exchange-component-composition.md",
+        "https://github.com/nathanmcnulty/azd-work-in-progress/pull/51"
+      ],
+      "evidence": [
+        "2026-10-15: independent offline review passed 21 Foundry, 3 host composition and 30 synchronization tests. No live deployment, role grant or Foundry call was performed. Local compiled verification initially blocked by absent Bicep/Azure CLI; repository CI retains pinned compiler checks."
+      ],
+      "blocker": "Live hosted behavior and exact runtime least-privilege authorization remain unqualified; no component release tag or automatic rollout."
     }
   ]
 }

@@ -110,6 +110,23 @@ Describe 'Component synchronization' {
         { & $drift -TargetPath $consumer } | Should -Not -Throw
     }
 
+    It 'vendors the stateless Foundry pilot with exact bytes and detects consumer drift' {
+        & $sync -Component foundry-stateless-agent -TargetPath $consumer | Out-Null
+        $lock = Get-Content -LiteralPath (Join-Path $consumer 'azd-components.lock.json') -Raw | ConvertFrom-Json
+        $lock.components[0].id | Should -BeExactly 'foundry-stateless-agent'
+        $lock.components[0].version | Should -BeExactly '0.1.1'
+        $lock.components[0].sourceRevision | Should -Match '^[0-9a-f]{40}$'
+        $lock.components[0].files.Count | Should -Be 3
+        foreach ($file in $lock.components[0].files) {
+            (Get-FileHash (Join-Path $consumer $file.target)).Hash.ToLowerInvariant() | Should -BeExactly $file.sha256
+        }
+        { & $drift -TargetPath $consumer } | Should -Not -Throw
+        $managed = Join-Path $consumer $lock.components[0].files[0].target
+        Add-Content -LiteralPath $managed -Value '# consumer drift'
+        { & $drift -TargetPath $consumer } | Should -Throw
+        { & $sync -Component foundry-stateless-agent -TargetPath $consumer } | Should -Throw
+    }
+
     It 'is deterministic for the same component revision' {
         & $sync -Component deployment-validation -TargetPath $consumer | Out-Null
         $firstHash = (Get-FileHash -LiteralPath (Join-Path $consumer 'azd-components.lock.json') -Algorithm SHA256).Hash

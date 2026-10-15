@@ -14,12 +14,36 @@ param bundleBlob string = 'unconfigured.zip'
 param bundleSha256 string = ''
 @description('Required future ISO 8601 UTC start time when enabling the Automation schedule.')
 param automationScheduleStartTime string = '2030-01-01T00:00:00Z'
+@description('Solution-owned names; changing names does not remove or pause retained resources.')
+@minLength(1)
+@maxLength(63)
+param automationRunbookName string = 'Invoke-SecurityReview'
+@minLength(1)
+@maxLength(63)
+param automationRuntimeName string = 'SecurityPowerShell76'
+@minLength(1)
+@maxLength(63)
+param automationScheduleName string = 'SecurityReviewSixHourly'
+@description('Hourly interval for Automation and Logic App modes; Function uses the separate NCRONTAB schedule.')
+@minValue(1)
+@maxValue(24)
+param scheduleIntervalHours int = 6
+@description('Additional non-secret runbook parameters. StorageAccount, BundleBlob and BundleSha256 are reserved; this component supplies them.')
+param workerJobParameters object = {}
+@description('Additional non-secret Function app settings; host-owned authentication, storage, schedule and disable settings always win.')
+param workerAppSettings object = {}
+@description('Enable Blob version history when the solution requires durable recovery; does not make evidence immutable.')
+param blobVersioningEnabled bool = false
+@description('Solution-owned description; the wrapper must publish and verify its reviewed runbook before enabling.')
+param automationRunbookDescription string = 'Processes approved immutable evidence bundle. Upload and publish source before running.'
 param tags object = {}
 @description('Optional explicitly selected source publisher object ID; receives write access only to the package container.')
 param sourcePublisherPrincipalId string = ''
 @allowed(['User', 'ServicePrincipal', 'Group'])
 param sourcePublisherPrincipalType string = 'User'
 
+var customJobParameters = toObject(filter(items(workerJobParameters), item => !contains(['storageaccount', 'bundleblob', 'bundlesha256'], toLower(item.key))), item => item.key, item => string(item.value))
+var customAppSettings = filter(items(workerAppSettings), item => !startsWith(toLower(item.key), 'azurewebjobsstorage') && !contains(['applicationinsights_connection_string', 'azurewebjobsstorage__accountname', 'azurewebjobsstorage__credential', 'security_storage_account', 'security_schedule', 'azurewebjobs.securityreview.disabled'], toLower(item.key)))
 var hosted = computeMode != 'none'
 var useFunction = computeMode == 'function'
 var useAutomation = computeMode == 'automation' || computeMode == 'logic-app'
@@ -48,7 +72,7 @@ resource storage 'Microsoft.Storage/storageAccounts@2023-05-01' = if (hosted) {
 resource blobs 'Microsoft.Storage/storageAccounts/blobServices@2023-05-01' = if (hosted) {
   parent: storage
   name: 'default'
-  properties: { deleteRetentionPolicy: { enabled: true, days: 7 } }
+  properties: { deleteRetentionPolicy: { enabled: true, days: 7 }, isVersioningEnabled: blobVersioningEnabled }
 }
 resource containers 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = [for name in ['evidence', 'reports', 'packages']: if (hosted) {
   parent: blobs
@@ -128,14 +152,14 @@ resource function 'Microsoft.Web/sites@2024-04-01' = if (useFunction) {
     siteConfig: {
       minTlsVersion: '1.2'
       ftpsState: 'Disabled'
-      appSettings: [
+      appSettings: concat([
         { name: 'APPLICATIONINSIGHTS_CONNECTION_STRING', value: diagnostics!.properties.ConnectionString }
         { name: 'AzureWebJobsStorage__accountName', value: functionStorage.name }
         { name: 'AzureWebJobsStorage__credential', value: 'managedidentity' }
         { name: 'SECURITY_STORAGE_ACCOUNT', value: storage.name }
         { name: 'SECURITY_SCHEDULE', value: schedule }
         { name: 'AzureWebJobs.SecurityReview.Disabled', value: string(!effectiveScheduleEnabled) }
-      ]
+      ], map(customAppSettings, item => { name: item.key, value: string(item.value) }))
     }
     functionAppConfig: {
       runtime: { name: 'powershell', version: '7.6' }
@@ -169,18 +193,18 @@ resource automation 'Microsoft.Automation/automationAccounts@2024-10-23' = if (u
 }
 resource runtime 'Microsoft.Automation/automationAccounts/runtimeEnvironments@2024-10-23' = if (useAutomation) {
   parent: automation
-  name: 'SecurityPowerShell76'
+  name: automationRuntimeName
   location: location
   properties: { runtime: { language: 'PowerShell', version: '7.6' } }
 }
 resource runbook 'Microsoft.Automation/automationAccounts/runbooks@2024-10-23' = if (useAutomation) {
   parent: automation
-  name: 'Invoke-SecurityReview'
+  name: automationRunbookName
   location: location
   properties: {
     runbookType: 'PowerShell'
     runtimeEnvironment: runtime.name
-    description: 'Processes approved immutable evidence bundle. Upload and publish source before running.'
+    description: automationRunbookDescription
     logProgress: false
     logVerbose: false
     draft: {}
@@ -224,10 +248,10 @@ resource automationReportWriter 'Microsoft.Authorization/roleAssignments@2022-04
 }
 resource automationSchedule 'Microsoft.Automation/automationAccounts/schedules@2024-10-23' = if (computeMode == 'automation' && effectiveScheduleEnabled) {
   parent: automation
-  name: 'SecurityReviewSixHourly'
+  name: automationScheduleName
   properties: {
     frequency: 'Hour'
-    interval: 6
+    interval: scheduleIntervalHours
     startTime: automationScheduleStartTime
     timeZone: 'Etc/UTC'
     description: 'Set a future start time and approved package hash before enabling.'
@@ -239,7 +263,7 @@ resource jobSchedule 'Microsoft.Automation/automationAccounts/jobSchedules@2024-
   properties: {
     runbook: { name: runbook.name }
     schedule: { name: automationSchedule.name }
-    parameters: { StorageAccount: storage.name, BundleBlob: bundleBlob, BundleSha256: bundleSha256 }
+    parameters: union(customJobParameters, { StorageAccount: storage.name, BundleBlob: bundleBlob, BundleSha256: bundleSha256 })
   }
 }
 resource workflow 'Microsoft.Logic/workflows@2019-05-01' = if (computeMode == 'logic-app') {
@@ -254,7 +278,7 @@ resource workflow 'Microsoft.Logic/workflows@2019-05-01' = if (computeMode == 'l
       contentVersion: '1.0.0.0'
       parameters: {}
       triggers: {
-        Every_six_hours: { type: 'Recurrence', recurrence: { frequency: 'Hour', interval: 6 } }
+        Every_six_hours: { type: 'Recurrence', recurrence: { frequency: 'Hour', interval: scheduleIntervalHours } }
       }
       actions: {
         Start_review: {
@@ -266,7 +290,7 @@ resource workflow 'Microsoft.Logic/workflows@2019-05-01' = if (computeMode == 'l
             body: {
               properties: {
                 runbook: { name: runbook.name }
-                parameters: { StorageAccount: storage.name, BundleBlob: bundleBlob, BundleSha256: bundleSha256 }
+                parameters: union(customJobParameters, { StorageAccount: storage.name, BundleBlob: bundleBlob, BundleSha256: bundleSha256 })
               }
             }
           }
@@ -295,3 +319,11 @@ output workflowName string = computeMode == 'logic-app' ? workflow.name : ''
 output principalId string = useFunction ? function!.identity.principalId : (useAutomation ? automation!.identity.principalId : '')
 output solution string = solutionName
 output scheduledProcessingEnabled bool = effectiveScheduleEnabled && hosted
+
+output runtimeName string = useAutomation ? runtime.name : ''
+output scheduleName string = computeMode == 'automation' ? automationScheduleName : ''
+output automationAccountId string = useAutomation ? automation.id : ''
+output storageAccountId string = hosted ? storage.id : ''
+output blobEndpoint string = hosted ? storage!.properties.primaryEndpoints.blob : ''
+output functionAppId string = useFunction ? function.id : ''
+output workflowId string = computeMode == 'logic-app' ? workflow.id : ''

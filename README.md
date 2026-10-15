@@ -115,6 +115,10 @@ deployment metadata, see
 For immutable signed component tags and release attestations, see
 [`docs/component-releases.md`](docs/component-releases.md).
 
+See the source-only [stateless Foundry prompt-agent pilot](docs/foundry-stateless-agent.md)
+and [Exchange composition review](docs/exchange-component-composition.md) for optional
+agent integration and explicit host/permission reuse boundaries.
+
 ## Portfolio status and updates
 
 Audit the registered local checkouts without fetching or executing consumer code:
