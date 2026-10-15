@@ -1020,16 +1020,55 @@ backlog files or counts. Retained local package ZIPs belong to their reviewed
 source commits; merged-tree equivalence and hosted package success do not relabel
 those bytes as retained merged-main packages.
 
-IGA-003 is the next selected source feature, in a separate owner checkout. Its
-original bounded-summary, optional notification and disabled-path criteria remain
-intact. CLEAN-003/004 are subsequent source-only design candidates. GUI-004 is held
-for coordination with the existing Windows milestone owner. MADO-008's remaining
-Azure DevOps clone/refs evidence is separate from its already completed offline
-Git proofs. Maester's custom-test-package design is done; this does not establish
-execution of an upstream package.
+At the 13 October snapshot IGA-003 was the next selected source feature and
+CLEAN-003/004 were subsequent source-only design candidates. The 15 October
+follow-through now records IGA-003's original bounded-summary, optional
+notification and disabled-path criteria complete, and CLEAN-003/004 complete as
+source-only designs. GUI-004 remains held for coordination with the existing
+Windows milestone owner. MADO-008's remaining Azure DevOps clone/refs evidence is
+separate from its already completed offline Git proofs. Maester's custom-test-
+package design is done; this does not establish execution of an upstream package.
 
 REF-014 and MWID-007 are the snapshot's blocked records. Recipient, populated
 device/group, Azure DevOps, website publication and native-host acceptance gates
 remain explicit. The earlier policy-rejected REF-004 native attempt is preserved
 and has not been retried. No task authorization, permission grant, delivery,
 component adoption or required catalog enforcement is inferred from this refresh.
+
+## Published follow-through and backlog refresh, 15 October 2026
+
+The current published capture covers 25 repositories and 30 roots with 218
+records: 138 done, 78 proposed and two blocked; 45 proposed records are
+local-only. The immutable source-table revision is
+`5e8c1c59b9ab84a7e50d5da397865f22c0fa6d86` and its raw SHA-256 is
+`000C1A4F196A43579D3EC9F1EEDFDAE134EE42574B177B280A906849C083D669`.
+Validation passed for all captured JSON on PowerShell 7.6.6. These are
+non-atomic default-branch observations with preserved source/design versus live
+qualifications; they do not change owning backlog status.
+
+The published follow-through packets are bounded to their original criteria:
+
+| Packet | Published evidence and boundary |
+| --- | --- |
+| Cleanup | PRs [#19](https://github.com/nathanmcnulty/azd-device-cleanup/pull/19) and [#20](https://github.com/nathanmcnulty/azd-device-cleanup/pull/20) are Intune and Defender designs. PR [#21](https://github.com/nathanmcnulty/azd-device-cleanup/pull/21) is an optional offline dynamic-group proposal with 125 tests. No live device, policy, delivery or cleanup run is claimed. |
+| Entra IGA | PRs [#21](https://github.com/nathanmcnulty/azd-entra-iga/pull/21) and [#22](https://github.com/nathanmcnulty/azd-entra-iga/pull/22) complete the bounded operator summaries and optional status contracts. Published-main validation is 110 core, 41 privacy and 222 operator assertions; native hosting, Graph/storage, effective permissions, monitor ingestion and recipient delivery remain unproven. |
+| Emergency Access | PR [#23](https://github.com/nathanmcnulty/azd-emergency-access/pull/23) completes the workspace-health design (114 tests); PR [#24](https://github.com/nathanmcnulty/azd-emergency-access/pull/24) completes the early tenant guard (118 tests); PR [#25](https://github.com/nathanmcnulty/azd-emergency-access/pull/25) is an optional HOL external-guard design (118 tests), not implementation, coverage or enablement. PR [#26](https://github.com/nathanmcnulty/azd-emergency-access/pull/26) aligns the catalog pin with approved revision `0b79` using identical validator code; main validation is 118 tests and adds no required enforcement. |
+| Health | PR [#13](https://github.com/nathanmcnulty/azd-entra-health-monitoring/pull/13) is a bounded manual four-check review with 68 tests and source contract work. Graph freshness and recipient receipt remain unknown without authoritative evidence. |
+| Governance | The three pilot repositories remain current with zero findings in the read-only governance audit (`38774428694`); catalog enforcement remains non-required. Registry version follow-through PR [#96](https://github.com/nathanmcnulty/azd-reference/pull/96) tracks the central consumer version update separately. |
+
+The Maester reference PR [#95](https://github.com/nathanmcnulty/azd-reference/pull/95)
+merged `5e8c1c59b9ab84a7e50d5da397865f22c0fa6d86`; the consumer hook source is
+`maester-azd-hooks` 0.1.7 at `8e1f48cd623405caff2975948f1d28f3ec8104f7`.
+Published consumers are Azure Automation PR #23 (`544d356`), Azure DevOps PR
+#22 (`80dd3bc`), Container App Job PR #25 (`2a55dab`), Function App PR #25
+(`bc4621`) and the Maester catalog PR #35 (`ba417de`). The reviewed main trees
+passed 411 tests on each reference OS, 259 legacy, 68 container, 67 function, 64 DevOps and 73
+Automation tests; all security workflows are green. The legacy DevOps repository
+is retained without a creation flag.
+
+The root comparison covered 65 managed files and all five published trees. No
+live authentication, permission grant, deployment or cleanup occurred. GUI
+ownership/input holds and native/provider/delivery/recipient/endpoint gates
+remain. These issue fixes and source/design packets are follow-through evidence,
+not additional backlog records; newer owner branches such as AUTH-007 remain
+unpublished and excluded from the published capture.
