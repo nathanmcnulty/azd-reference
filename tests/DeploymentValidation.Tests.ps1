@@ -10,9 +10,9 @@ Describe 'Deployment validation engine' {
             operation = @{ id = '22222222-2222-2222-2222-222222222222'; kind = 'validate' }
         }
     }
-    It 'publishes the stable 1.1.1 evidence-binding contract' {
+    It 'publishes the stable 2.0.0 PowerShell baseline contract' {
         $manifest = Get-Content -LiteralPath (Join-Path $script:repoRoot 'components/powershell/deployment-validation/component.json') -Raw | ConvertFrom-Json
-        $manifest.version | Should -Be '1.1.1'
+        $manifest.version | Should -Be '2.0.0'
         $manifest.status | Should -Be 'stable'
     }
     It 'does not invoke actions while planning' {

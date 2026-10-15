@@ -1,5 +1,9 @@
 # Deployment receipt changelog
 
+## 0.3.0
+
+- Require PowerShell 7.6 or later. The public commands and data contracts are unchanged.
+
 ## 0.2.1
 
 - Reissue the unchanged 0.2 evidence-binding contract at a new immutable patch

@@ -24,7 +24,8 @@ Describe 'Portfolio component status' {
         & git -C $reference commit -m 'Reference fixture' | Out-Null
         $currentManifest = Get-Content -LiteralPath (Join-Path $reference 'components/powershell/deployment-validation/component.json') -Raw | ConvertFrom-Json
         $currentVersion = [string] $currentManifest.version
-        $nextVersion = '1.2.0'
+        $versionParts = [version] $currentVersion
+        $nextVersion = '{0}.{1}.0' -f $versionParts.Major, ($versionParts.Minor + 1)
         & git -C $reference tag "component/deployment-validation/v$currentVersion"
         $releaseRevision = (& git -C $reference rev-parse HEAD).Trim()
         $statusTool = Join-Path $reference 'tooling/Get-AzdPortfolioStatus.ps1'

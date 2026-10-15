@@ -7,6 +7,23 @@ This repository is an authoring source, not a deployment dependency. Every
 published `azd` template must remain self-contained after `azd init`, even when
 this private repository is unavailable.
 
+## Requirements and validation
+
+Use 64-bit PowerShell 7.6 or later for authoring, tooling, and validation.
+The test baseline is Pester 6.2 or later; CI selects Pester 6.2.0 explicitly.
+
+```powershell
+Install-Module Pester -MinimumVersion 6.2.0 -Scope CurrentUser
+Install-Module Microsoft.Graph.Authentication -RequiredVersion 2.38.0 -Scope CurrentUser
+Import-Module Pester -MinimumVersion 6.2.0 -Force
+Invoke-Pester ./tests -CI
+```
+
+CI uses the PowerShell supplied by the GitHub-hosted Windows and Ubuntu images
+and fails if it is below the supported minimum. Intune endpoint payloads have
+an explicit Windows PowerShell 5.1 service contract; authoring and publishing
+tools use the repository baseline.
+
 ## Principles
 
 1. Keep independently supported `azd` solutions in independent repositories.

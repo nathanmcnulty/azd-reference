@@ -25,41 +25,12 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Select PowerShell 7.6.6
+      - name: Assert supported PowerShell runtime
         run: |
-          $ErrorActionPreference = 'Stop'
-          $runtimePath = Join-Path $env:RUNNER_TEMP 'powershell-7.6.6'
-          New-Item -ItemType Directory -Path $runtimePath -ErrorAction Stop | Out-Null
-          if ($env:RUNNER_OS -eq 'Windows') {
-            $asset = 'PowerShell-7.6.6-win-x64.zip'
-            $expectedHash = '02fe458be20493fbdf43f61ea20610b811ee6c738ab1676c61b9cfcd1a33c860'
+          if ($PSVersionTable.PSVersion -lt [version]'7.6' -or -not [Environment]::Is64BitProcess) {
+            throw "Expected 64-bit PowerShell 7.6 or later; observed $($PSVersionTable.PSVersion)."
           }
-          elseif ($env:RUNNER_OS -eq 'Linux') {
-            $asset = 'powershell-7.6.6-linux-x64.tar.gz'
-            $expectedHash = 'ddbc4a2d113bbd46d283cfedcbcd117a70caefd7673f41f2b4e0000badf103bc'
-          }
-          else { throw 'Unsupported runner platform.' }
-          $archivePath = Join-Path $env:RUNNER_TEMP $asset
-          Invoke-WebRequest -Uri "https://github.com/PowerShell/PowerShell/releases/download/v7.6.6/$asset" -OutFile $archivePath
-          if ((Get-FileHash -LiteralPath $archivePath -Algorithm SHA256).Hash.ToLowerInvariant() -cne $expectedHash) {
-            throw 'PowerShell archive hash mismatch.'
-          }
-          if ($env:RUNNER_OS -eq 'Windows') {
-            Expand-Archive -LiteralPath $archivePath -DestinationPath $runtimePath
-          }
-          else {
-            tar -xzf $archivePath -C $runtimePath
-            if ($LASTEXITCODE -ne 0) { throw 'PowerShell archive extraction failed.' }
-            chmod +x (Join-Path $runtimePath 'pwsh')
-            if ($LASTEXITCODE -ne 0) { throw 'PowerShell executable permission update failed.' }
-          }
-          $runtimePath | Out-File -LiteralPath $env:GITHUB_PATH -Encoding utf8 -Append
-
-      - name: Assert selected PowerShell runtime
-        run: |
-          if ($PSVersionTable.PSVersion -ne [version]'7.6.6' -or -not [Environment]::Is64BitProcess) {
-            throw "Expected 64-bit PowerShell 7.6.6; observed $($PSVersionTable.PSVersion)."
-          }
+          $PSVersionTable.PSVersion
 
       - name: Validate PowerShell syntax and analysis
         run: |
@@ -130,7 +101,8 @@ jobs:
 
       - name: Run contract and synchronization tests
         run: |
-          Install-Module Pester -RequiredVersion 5.7.1 -Force -Scope CurrentUser
+          Install-Module Pester -RequiredVersion 6.2.0 -Force -Scope CurrentUser
+          Import-Module Pester -RequiredVersion 6.2.0 -Force
           Install-Module Microsoft.Graph.Authentication -RequiredVersion 2.38.0 -Force -Scope CurrentUser
           Invoke-Pester ./tests -CI
 
