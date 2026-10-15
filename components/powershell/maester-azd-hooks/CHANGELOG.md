@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.7 - 2026-10-15
+
+- Bind every Graph permission lookup, assignment page, grant and readback to the explicitly selected tenant.
+- Enumerate all existing assignments with bounded, same-collection HTTPS continuation handling before granting.
+- Validate requested enabled application roles before mutation and verify exact assignment tuples before reporting completion.
+- Preserve the Minimal, Extended, Mail.Send and explicit role selections.
+
 ## 0.1.6 - 2026-10-07
 
 - Validate the optional Web App security group Object ID as a non-empty GUID before persisting wizard settings.
