@@ -602,6 +602,44 @@
       ],
       "blocker": "Owner-controlled dedicated App identity, selected repository installation and secure client-ID/private-key configuration are needed before this workflow can run.",
       "claim": null
+    },
+    {
+      "id": "REF-015",
+      "title": "Support a longer optional query window for delayed Automation diagnostics",
+      "kind": "feature",
+      "priority": "P1",
+      "status": "proposed",
+      "wave": 2,
+      "problem": "Automation diagnostic records can arrive fifteen minutes after event time. A ten-minute query window with five-minute evaluation can miss delayed job failures.",
+      "scope": [
+        "components/bicep/azure-monitor-scheduled-query-notifications/",
+        "docs/azure-monitor-scheduled-query-notifications.md",
+        "tests/",
+        ".github/workflows/validate.yml"
+      ],
+      "acceptance": [
+        "Add optional PT30M while preserving the PT5M default, PT5M evaluation frequency, PT5M/PT10M consumer choices, mitigation, routing and dimensions.",
+        "Version the compatible capability as pilot 0.2.0 and verify compiled Automation window flow plus unchanged PIM/risk fixture behavior and component synchronization.",
+        "Record bounded native provider acceptance separately from release publication, notification delivery and deduplication guarantees."
+      ],
+      "validation": [
+        "Run focused Pester 6.2 component/synchronization tests, component version checks, backlog schema/generation and hosted repository validation on PowerShell 7.6+.",
+        "Compile the actual Automation fixture and existing PIM/risk fixtures; run exact property-flow and negative assertions.",
+        "Use only exact disposable lab resources and a zero-receiver action group for native provider validation, then verify cleanup."
+      ],
+      "dependencies": [],
+      "authorization": "local-only",
+      "components": [
+        "azure-monitor-scheduled-query-notifications"
+      ],
+      "sources": [
+        "docs/azure-monitor-scheduled-query-notifications.md",
+        "https://learn.microsoft.com/azure/automation/automation-manage-send-joblogs-log-analytics"
+      ],
+      "evidence": [
+        "2026-10-16 source candidate adds optional PT30M to pilot 0.2.0. Local Bicep 0.46.1 compiled Automation property-flow assertion and existing PIM/risk positive and negative assertions passed. Independent source review, native provider acceptance and hosted validation remain pending. No release tag or consumer adoption is claimed."
+      ],
+      "blocker": null
     }
   ]
 }

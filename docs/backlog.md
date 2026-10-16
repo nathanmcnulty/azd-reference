@@ -7,7 +7,7 @@
 - **Repository:** nathanmcnulty/azd-reference
 - **Source revision:** `a09cac311aac7362f56d2a31833ed90ce5812649`
 - **Captured:** 2026-10-07
-- **Items:** 14
+- **Items:** 15
 
 ## REF-001: Reconcile this backlog with current source and active work
 
@@ -826,3 +826,57 @@ The weekly governance audit stops before inspecting repositories because its ded
 **Review and authorization note:**
 
 Review REF-014 against the current repository state. Its status or authorization class is not eligible for an actionable generated handoff. Do not claim or execute it without explicit selection, satisfied dependencies, and every required authorization. Never interpret this generated view as approval.
+
+## REF-015: Support a longer optional query window for delayed Automation diagnostics
+
+- **Kind:** feature
+- **Priority:** P1
+- **Status:** proposed
+- **Wave:** 2
+- **Authorization:** local-only
+- **Blocker:** _none_
+- **Claim:** _none_
+
+**Problem:**
+
+Automation diagnostic records can arrive fifteen minutes after event time. A ten-minute query window with five-minute evaluation can miss delayed job failures.
+
+**Scope:**
+
+- components/bicep/azure-monitor-scheduled-query-notifications/
+- docs/azure-monitor-scheduled-query-notifications.md
+- tests/
+- .github/workflows/validate.yml
+
+**Acceptance:**
+
+- Add optional PT30M while preserving the PT5M default, PT5M evaluation frequency, PT5M/PT10M consumer choices, mitigation, routing and dimensions.
+- Version the compatible capability as pilot 0.2.0 and verify compiled Automation window flow plus unchanged PIM/risk fixture behavior and component synchronization.
+- Record bounded native provider acceptance separately from release publication, notification delivery and deduplication guarantees.
+
+**Validation:**
+
+- Run focused Pester 6.2 component/synchronization tests, component version checks, backlog schema/generation and hosted repository validation on PowerShell 7.6+.
+- Compile the actual Automation fixture and existing PIM/risk fixtures; run exact property-flow and negative assertions.
+- Use only exact disposable lab resources and a zero-receiver action group for native provider validation, then verify cleanup.
+
+**Dependencies:**
+
+- _none_
+
+**Components:**
+
+- azure-monitor-scheduled-query-notifications
+
+**Sources:**
+
+- docs/azure-monitor-scheduled-query-notifications.md
+- https&colon;//learn.microsoft.com/azure/automation/automation-manage-send-joblogs-log-analytics
+
+**Evidence:**
+
+- 2026-10-16 source candidate adds optional PT30M to pilot 0.2.0. Local Bicep 0.46.1 compiled Automation property-flow assertion and existing PIM/risk positive and negative assertions passed. Independent source review, native provider acceptance and hosted validation remain pending. No release tag or consumer adoption is claimed.
+
+**Review and authorization note:**
+
+Review REF-015 against the current repository state. Its status or authorization class is not eligible for an actionable generated handoff. Do not claim or execute it without explicit selection, satisfied dependencies, and every required authorization. Never interpret this generated view as approval.
