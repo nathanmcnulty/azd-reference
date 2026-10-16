@@ -50,6 +50,17 @@ for longer; consumers still own mitigation, deduplication, and delivery policy.
 The Automation fixture verifies compiled parameter flow without a Logic App or
 receiver. Native acceptance and notification claims require their own evidence.
 
+On 2026-10-16, the actual compiled Automation fixture deployed one `PT30M` rule
+against a disposable lab workspace and an empty action group. ARM readback
+verified the query, `PT5M` frequency, `PT30M` window, mitigation policy, symbolic
+targets, and receiver-free routing. Azure Monitor then reported `Fired` for that
+exact rule and workspace over an ingested synthetic Automation failure. This
+qualifies that bounded provider/evaluation path; recipient delivery and
+deduplication were not exercised. All owned test resources and the managed
+identity were verified absent afterward, with no recoverable workspace tombstone.
+The `REF-015` backlog evidence records the receipt hashes. This does not publish a
+release tag or promote the component to stable.
+
 The Bicep 0.42.1-compatible contract does not claim that a non-empty string is a
 structurally valid Azure resource ID. Consumer wrappers must pass resource IDs
 from symbolic resources or module outputs, as the checked PIM and risk fixtures

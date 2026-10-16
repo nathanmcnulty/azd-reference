@@ -831,7 +831,7 @@ Review REF-014 against the current repository state. Its status or authorization
 
 - **Kind:** feature
 - **Priority:** P1
-- **Status:** proposed
+- **Status:** done
 - **Wave:** 2
 - **Authorization:** local-only
 - **Blocker:** _none_
@@ -875,7 +875,8 @@ Automation diagnostic records can arrive fifteen minutes after event time. A ten
 
 **Evidence:**
 
-- 2026-10-16 source candidate adds optional PT30M to pilot 0.2.0. Local Bicep 0.46.1 compiled Automation property-flow assertion and existing PIM/risk positive and negative assertions passed. Independent source review, native provider acceptance and hosted validation remain pending. No release tag or consumer adoption is claimed.
+- 2026-10-16 reviewed pilot 0.2.0 source at 2948cdbaf9497b69dd7b288b028b6b84dc2fb23b adds optional PT30M without changing PT5M default/frequency or existing PT5M/PT10M selections. Bicep 0.46.1 Automation compiled property-flow assertion and existing PIM/risk positive/negative assertions passed. Component version, synchronization, backlog schema/generation and independent source review passed. Hosted run 38861132106 passed 419/419 Pester 6.2 tests on each Windows/Linux runner, plus compiled fixtures and all five PR checks.
+- The actual compiled Automation fixture deployed one PT30M failed-job rule against a fresh disposable workspace and zero-receiver action group. Provider receipt SHA256 1A7C82CE528EE20F91A18542098C1F0377EC4D4C2341287C1DF7CFB912948127 binds successful deployment and full rule-policy readback. Native diagnostic production-query proof SHA256 F1861605E27BE7C76EDD0A83EF47863B01E7FC125C7E9D9E82055685016F5EC5 and exact-rule/workspace Fired readback SHA256 67391C9820D523AE06F6449636CF3943E539B4803B0089704C86BFC80D122F2B qualify the bounded synthetic provider/evaluation path. Cleanup summary SHA256 FCF19876FC2C0C1CE30CDA19A15786FD04A7B624926DEC2E880DC77AA1F464E8 binds rule/action-group/workspace/account/group/MSI absence, no recoverable workspace tombstone, and unchanged default context. Azure executed 7.6.0-preview.5; stable/GA availability and production Exchange/Purview were not qualified. Recipient delivery and deduplication were not exercised. No tag release or stable promotion is claimed.
 
 **Review and authorization note:**
 
