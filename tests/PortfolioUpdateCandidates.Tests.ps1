@@ -86,4 +86,68 @@ Describe 'Portfolio update candidate selection' {
         { & $script:selector -PortfolioRoot $portfolioRoot -RegistryPath $registryPath -StatusPath $statusPath } |
             Should -Throw '*not safe to update*checkoutDirty*'
     }
+    It 'validates an exact selector before opening the status file' -ForEach @('unknown-consumer', 'Consumer-one', 'consumer-*', "consumer-one`n") {
+        { & $script:selector -PortfolioRoot $portfolioRoot -RegistryPath $registryPath -StatusPath 'does-not-exist.json' -ConsumerId $_ } |
+            Should -Throw '*ConsumerId*'
+    }
+
+    It 'rejects an ambiguous registry selector before processing status' {
+        $registry = Get-Content $registryPath -Raw | ConvertFrom-Json
+        $registry.consumers = @($registry.consumers[0], $registry.consumers[0])
+        $registry | ConvertTo-Json -Depth 20 | Set-Content $registryPath
+        { & $script:selector -PortfolioRoot $portfolioRoot -RegistryPath $registryPath -StatusPath 'does-not-exist.json' -ConsumerId 'consumer-one' } |
+            Should -Throw '*duplicate consumer*'
+    }
+
+    It 'ignores unrelated unsafe records before evaluating findings' {
+        @(
+            @{ consumer = 'unrelated-consumer'; component = 'example-component'; desiredVersion = '1.2.3'; state = 'outdated'; findings = @('checkoutDirty') },
+            @{ consumer = 'consumer-one'; component = 'example-component'; desiredVersion = '1.2.3'; state = 'outdated'; findings = @() }
+        ) | ConvertTo-Json -Depth 10 | Set-Content $statusPath
+        $result = @((& $script:selector -PortfolioRoot $portfolioRoot -RegistryPath $registryPath -StatusPath $statusPath -ConsumerId 'consumer-one' -AsJson) | ConvertFrom-Json)
+        $result.Count | Should -Be 1
+        $result[0].consumer | Should -BeExactly 'consumer-one'
+    }
+
+    It 'returns no candidates when selected consumer is current even if unrelated consumer is unsafe' {
+        @(
+            @{ consumer = 'unrelated-consumer'; state = 'outdated'; findings = @('checkoutDirty') },
+            @{ consumer = 'consumer-one'; state = 'current'; findings = @() }
+        ) | ConvertTo-Json -Depth 10 | Set-Content $statusPath
+        (& $script:selector -PortfolioRoot $portfolioRoot -RegistryPath $registryPath -StatusPath $statusPath -ConsumerId 'consumer-one' -AsJson) | Should -Be '[]'
+    }
+
+    It 'rejects status component or version not explicitly requested by registry' -ForEach @(
+        @{ component = 'unregistered-component'; version = '1.2.3' },
+        @{ component = 'example-component'; version = '9.9.9' }
+    ) {
+        @{ consumer = 'consumer-one'; component = $component; desiredVersion = $version; state = 'outdated'; findings = @() } |
+            ConvertTo-Json -Depth 10 | Set-Content $statusPath
+        { & $script:selector -PortfolioRoot $portfolioRoot -RegistryPath $registryPath -StatusPath $statusPath } |
+            Should -Throw '*does not match the registry*'
+    }
+
+    It 'rejects duplicate consumer and component candidate rows' {
+        $record = @{ consumer = 'consumer-one'; component = 'example-component'; desiredVersion = '1.2.3'; state = 'outdated'; findings = @() }
+        @($record, $record) | ConvertTo-Json -Depth 10 | Set-Content $statusPath
+        { & $script:selector -PortfolioRoot $portfolioRoot -RegistryPath $registryPath -StatusPath $statusPath } |
+            Should -Throw '*Duplicate consumer/component candidate*'
+    }
+
+    It 'preserves all-consumer selection when ConsumerId is empty' {
+        $registry = Get-Content $registryPath -Raw | ConvertFrom-Json
+        $other = $registry.consumers[0] | ConvertTo-Json -Depth 20 | ConvertFrom-Json
+        $other.id = 'consumer-two'
+        $other.repository = 'https://github.com/example/consumer-two'
+        $other.checkoutDirectory = 'consumer-two'
+        $registry.consumers = @($registry.consumers[0], $other)
+        $registry | ConvertTo-Json -Depth 20 | Set-Content $registryPath
+        @(
+            @{ consumer = 'consumer-one'; component = 'example-component'; desiredVersion = '1.2.3'; state = 'outdated'; findings = @() },
+            @{ consumer = 'consumer-two'; component = 'example-component'; desiredVersion = '1.2.3'; state = 'outdated'; findings = @() }
+        ) | ConvertTo-Json -Depth 10 | Set-Content $statusPath
+        $result = @((& $script:selector -PortfolioRoot $portfolioRoot -RegistryPath $registryPath -StatusPath $statusPath -ConsumerId '' -AsJson) | ConvertFrom-Json)
+        $result.Count | Should -Be 2
+    }
+
 }
