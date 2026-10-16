@@ -1,8 +1,10 @@
 # Component release tags
 
 Component releases are immutable, signed annotated Git tags. A version is ready
-for portfolio consumption only after GitHub verifies the tag signature and the
-`Attest component release bundle` workflow succeeds for that exact tag.
+for portfolio consumption only after the exact signed tag, reviewed commit and
+supplied source bundle pass `Test-AzdReleaseIntegrity.ps1 -AcceptComponentRelease`.
+A successful `Attest component release bundle` workflow alone is insufficient.
+Source-only pilots, reviewed commits and passing tests are not component releases.
 
 The tag name is:
 
@@ -106,29 +108,11 @@ git push origin "refs/tags/$tag:refs/tags/$tag"
 if ($LASTEXITCODE -ne 0) { throw "Tag push failed: $tag" }
 ```
 
-Immediately verify the remote object. A release tag must resolve first to a Git
-tag object, and GitHub must mark that tag object's signature as verified:
-
-```powershell
-$tagRef = gh api "repos/$repository/git/ref/tags/$tag" | ConvertFrom-Json
-if ($LASTEXITCODE -ne 0) { throw 'Failed to read the remote tag reference.' }
-if ($tagRef.object.type -ne 'tag') {
-  throw 'Remote release is not an annotated tag.'
-}
-
-$tagObject = gh api "repos/$repository/git/tags/$($tagRef.object.sha)" |
-  ConvertFrom-Json
-if ($LASTEXITCODE -ne 0) { throw 'Failed to read the signed tag object.' }
-if (-not $tagObject.verification.verified) {
-  throw "GitHub did not verify $tag. Do not consume this version."
-}
-if ($tagObject.tag -ne $tag) {
-  throw 'Signed tag object has an unexpected internal tag name.'
-}
-if ($tagObject.object.sha -ne $releaseCommit) {
-  throw 'Verified tag does not point to the reviewed release commit.'
-}
-```
+The push alone does not establish release acceptance. The shared gate below
+checks that the GitHub reference is the same annotated tag object as the local
+tag; its internal name and commit are exact, and GitHub's signature verification
+is Boolean `true`. The producer also binds that verified commit to the local
+tag, checkout and event SHA before archiving the verified identity.
 
 If GitHub does not verify a published tag, leave it immutable. Diagnose the
 signing identity and use a new patch version after review.
@@ -180,20 +164,62 @@ $bundlePath = Join-Path $artifactDirectory "$artifactName.tar.gz"
 if (-not (Test-Path -LiteralPath $bundlePath -PathType Leaf)) {
   throw "Expected source bundle was not downloaded: $bundlePath"
 }
-gh attestation verify $bundlePath `
-  --repo $repository `
-  --signer-workflow "$repository/.github/workflows/release-attestation.yml" `
-  --source-ref "refs/tags/$tag" `
-  --source-digest $releaseCommit `
-  --deny-self-hosted-runners
-if ($LASTEXITCODE -ne 0) { throw 'Bundle attestation verification failed.' }
-Get-FileHash $bundlePath -Algorithm SHA256
+$accepted = ./tooling/Test-AzdReleaseIntegrity.ps1 `
+  -AcceptComponentRelease `
+  -ExpectedRepository $repository `
+  -ExpectedTag $tag `
+  -ExpectedCommit $releaseCommit `
+  -BundlePath $bundlePath
+$accepted
 ```
 
-Record the tag, tag-object SHA, release commit, workflow run URL, bundle SHA-256,
-and attestation verification result. Only then update consumer locks and open
-their normal review and validation pull requests.
+The gate reads the component manifest from the exact tagged commit and requires
+its ID/version to match the validated tag. It verifies the supplied bundle with
+`gh attestation verify` constrained to `nathanmcnulty/azd-reference`, that exact
+source tag and full commit, `.github/workflows/release-attestation.yml` at that
+same signer commit, SLSA provenance v1, the GitHub Actions OIDC issuer, and
+`--deny-self-hosted-runners`. The host is explicitly `github.com`. It records the
+bundle's SHA-256 and checks that the
+bytes did not change during verification. Missing or expired artifacts,
+unavailable/unsupported verification, malformed evidence, mismatched identities
+and verification failures all stop acceptance; there is no workflow-success
+fallback. Use a GitHub CLI version supporting these
+[verification options](https://cli.github.com/manual/gh_attestation_verify).
+
+Record the returned tag, `tagObject`, `revision`, `bundleSha256` and
+`attestationVerified` alongside the workflow run URL. Only then prepare consumer
+locks and their normal review and validation pull requests.
 
 For multiple components at the same merge, complete this verification for the
 first tag before pushing the next. Each tag has its own immutable identity,
 workflow run, bundle, and attestation result.
+
+## Reuse at publication and adoption boundaries
+
+Run the same explicit gate after a publisher obtains the release bundle and
+again before an adoption caller uses that release. Supply the already reviewed
+repository/tag/full commit and an already available bundle; the verifier does
+not discover or download releases. `-RepositoryRoot` may point to a local
+reference checkout containing the expected tag and commit. Acceptance is
+currently intentionally scoped to `nathanmcnulty/azd-reference` on `github.com`.
+
+Use the returned immutable `revision` for subsequent `Sync-AzdComponent.ps1
+-Revision` calls and lock provenance. Do not resolve `-Version` or the tag again
+after acceptance: a later ref lookup would reopen a check/use gap. Keep the
+reviewed expected commit fixed across publication and adoption. The result is a
+single invocation's evidence, not a reusable authorization or a new receipt
+format. Its `state: accepted` is explicitly scoped by `evidenceScope` to signed-
+tag and attested-bundle identity, not acceptance of every release-policy rule.
+Existing synchronization raw-blob hashes and drift checks still apply.
+
+This opt-in gate does not yet change the scheduled updater, publication command
+or consumer synchronization callers. Their download/authentication/publication
+boundary must be wired and reviewed separately. It also does not prove active
+immutable-tag ruleset protection or replace the maintainer's governance,
+default-branch ancestry and change-review preflight above. Source-only pilots
+remain unreleased until the actual release evidence passes.
+
+Without `-AcceptComponentRelease`, the tool retains its offline static audit.
+The existing `-Tag` option adds only local annotated-tag/signature checking; it
+is not component-release acceptance. The explicit acceptance mode always throws
+on failure and cannot be weakened with `-FailOnFindings` omitted.
