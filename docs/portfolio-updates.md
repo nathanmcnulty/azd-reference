@@ -222,8 +222,8 @@ Scheduled and registry-change runs continue to reconcile all registered consumer
 
 Plan-only clones and audits the selected public repository and checks for existing
 exact update PRs with the workflow's read-only token. It uploads
-`portfolio-update-plan.json` beside the status report and writes the candidate
-list to the job summary. It does not run consumer validation, prepare a branch,
+`portfolio-update-plan.json` beside the status and readiness reports and explains
+the selected scope in the job summary. It does not run consumer validation, prepare a branch,
 request the publication environment, mint an App token, or publish. An empty
 candidate list is a successful no-op, not evidence that App publication works.
 The status report can contain `checkoutUnavailable` for unselected consumers;
@@ -262,3 +262,47 @@ For a bounded proof:
 
 Use only the existing App configuration. A missing installation or configuration
 is a blocker to report, not permission to create credentials or expand grants.
+
+### Readiness diagnostics
+
+The always-run discovery report retains `portfolio-update-readiness.json` and
+`portfolio-update-readiness.md`, including when candidate selection fails. It is
+a read-only projection of the existing status records, final candidate list, and
+optional selector observations in `portfolio-update-selection.json`. It never
+changes eligibility, retries publication, or searches for a replacement version.
+Selection failure still fails the job; a missing plan or incomplete evidence is
+unknown, not a successful empty plan. A completed selector receipt must match the
+report's consumer scope and accompany the final plan.
+
+For local use, record the selector observations with
+`Get-AzdPortfolioUpdateCandidates.ps1 -ConsumerId azd-pim -ExcludeOpenPullRequests
+-DiagnosticsPath ./selection.json`, retaining
+its normal output as the final plan. Then project the same scope:
+
+```powershell
+./tooling/Get-AzdPortfolioUpdateReport.ps1 `
+  -StatusPath ./portfolio-status.json `
+  -CandidatesPath ./portfolio-update-plan.json `
+  -SelectionDiagnosticsPath ./selection.json `
+  -ConsumerId azd-pim `
+  -SummaryPath ./readiness.md -AsJson
+```
+
+Each scoped record preserves the audit state and exact findings, with a next
+action. `current` needs no version update; `versionAhead` requires registry-pin
+review, never a downgrade. Missing/invalid desired or installed release tags name
+the exact tag to verify, and lock source-revision mismatches remain blockers.
+Absent adoption is explicit. Existing-PR suppression is claimed only after
+successful selection with PR exclusion enabled and recorded exact head, base,
+title, and PR URL evidence. Empty candidates alone do not establish suppression.
+Unselected consumers' unavailable checkouts do not appear in the scoped report.
+
+This report covers only registry declarations. Canonical source on `main`,
+including a component not yet registered for a consumer, establishes neither a
+release nor adoption. Local tag plus committed-manifest provenance is separate
+from signed-release acceptance: the latter remains unverified until the existing
+[component release procedure](component-releases.md) verifies the signed
+annotated tag and exact attestation workflow. App installation/credential readiness
+and the effective reviewer gate remain unknown; diagnostics read no secrets and
+request no additional privileges. A plan-only run, current pin, or zero candidates
+is not publication proof.

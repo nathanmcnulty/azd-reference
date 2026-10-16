@@ -58,3 +58,56 @@ Describe 'Bounded portfolio workflow dispatch' {
         $source | Should -Not -Match "'\$\{\{ matrix\."
     }
 }
+
+Describe 'Portfolio workflow readiness reporting' {
+    BeforeAll {
+        $source = Get-Content (Join-Path $PSScriptRoot '../.github/workflows/portfolio-updates.yml') -Raw
+        $reportBlock = [regex]::Match($source, '(?s)- name: Explain portfolio update readiness.*?(?=\r?\n      - name:)').Value
+        $reportBody = [regex]::Match($reportBlock, '(?s)run: \|\r?\n(?<code>.*)').Groups['code'].Value
+        $reportCode = [scriptblock]::Create(($reportBody -replace '(?m)^          ', ''))
+    }
+    BeforeEach {
+        $saved = @{}
+        foreach ($name in 'SELECTED_CONSUMER', 'GITHUB_STEP_SUMMARY') { $saved[$name] = [Environment]::GetEnvironmentVariable($name) }
+        $caseRoot = Join-Path $TestDrive ([guid]::NewGuid().ToString('N'))
+        $tooling = Join-Path $caseRoot 'portfolio/azd-reference/tooling'
+        New-Item -ItemType Directory $tooling -Force | Out-Null
+        Copy-Item (Join-Path $PSScriptRoot '../tooling/Get-AzdPortfolioUpdateReport.ps1') $tooling
+        $env:SELECTED_CONSUMER = 'consumer-one'
+        $env:GITHUB_STEP_SUMMARY = Join-Path $caseRoot 'job-summary.md'
+        Push-Location $caseRoot
+    }
+    AfterEach {
+        Pop-Location
+        foreach ($name in $saved.Keys) { [Environment]::SetEnvironmentVariable($name, $saved[$name]) }
+    }
+    It 'runs reporting and artifact upload after candidate failure without swallowing that failure' {
+        $reportBlock | Should -Match '(?m)^        if: always\(\)$'
+        $source | Should -Match '(?s)- name: Upload portfolio report\s+if: always\(\).*?portfolio-update-selection.json.*?portfolio-update-readiness.json.*?portfolio-update-readiness.md'
+        $candidateBlock = [regex]::Match($source, '(?s)- name: Audit and select explicitly approved updates.*?(?=\r?\n      - name:)').Value
+        $candidateBlock | Should -Match '-DiagnosticsPath ./portfolio-update-selection.json'
+        $candidateBlock | Should -Not -Match 'continue-on-error|catch|finally'
+    }
+    It 'renders unknown readiness when the audit never produced status' {
+        & $reportCode
+        Get-Content $env:GITHUB_STEP_SUMMARY -Raw | Should -Match 'readiness is unknown.*status audit did not produce'
+        Test-Path ./portfolio-update-readiness.json | Should -BeFalse
+    }
+    It 'produces JSON and a useful summary after selection failed with an exact missing tag' {
+        @{
+            consumer = 'consumer-one'; repository = 'https://github.com/example/consumer-one'
+            component = 'example-component'; desiredVersion = '1.2.3'; installedVersion = '1.2.2'
+            state = 'outdated'; findings = @('desiredReleaseTagMissing:example-component@1.2.3')
+        } | ConvertTo-Json | Set-Content ./portfolio-status.json
+        @{ state = 'failed'; consumer = 'consumer-one'; excludeOpenPullRequests = $true; error = 'Original selection failure'; suppressed = @() } |
+            ConvertTo-Json | Set-Content ./portfolio-update-selection.json
+        & $reportCode
+        $report = Get-Content ./portfolio-update-readiness.json -Raw | ConvertFrom-Json
+        $report.selectionState | Should -Be 'failed'
+        $report.candidateCount | Should -BeNullOrEmpty
+        Get-Content $env:GITHUB_STEP_SUMMARY -Raw | Should -Match 'component/example-component/v1.2.3'
+        Get-Content $env:GITHUB_STEP_SUMMARY -Raw | Should -Match 'Original selection failure'
+        Test-Path ./portfolio-update-readiness.md | Should -BeTrue
+        Test-Path ./portfolio-update-plan.json | Should -BeFalse
+    }
+}
