@@ -17,20 +17,29 @@ it has no reviewed immutable release or consumer adoption approval yet.
 2. Choose exactly one registered personal consumer with a genuinely outstanding,
    explicitly approved component version, a valid immutable release, clean
    managed files, and a repository-owned offline validation entry point.
-3. Confirm no other candidate would be selected and no equivalent draft PR is
-   already open. The current manual workflow has no consumer selector: do not
-   dispatch it when it would update other consumers. Do not fabricate drift,
-   downgrade a lock, change desiredVersion, or delete an existing PR to force work.
+3. Dispatch discovery with that exact consumer ID and `plan_only=true`, using
+   the [bounded manual flow](portfolio-updates.md#bounded-manual-runs). Confirm
+   exactly one candidate and no equivalent open draft PR. Selection bounds one
+   repository, potentially multiple components. Do not fabricate drift, downgrade
+   a lock, change desiredVersion, or delete an existing PR to force work.
 4. If no eligible single update exists, report that blocker and wait for a real
    reviewed adoption packet. A successful empty discovery is not end-to-end proof.
 
 ## Observe the existing chain
 
-For the separately authorized single-target run, record the exact reference and
-consumer heads, component tag/revision, workflow run and environment approval
-(if configured). Require preparation and validation to execute without a write
-credential. Then observe the existing selected-repository App-token action and
-publisher; do not extract or persist the token.
+A plan-only run stops after discovery; it does not authorize publication. Before
+any separately authorized publication dispatch, verify an effective required-reviewer
+gate on the `portfolio-updates` environment. The YAML environment name alone does
+not establish protection. If the gate is absent or unavailable, stop and report;
+do not change settings as part of the proof.
+
+For that separately authorized single-target publication run, record the exact
+reference and consumer heads, component tag/revision, workflow run and environment
+approval. Discovery runs again: compare its plan and require exactly one reviewed
+candidate before approving the environment. A changed plan needs fresh review.
+Require preparation and validation to execute without a write credential. Then
+observe the existing selected-repository App-token action and publisher; do not
+extract or persist the token.
 
 Verify the remote branch is the validated commit, the draft PR author is the
 configured App, the base repository/branch is correct, and the diff contains only
