@@ -217,28 +217,93 @@ function Invoke-BoundedValidation {
 
     $process = [System.Diagnostics.Process]::new()
     $process.StartInfo = $startInfo
+    $readCancellation = [System.Threading.CancellationTokenSource]::new()
     try {
         if (-not $process.Start()) { throw "Unable to start consumer validation: '$ValidationPath'." }
-        $standardOutput = $process.StandardOutput.ReadToEndAsync()
-        $standardError = $process.StandardError.ReadToEndAsync()
+        # Keep completed chunks, rather than a ReadToEndAsync result that is lost
+        # when a timeout or a descendant holding an inherited pipe prevents EOF.
+        $streams = @(
+            foreach ($reader in $process.StandardOutput, $process.StandardError) {
+                $buffer = [char[]]::new(4096)
+                [pscustomobject]@{
+                    Reader = $reader
+                    Buffer = $buffer
+                    PendingRead = $reader.ReadAsync([System.Memory[char]]::new($buffer), $readCancellation.Token).AsTask()
+                    Text = [System.Text.StringBuilder]::new()
+                    Complete = $false
+                }
+            }
+        )
+        $timer = [System.Diagnostics.Stopwatch]::StartNew()
         $timeoutMilliseconds = $TimeoutMinutes * 60000
-        if (-not $process.WaitForExit($timeoutMilliseconds)) {
-            $process.Kill($true)
-            $process.WaitForExit()
-            throw "Consumer validation exceeded its $TimeoutMinutes minute timeout."
+        $cleanupTimer = $null
+        $cleanupMilliseconds = 5000
+        $failure = $null
+        $diagnostics = [System.Collections.Generic.List[string]]::new()
+        while ($true) {
+            $madeProgress = $false
+            foreach ($stream in $streams) {
+                if ($stream.Complete -or -not $stream.PendingRead.IsCompleted) { continue }
+                $madeProgress = $true
+                try {
+                    $count = $stream.PendingRead.GetAwaiter().GetResult()
+                    if ($count -eq 0) {
+                        $stream.Complete = $true
+                        continue
+                    }
+                    [void] $stream.Text.Append($stream.Buffer, 0, $count)
+                    $stream.PendingRead = $stream.Reader.ReadAsync([System.Memory[char]]::new($stream.Buffer), $readCancellation.Token).AsTask()
+                }
+                catch {
+                    $stream.Complete = $true
+                    $diagnostics.Add("Consumer validation output capture failed: $($_.Exception.Message)")
+                }
+            }
+
+            $exited = $process.WaitForExit(0)
+            if (-not $cleanupTimer) {
+                if ($exited) {
+                    if ($process.ExitCode -ne 0) { $failure = "Consumer validation failed with exit code $($process.ExitCode)." }
+                    $cleanupTimer = [System.Diagnostics.Stopwatch]::StartNew()
+                }
+                elseif ($timer.ElapsedMilliseconds -ge $timeoutMilliseconds) {
+                    $failure = "Consumer validation exceeded its $TimeoutMinutes minute timeout."
+                    # Timeout stays the primary diagnostic even if tree termination
+                    # fails. Root exit and pipe draining share one bounded window.
+                    $cleanupTimer = [System.Diagnostics.Stopwatch]::StartNew()
+                    try { $process.Kill($true) }
+                    catch { $diagnostics.Add("Consumer validation process cleanup failed: $($_.Exception.Message)") }
+                }
+            }
+            if ($cleanupTimer) {
+                if ($exited -and $streams[0].Complete -and $streams[1].Complete) { break }
+                if ($cleanupTimer.ElapsedMilliseconds -ge $cleanupMilliseconds) {
+                    if (-not $exited) { $diagnostics.Add('Consumer validation process did not exit within the 5 second cleanup window.') }
+                    if (-not $streams[0].Complete -or -not $streams[1].Complete) {
+                        $diagnostics.Add('Consumer validation output capture did not finish within the 5 second cleanup window; captured output may be incomplete.')
+                    }
+                    break
+                }
+            }
+            if (-not $madeProgress) { [System.Threading.Thread]::Sleep(20) }
         }
-        $output = @()
-        $stdout = $standardOutput.GetAwaiter().GetResult()
-        $stderr = $standardError.GetAwaiter().GetResult()
-        if ($stdout) { $output += @($stdout -split '\r?\n' | Where-Object { $_ -ne '' }) }
-        if ($stderr) { $output += @($stderr -split '\r?\n' | Where-Object { $_ -ne '' }) }
-        if ($process.ExitCode -ne 0) {
-            throw "Consumer validation failed with exit code $($process.ExitCode).`n$($output -join "`n")"
+
+        $output = @(
+            foreach ($stream in $streams) {
+                $stream.Text.ToString() -split '\r?\n' | Where-Object { $_ -ne '' }
+            }
+        )
+        if ($failure -or $diagnostics.Count) {
+            throw ((@($failure; $diagnostics; $output) | Where-Object { $_ }) -join "`n")
         }
         @($output)
     }
     finally {
-        $process.Dispose()
+        try { $readCancellation.Cancel() }
+        catch { Write-Warning "Consumer validation read cancellation failed: $($_.Exception.Message)" -WarningAction Continue }
+        try { $process.Dispose() }
+        catch { Write-Warning "Consumer validation process disposal failed: $($_.Exception.Message)" -WarningAction Continue }
+        $readCancellation.Dispose()
     }
 }
 
