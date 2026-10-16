@@ -163,6 +163,9 @@ jobs:
           ./tests/Assert-AzureMonitorCompiledTemplate.ps1 -Shape Pim -TemplatePath $pimTemplate
           ./tests/Assert-AzureMonitorCompiledTemplate.ps1 -Shape Risk -TemplatePath $riskTemplate
           ./tests/Test-AzureMonitorCompiledAssertionNegative.ps1 -PimTemplatePath $pimTemplate -RiskTemplatePath $riskTemplate
+          $automationTemplate = Join-Path $compiledRoot 'automation-wrapper.json'
+          az bicep build --file ./tests/fixtures/bicep/azure-monitor-scheduled-query-notifications/automation-wrapper.bicep --outfile $automationTemplate
+          ./tests/Assert-AutomationAlertCompiledTemplate.ps1 -TemplatePath $automationTemplate
 
       - name: Confirm validation left the checkout clean
         run: git diff --exit-code

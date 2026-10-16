@@ -1,6 +1,6 @@
 # Azure Monitor scheduled-query notifications
 
-`azure-monitor-scheduled-query-notifications@0.1.0` is a pilot Bicep component
+`azure-monitor-scheduled-query-notifications@0.2.0` is a pilot Bicep component
 for routing Azure Monitor scheduled-query alerts to a solution-owned Logic App.
 It reflects the compatible boundary currently present in the PIM and risk-based
 Conditional Access solutions.
@@ -31,13 +31,35 @@ policy:
 | --- | --- | --- | --- | --- |
 | PIM activation | `true` | `PT5M` | `PT5M` | Activation event, correlation, actor, and role |
 | Entra risk | `false` | `PT5M` | `PT10M` | Notification envelope |
+| Automation diagnostics | `false` | `PT5M` | `PT30M` | Solution-owned |
 
 Resource names, KQL, and dimension definitions are inputs so the component does
 not determine security policy or notification content.
 
 All required identifier, display, description, query, location, and resource-ID
-strings reject empty values. The pilot permits only the intervals proven by its
-two consumers: `PT5M` evaluation frequency and `PT5M` or `PT10M` window size.
+strings reject empty values. The pilot permits `PT5M` evaluation frequency and
+`PT5M`, `PT10M`, or `PT30M` window size. The default remains `PT5M`.
+
+Automation diagnostics can arrive 15 minutes after their event timestamp,
+according to [Microsoft's ingestion guidance](https://learn.microsoft.com/azure/automation/automation-manage-send-joblogs-log-analytics).
+A ten-minute event-time window can therefore miss delayed records. Automation
+consumers can choose `PT30M` to allow for that delay and the next five-minute
+evaluation. This is a practical margin, not a guaranteed ingestion bound or
+notification delivery guarantee. A longer lookback keeps matching records visible
+for longer; consumers still own mitigation, deduplication, and delivery policy.
+The Automation fixture verifies compiled parameter flow without a Logic App or
+receiver. Native acceptance and notification claims require their own evidence.
+
+On 2026-10-16, the actual compiled Automation fixture deployed one `PT30M` rule
+against a disposable lab workspace and an empty action group. ARM readback
+verified the query, `PT5M` frequency, `PT30M` window, mitigation policy, symbolic
+targets, and receiver-free routing. Azure Monitor then reported `Fired` for that
+exact rule and workspace over an ingested synthetic Automation failure. This
+qualifies that bounded provider/evaluation path; recipient delivery and
+deduplication were not exercised. All owned test resources and the managed
+identity were verified absent afterward, with no recoverable workspace tombstone.
+The `REF-015` backlog evidence records the receipt hashes. This does not publish a
+release tag or promote the component to stable.
 
 The Bicep 0.42.1-compatible contract does not claim that a non-empty string is a
 structurally valid Azure resource ID. Consumer wrappers must pass resource IDs
@@ -50,7 +72,7 @@ because it passes an incomplete string pattern.
 ## Pilot adoption
 
 Vendor the component using the normal synchronization tooling after a reviewed
-`component/azure-monitor-scheduled-query-notifications/v0.1.0` tag exists.
+`component/azure-monitor-scheduled-query-notifications/v0.2.0` tag exists.
 Adoption must preserve the consumer's existing resource IDs and properties.
 Before merging a consumer update, run its full repository validation and an
 Azure what-if against the intended environment; any delete or replacement of
