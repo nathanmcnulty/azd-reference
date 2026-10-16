@@ -1,0 +1,19 @@
+{
+  "$schema": "../../../schemas/component-manifest.schema.json",
+  "manifestVersion": "1.1",
+  "id": "automation-runbook-lifecycle",
+  "version": "0.1.0",
+  "description": "Verifies and rebinds an owned published Automation runbook without replaying its resource or content.",
+  "status": "candidate",
+  "changelog": "components/powershell/automation-runbook-lifecycle/CHANGELOG.md",
+  "files": [
+    {
+      "source": "components/powershell/automation-runbook-lifecycle/Azd.AutomationRunbookLifecycle.psd1",
+      "target": "scripts/vendor/Azd.AutomationRunbookLifecycle/Azd.AutomationRunbookLifecycle.psd1"
+    },
+    {
+      "source": "components/powershell/automation-runbook-lifecycle/Azd.AutomationRunbookLifecycle.psm1",
+      "target": "scripts/vendor/Azd.AutomationRunbookLifecycle/Azd.AutomationRunbookLifecycle.psm1"
+    }
+  ]
+}
