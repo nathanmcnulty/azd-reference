@@ -21,6 +21,10 @@ param(
 
     [string] $WorktreeRoot,
 
+    # A release-acceptance caller pins the exact commit it already verified.
+    [ValidatePattern('(?-i)^[0-9a-f]{40}\z')]
+    [string] $ExpectedRevision,
+
     [switch] $PruneRemovedFiles
 )
 
@@ -211,6 +215,11 @@ function Invoke-BoundedValidation {
     $startInfo.RedirectStandardOutput = $true
     $startInfo.RedirectStandardError = $true
     $startInfo.WorkingDirectory = $WorkingDirectory
+    # Defense in depth for direct CLI publication; the workflow's separate
+    # runners remain the actual validation/publication credential boundary.
+    foreach ($name in 'AZD_RELEASE_READ_TOKEN', 'GH_TOKEN', 'GITHUB_TOKEN') {
+        [void] $startInfo.Environment.Remove($name)
+    }
     foreach ($argument in '-NoProfile', '-NonInteractive', '-File', $ValidationPath) {
         [void] $startInfo.ArgumentList.Add($argument)
     }
@@ -307,6 +316,26 @@ function Invoke-BoundedValidation {
     }
 }
 
+function Invoke-ComponentSync {
+    param([Parameter(Mandatory)][hashtable] $Parameters)
+
+    if (-not $ExpectedRevision) {
+        return & (Join-Path $referenceRoot 'tooling/Sync-AzdComponent.ps1') @Parameters
+    }
+    $hadSetting = Test-Path Env:GIT_NO_REPLACE_OBJECTS
+    $previousSetting = $env:GIT_NO_REPLACE_OBJECTS
+    try {
+        # Sync exports blobs in a child process; bind those reads too so local
+        # replace refs cannot substitute different accepted component content.
+        $env:GIT_NO_REPLACE_OBJECTS = '1'
+        & (Join-Path $referenceRoot 'tooling/Sync-AzdComponent.ps1') @Parameters
+    }
+    finally {
+        if ($hadSetting) { $env:GIT_NO_REPLACE_OBJECTS = $previousSetting }
+        else { Remove-Item Env:GIT_NO_REPLACE_OBJECTS -ErrorAction SilentlyContinue }
+    }
+}
+
 $referenceRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $portfolioRootFull = [System.IO.Path]::GetFullPath($PortfolioRoot)
 if (-not (Test-Path -LiteralPath $portfolioRootFull -PathType Container)) {
@@ -320,11 +349,14 @@ if (-not ($registryRaw | Test-Json -SchemaFile (Join-Path $referenceRoot 'schema
 $registry = $registryRaw | ConvertFrom-Json
 
 $tag = "component/$Component/v$Version"
-$tagRevision = @(& git -C $referenceRoot rev-parse --verify --quiet --end-of-options "refs/tags/${tag}^{commit}" 2>$null)
+$tagRevision = @(& git --no-replace-objects -C $referenceRoot rev-parse --verify --quiet --end-of-options "refs/tags/${tag}^{commit}" 2>$null)
 if ($LASTEXITCODE -ne 0 -or $tagRevision.Count -ne 1 -or [string] $tagRevision[0] -notmatch '^[0-9a-f]{40}$') {
     throw "Reviewed component tag does not exist: '$tag'."
 }
 $tagRevision = [string] $tagRevision[0]
+if ($ExpectedRevision -and $ExpectedRevision -cne $tagRevision) {
+    throw 'ExpectedRevision does not match the selected component release tag.'
+}
 
 $selectedConsumers = @(
     foreach ($consumer in @($registry.consumers)) {
@@ -372,11 +404,18 @@ foreach ($selection in $selectedConsumers) {
         TargetPath = $activeSolutionRoot
         WhatIf = $true
     }
+    if ($ExpectedRevision) {
+        $syncParameters.Remove('Version')
+        $syncParameters.Revision = $ExpectedRevision
+    }
     if ($consumer.PSObject.Properties.Name -contains 'desiredBaseline') {
         $syncParameters.Baseline = [string] $consumer.desiredBaseline
     }
     if ($PruneRemovedFiles) { $syncParameters.PruneRemovedFiles = $true }
-    $plan = & (Join-Path $referenceRoot 'tooling/Sync-AzdComponent.ps1') @syncParameters
+    $plan = Invoke-ComponentSync -Parameters $syncParameters
+    if ($ExpectedRevision -and ([string] $plan.version -cne $Version -or [string] $plan.sourceRevision -cne $ExpectedRevision)) {
+        throw 'The fixed-revision synchronization plan does not match the requested release version and commit.'
+    }
     if ($Operation -eq 'Plan') {
         $results += [pscustomobject] [ordered]@{
             consumer = [string] $consumer.id
@@ -415,7 +454,7 @@ foreach ($selection in $selectedConsumers) {
         $worktreeSolution = Resolve-SafePath -Root $worktreePath -RelativePath ([string] $consumer.solutionRoot) -Label 'Worktree solution root'
         $syncParameters.TargetPath = $worktreeSolution
         $syncParameters.Remove('WhatIf')
-        $syncResult = & (Join-Path $referenceRoot 'tooling/Sync-AzdComponent.ps1') @syncParameters
+        $syncResult = Invoke-ComponentSync -Parameters $syncParameters
 
         $allowed = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
         foreach ($relative in @($syncResult.targets) + @($syncResult.removedTargets) + 'azd-components.lock.json') {
@@ -449,7 +488,28 @@ foreach ($selection in $selectedConsumers) {
         if (-not (Test-Path -LiteralPath $validationPath -PathType Leaf)) {
             throw "Validation entry point is missing: '$validationPath'."
         }
+        $preparedLockPath = Join-Path $worktreeSolution 'azd-components.lock.json'
+        $preparedLockHash = (Get-FileHash -LiteralPath $preparedLockPath -Algorithm SHA256).Hash
         $validationOutput = @(Invoke-BoundedValidation -ValidationPath $validationPath -WorkingDirectory $worktreeSolution -TimeoutMinutes ([int] $consumer.validation.timeoutMinutes))
+        if ((Get-FileHash -LiteralPath $preparedLockPath -Algorithm SHA256).Hash -cne $preparedLockHash) {
+            throw 'Consumer validation changed the generated component lock.'
+        }
+
+        # Validation is consumer-owned code. Recheck both managed bytes/lock
+        # hashes and the complete changed-path set before committing its output.
+        $checkParameters = $syncParameters.Clone()
+        $checkParameters.WhatIf = $true
+        $checkedPlan = Invoke-ComponentSync -Parameters $checkParameters
+        if ($ExpectedRevision -and ([string] $checkedPlan.version -cne $Version -or [string] $checkedPlan.sourceRevision -cne $ExpectedRevision)) {
+            throw 'Post-validation synchronization evidence does not match the accepted release.'
+        }
+        $changed = @(Invoke-GitChecked -RepositoryRoot $worktreePath -Arguments @('status', '--porcelain', '--untracked-files=all') | ForEach-Object {
+            if ([string] $_ -notmatch '^.. (?<path>.+)$') { throw "Unexpected Git status entry: '$_'." }
+            $Matches.path.Replace('\', '/')
+        })
+        foreach ($changedPath in $changed) {
+            if (-not $allowed.Contains($changedPath)) { throw "Validation changed an unmanaged path: '$changedPath'." }
+        }
 
         foreach ($changedPath in $changed) {
             Invoke-GitChecked -RepositoryRoot $worktreePath -Arguments @('add', '--', $changedPath) | Out-Null

@@ -119,59 +119,32 @@ signing identity and use a new patch version after review.
 
 ## Confirm attestation
 
-The tag push starts `.github/workflows/release-attestation.yml`. Allow at most one
-minute for Actions to index the exact push run, then record its ID, wait for
-success, and download only its expected source bundle:
+The tag push starts `.github/workflows/release-attestation.yml`. Wait for that
+exact push run to finish successfully. Acquire only the uniquely matching,
+unexpired artifact, then verify the original bundle:
 
 ```powershell
-$run = $null
-for ($attempt = 1; $attempt -le 12 -and -not $run; $attempt++) {
-  $runs = gh run list --repo $repository `
-    --workflow release-attestation.yml `
-    --branch $tag `
-    --commit $releaseCommit `
-    --event push `
-    --limit 5 `
-    --json databaseId,headBranch,headSha,event,status,conclusion,url |
-    ConvertFrom-Json
-  if ($LASTEXITCODE -ne 0) { throw 'Failed to query attestation workflow runs.' }
-  $run = $runs |
-    Where-Object {
-      $_.headBranch -eq $tag -and
-      $_.headSha -eq $releaseCommit -and
-      $_.event -eq 'push'
-    } |
-    Select-Object -First 1
-  if (-not $run -and $attempt -lt 12) { Start-Sleep -Seconds 5 }
-}
-
-if (-not $run) { throw "No attestation run found for $tag." }
-gh run watch $run.databaseId --repo $repository --exit-status
-if ($LASTEXITCODE -ne 0) { throw "Attestation workflow failed for $tag." }
-
-$repositoryName = ($repository -split '/')[-1]
-$safeTag = $tag -replace '/', '-'
-$artifactName = "$repositoryName-$safeTag"
-$artifactDirectory = Join-Path $env:TEMP "azd-reference-attestation-$($run.databaseId)"
-if (Test-Path $artifactDirectory) {
-  throw "Artifact directory already exists: $artifactDirectory"
-}
-gh run download $run.databaseId --repo $repository `
-  --name $artifactName `
-  --dir $artifactDirectory
-if ($LASTEXITCODE -ne 0) { throw 'Failed to download the expected source bundle.' }
-$bundlePath = Join-Path $artifactDirectory "$artifactName.tar.gz"
-if (-not (Test-Path -LiteralPath $bundlePath -PathType Leaf)) {
-  throw "Expected source bundle was not downloaded: $bundlePath"
-}
+$bundlePath = Join-Path $env:TEMP "azd-reference-$($tag.Replace('/', '-')).tar.gz"
+$bundle = ./tooling/Get-AzdComponentReleaseBundle.ps1 `
+  -ExpectedRepository $repository `
+  -ExpectedTag $tag `
+  -ExpectedCommit $releaseCommit `
+  -DestinationPath $bundlePath
 $accepted = ./tooling/Test-AzdReleaseIntegrity.ps1 `
   -AcceptComponentRelease `
   -ExpectedRepository $repository `
   -ExpectedTag $tag `
   -ExpectedCommit $releaseCommit `
-  -BundlePath $bundlePath
+  -BundlePath $bundle.bundlePath
 $accepted
 ```
+
+The destination must be a new file in an existing directory. Acquisition binds
+repository, workflow path, tag, commit, successful push run and exact artifact
+ID. Missing, ambiguous, expired or malformed evidence fails closed. It does not
+choose the newest run, create an archive locally, or treat acquisition as
+acceptance. Release artifacts currently expire after 90 days. Expiration is an
+explicit adoption blocker, not permission to rebuild or skip release evidence.
 
 The gate reads the component manifest from the exact tagged commit and requires
 its ID/version to match the validated tag. It verifies the supplied bundle with
@@ -212,12 +185,27 @@ format. Its `state: accepted` is explicitly scoped by `evidenceScope` to signed-
 tag and attested-bundle identity, not acceptance of every release-policy rule.
 Existing synchronization raw-blob hashes and drift checks still apply.
 
-This opt-in gate does not yet change the scheduled updater, publication command
-or consumer synchronization callers. Their download/authentication/publication
-boundary must be wired and reviewed separately. It also does not prove active
-immutable-tag ruleset protection or replace the maintainer's governance,
-default-branch ancestry and change-review preflight above. Source-only pilots
-remain unreleased until the actual release evidence passes.
+The portfolio workflow now requires acquisition and acceptance before consumer
+validation, transfers the original release bundle with its prepared Git branch,
+and re-verifies the bundle and prepared lock before creating an App token. The
+publisher requires `-ReleaseBundlePath` and `-ExpectedRevision` for publication,
+then repeats acceptance immediately before writing each consumer branch. It
+reproduces the selected component update from the prepared commit's parent and
+requires exact Git-tree equality before publication. Earlier acceptance output
+is never sufficient authorization.
+
+`Update-AzdPortfolio.ps1 -ExpectedRevision` uses that fixed commit for every
+synchronization read, with Git replacement objects disabled. Standalone Plan and
+source-authoring Prepare remain available without acceptance; they do not prove
+a released adoption. Standalone adoption callers must verify the supplied bundle
+first and pass the same accepted revision. The workflow proposes `actions: read`
+only in Prepare to acquire the original cross-run artifact; Publish downloads
+its current-run prepared artifact and does not add this permission or any App
+grant. This source change does not activate a workflow, create a release, change
+permissions live, or establish active immutable-tag ruleset protection. The
+maintainer's governance, default-branch ancestry and change-review preflight
+remain separate requirements. Source-only pilots remain unreleased until actual
+release evidence passes.
 
 Without `-AcceptComponentRelease`, the tool retains its offline static audit.
 The existing `-Tag` option adds only local annotated-tag/signature checking; it

@@ -73,8 +73,9 @@ Create and verify releases using the fail-closed
 only after the explicit `Test-AzdReleaseIntegrity.ps1 -AcceptComponentRelease`
 gate verifies the exact signed tag, reviewed commit and supplied attested bundle,
 in addition to maintainer review and immutable-tag governance preflight. A green
-attestation workflow alone is insufficient. The existing updater/publisher does
-not yet invoke this opt-in gate; follow the linked procedure before adoption.
+attestation workflow alone is insufficient. The automated Prepare and Publish
+boundaries and the publication command require this gate. Standalone preparation
+for source authoring remains available and does not establish release acceptance.
 
 ## Planning
 
@@ -108,7 +109,8 @@ PowerShell validation entry point:
 The updater creates a deterministic local branch from `origin/<defaultBranch>`,
 synchronizes only managed component files and the lock, rejects all unrelated
 changes, runs validation within the registry timeout, commits explicit paths,
-and removes the temporary worktree after success. A no-op also removes its
+rechecks lock bytes, managed hashes and allowed paths after validation, and
+removes the temporary worktree after success. A no-op also removes its
 temporary branch. A failure preserves the worktree for diagnosis and creates no
 remote state.
 
@@ -124,14 +126,18 @@ version and refuses to delete a locally modified managed file.
 ## Publishing draft pull requests
 
 Publishing is an explicitly confirmed operation layered on the same preparation
-path:
+path. First acquire and verify the original release bundle using the
+[component release procedure](component-releases.md), retaining the trusted
+resolved revision and bundle path:
 
 ```powershell
 ./tooling/Publish-AzdPortfolioUpdates.ps1 `
   -Component notification-contracts `
   -Version 1.0.0 `
   -PortfolioRoot C:\GitHub `
-  -WorktreeRoot C:\GitHub\azd-component-update-worktrees
+  -WorktreeRoot C:\GitHub\azd-component-update-worktrees `
+  -ExpectedRevision $accepted.revision `
+  -ReleaseBundlePath $accepted.bundlePath
 ```
 
 The publisher first verifies that the exact component tag exists on the
@@ -146,7 +152,13 @@ that the live remote head is the exact prepared commit, and opens
 one draft pull request containing the source revision, prepared commit,
 managed-file hashes, validation entry point, and rollback command. `-WhatIf`
 stops before branch preparation or remote mutation and returns the intended
-consumers and branch names.
+consumers and branch names. Real publication requires the supplied bundle and
+same expected immutable revision; the revision is checked against the trusted
+selected tag and the prepared lock. Acceptance runs before preparation and again
+immediately before each branch write. The publisher reproduces the component
+update in a disposable detached worktree and compares its entire Git tree with
+the prepared commit, including unrelated lock entries and the registry-approved
+baseline. It does not run consumer validation on the publication runner.
 
 The publisher requires an authenticated GitHub CLI session. The create-only
 `--force-with-lease=<ref>:` form is used solely to require that the remote ref
@@ -170,7 +182,8 @@ time without revisiting those remote branches:
   -WhatIf
 ```
 
-Review the exact single-consumer plan, then rerun without `-WhatIf`. The
+Review the exact single-consumer plan, then rerun without `-WhatIf` and supply
+`-ExpectedRevision` and `-ReleaseBundlePath` from the verified release. The
 selector must identify exactly one registry entry that approves the requested
 component version. Omitting `-ConsumerId` preserves the default all-consumer
 publication behavior.
@@ -193,13 +206,16 @@ registry changes on `main`. Existing exact update pull requests are skipped.
 The workflow deliberately separates preparation from publication on different
 fresh runners. It first
 clones public consumers without persisted checkout credentials, audits their
-current locks, updates an isolated local branch, and runs the registered
-repository validation. Only the resulting Git bundle crosses the job boundary
-through a one-day workflow artifact. Consumer validation code and the App secret
+current locks, acquires the unique successful release-attestation push run's
+exact unexpired artifact, and verifies its signed tag and attested bundle before
+updating or validating a consumer. It uses the same fixed commit with Git replace
+objects disabled. The prepared Git bundle and original release bundle cross the
+job boundary together through a one-day current-run workflow artifact. Consumer validation code and the App secret
 never share a runner. Only after validation succeeds does the protected
 `portfolio-updates` environment expose the GitHub App private key to a fresh
-publication job. The minted
-installation token is limited to the one matrix repository and to `contents:
+publication job. That job schema-validates and binds the prepared lock to the
+trusted selected tag and verifies the original bundle with `github.token` before
+minting an installation token. The minted installation token is limited to the one matrix repository and to `contents:
 write` plus `pull_requests: write`; the publisher may only create the expected
 branch and a draft pull request from the already validated commit.
 
@@ -234,10 +250,27 @@ those repositories are intentionally not cloned for a bounded run.
 
 Before preparation and before App authentication, a side-effect-free guard checks
 all candidate destination fields, the branch, component, and version against the
-checked-out registry. It rejects a target outside the requested consumer. Bundle
-artifacts carry Git objects only; they cannot redefine the candidate or expand the
-App token's repository scope. Publication rechecks the guard and still uses the
+checked-out registry. It rejects a target outside the requested consumer. The
+transferred branch and release bundles cannot redefine the candidate or expand
+the App token's repository scope. Publication rechecks the guard and still uses the
 existing prepared-branch validation and draft-only publisher.
+
+Only Prepare proposes `actions: read` for cross-run artifact acquisition.
+Publish's download is limited to the current run and needs no additional Actions
+permission. No App grant changes or live workflow activation are part of this
+source proposal. The publisher receives the existing workflow read credential
+as `AZD_RELEASE_READ_TOKEN` and substitutes it for `GH_TOKEN` only inside a narrow
+verification `try/finally`, restoring the App credential (or initial absence)
+before writes. Local CLI calls can use existing `gh` authentication when that
+separate read credential is absent. Credentials never appear in arguments or
+reports.
+
+For direct local CLI preparation, validation subprocesses omit
+`AZD_RELEASE_READ_TOKEN`, `GH_TOKEN`, and `GITHUB_TOKEN`. This is defense in depth,
+not an OS sandbox or a guarantee that a same-user child cannot access locally
+saved authentication. Separate workflow runners provide the credential boundary.
+Release artifacts have 90-day retention; missing or expired source artifacts
+block automatic acquisition and therefore the workflow's publication path. Active protected-tag governance remains a separate maintainer check.
 
 For a bounded proof:
 

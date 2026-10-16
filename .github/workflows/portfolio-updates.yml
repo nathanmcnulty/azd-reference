@@ -145,6 +145,9 @@ jobs:
           retention-days: 30
 
   prepare:
+    permissions:
+      contents: read
+      actions: read
     needs: discover
     if: needs.discover.outputs.has-updates == 'true' && needs.discover.outputs.publish-allowed == 'true'
     runs-on: ubuntu-latest
@@ -187,10 +190,35 @@ jobs:
           & git clone --single-branch --branch $env:TARGET_DEFAULT_BRANCH -- $env:TARGET_REPOSITORY $target
           if ($LASTEXITCODE -ne 0) { throw "Unable to clone $env:TARGET_CONSUMER." }
 
-      - name: Prepare and validate locally without a write credential
+      - name: Acquire and verify the exact component release bundle
+        id: release
         shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           $referenceRoot = Resolve-Path ./portfolio/azd-reference
+          $tag = "component/$env:TARGET_COMPONENT/v$env:TARGET_VERSION"
+          $revision = @(& git --no-replace-objects -C $referenceRoot rev-parse --verify --quiet --end-of-options "refs/tags/${tag}^{commit}")
+          if ($LASTEXITCODE -ne 0 -or $revision.Count -ne 1 -or $revision[0] -cnotmatch '^[0-9a-f]{40}$') {
+            throw 'The selected release tag does not resolve to an exact commit.'
+          }
+          $bundlePath = Join-Path $env:RUNNER_TEMP 'component-release.tar.gz'
+          & (Join-Path $referenceRoot 'tooling/Get-AzdComponentReleaseBundle.ps1') `
+            -ExpectedRepository 'nathanmcnulty/azd-reference' -ExpectedTag $tag `
+            -ExpectedCommit $revision[0] -DestinationPath $bundlePath | Out-Null
+          & (Join-Path $referenceRoot 'tooling/Test-AzdReleaseIntegrity.ps1') `
+            -AcceptComponentRelease -RepositoryRoot $referenceRoot `
+            -ExpectedRepository 'nathanmcnulty/azd-reference' -ExpectedTag $tag `
+            -ExpectedCommit $revision[0] -BundlePath $bundlePath | Out-Null
+          "revision=$($revision[0])" | Add-Content -LiteralPath $env:GITHUB_OUTPUT -Encoding utf8NoBOM
+
+      - name: Prepare and validate locally without a write credential
+        shell: pwsh
+        env:
+          EXPECTED_REVISION: ${{ steps.release.outputs.revision }}
+        run: |
+          $referenceRoot = Resolve-Path ./portfolio/azd-reference
+          New-Item -ItemType Directory -Path (Join-Path $env:RUNNER_TEMP 'azd-component-update-worktrees') -Force | Out-Null
           & (Join-Path $referenceRoot 'tooling/Update-AzdPortfolio.ps1') `
             -Component $env:TARGET_COMPONENT `
             -Version $env:TARGET_VERSION `
@@ -198,6 +226,7 @@ jobs:
             -PortfolioRoot ./portfolio `
             -WorktreeRoot (Join-Path $env:RUNNER_TEMP 'azd-component-update-worktrees') `
             -Operation Prepare `
+            -ExpectedRevision $env:EXPECTED_REVISION `
             -Confirm:$false
           if ($LASTEXITCODE -ne 0) { throw 'Component preparation or consumer validation failed.' }
 
@@ -215,7 +244,9 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: prepared-${{ matrix.consumer }}-${{ matrix.component }}-${{ matrix.version }}
-          path: ${{ runner.temp }}/prepared-branch.bundle
+          path: |
+            ${{ runner.temp }}/prepared-branch.bundle
+            ${{ runner.temp }}/component-release.tar.gz
           if-no-files-found: error
           retention-days: 1
 
@@ -279,12 +310,47 @@ jobs:
           & git -C $consumerRoot fetch $bundlePath "refs/heads/${env:TARGET_BRANCH}:refs/heads/${env:TARGET_BRANCH}"
           if ($LASTEXITCODE -ne 0) { throw 'Unable to restore the validated branch.' }
 
-      - name: Recheck publication scope before App authentication
+      - name: Recheck publication scope and release before App authentication
+        id: release
         shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           & ./portfolio/azd-reference/tooling/Assert-AzdPortfolioUpdateScope.ps1 `
             -CandidateJson $env:CANDIDATE_JSON -ConsumerId $env:SELECTED_CONSUMER `
             -PlanOnly:($env:PLAN_ONLY -ceq 'true') -ForPublication
+          $referenceRoot = Resolve-Path ./portfolio/azd-reference
+          $tag = "component/$env:TARGET_COMPONENT/v$env:TARGET_VERSION"
+          $revision = @(& git --no-replace-objects -C $referenceRoot rev-parse --verify --quiet --end-of-options "refs/tags/${tag}^{commit}")
+          if ($LASTEXITCODE -ne 0 -or $revision.Count -ne 1 -or $revision[0] -cnotmatch '^[0-9a-f]{40}$') {
+            throw 'The selected release tag does not resolve to an exact commit.'
+          }
+          # Compare transferred lock provenance to the trusted selected tag.
+          # Never obtain the expected revision from downloaded metadata.
+          $registry = Get-Content (Join-Path $referenceRoot 'portfolio/consumers.json') -Raw | ConvertFrom-Json
+          $consumer = @($registry.consumers | Where-Object { $_.id -ceq $env:TARGET_CONSUMER })[0]
+          $lockPath = if ($consumer.solutionRoot -ceq '.') { 'azd-components.lock.json' } else {
+            $consumer.solutionRoot.TrimEnd('/').Replace('\', '/') + '/azd-components.lock.json'
+          }
+          $consumerRoot = Resolve-Path (Join-Path ./portfolio $env:TARGET_DIRECTORY)
+          $lockRaw = @(& git --no-replace-objects -C $consumerRoot show "refs/heads/${env:TARGET_BRANCH}:$lockPath")
+          if ($LASTEXITCODE -ne 0) { throw 'The prepared branch lock is unavailable.' }
+          $lockJson = $lockRaw -join "`n"
+          if (-not ($lockJson | Test-Json -SchemaFile (Join-Path $referenceRoot 'schemas/azd-components-lock.schema.json') -ErrorAction Stop)) {
+            throw 'Prepared lock does not satisfy its schema.'
+          }
+          $locked = @(($lockJson | ConvertFrom-Json).components | Where-Object { $_.id -ceq $env:TARGET_COMPONENT })
+          if ($locked.Count -ne 1 -or $locked[0].sourceRevision -cne $revision[0] -or
+              $locked[0].version -cne $env:TARGET_VERSION -or
+              $locked[0].sourceRepository -cne 'https://github.com/nathanmcnulty/azd-reference') {
+            throw 'Prepared lock provenance does not match the selected release.'
+          }
+          & (Join-Path $referenceRoot 'tooling/Test-AzdReleaseIntegrity.ps1') `
+            -AcceptComponentRelease -RepositoryRoot $referenceRoot `
+            -ExpectedRepository 'nathanmcnulty/azd-reference' -ExpectedTag $tag `
+            -ExpectedCommit $revision[0] `
+            -BundlePath (Join-Path $env:RUNNER_TEMP 'prepared-branch/component-release.tar.gz') | Out-Null
+          "revision=$($revision[0])" | Add-Content -LiteralPath $env:GITHUB_OUTPUT -Encoding utf8NoBOM
 
       - name: Mint a repository-scoped GitHub App token after validation
         id: app-token
@@ -301,6 +367,8 @@ jobs:
         shell: pwsh
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          AZD_RELEASE_READ_TOKEN: ${{ github.token }}
+          EXPECTED_REVISION: ${{ steps.release.outputs.revision }}
         run: |
           & ./portfolio/azd-reference/tooling/Assert-AzdPortfolioUpdateScope.ps1 `
             -CandidateJson $env:CANDIDATE_JSON -ConsumerId $env:SELECTED_CONSUMER `
@@ -314,6 +382,8 @@ jobs:
             -PortfolioRoot ./portfolio `
             -WorktreeRoot (Join-Path $env:RUNNER_TEMP 'unused-publish-worktrees') `
             -PreparedBranchesOnly `
+            -ExpectedRevision $env:EXPECTED_REVISION `
+            -ReleaseBundlePath (Join-Path $env:RUNNER_TEMP 'prepared-branch/component-release.tar.gz') `
             -Confirm:$false
           if ($LASTEXITCODE -ne 0) { throw 'Draft pull-request publication failed.' }
 
