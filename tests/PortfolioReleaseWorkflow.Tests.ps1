@@ -28,7 +28,7 @@ BeforeAll {
 
     function Invoke-PortfolioReleaseWorkflowFixture {
         param(
-            [ValidateSet('Prepare', 'Publish', 'RoundTrip')] [string] $Phase = 'Publish',
+            [ValidateSet('Environment', 'Prepare', 'Publish', 'RoundTrip')] [string] $Phase = 'Publish',
             [string] $Case = 'valid',
             [string] $Field = '',
             [string] $SolutionRoot = '.'
@@ -52,6 +52,14 @@ BeforeAll {
 $ErrorActionPreference = 'Stop'
 Set-Location $PSScriptRoot
 $case = Get-Content ./case.json -Raw | ConvertFrom-Json
+if ($case.Phase -eq 'Environment') {
+    $gitCommand = Get-Command git -CommandType Application -ErrorAction Stop
+    $gitVersion = & git --version
+    if ($LASTEXITCODE -ne 0) { throw 'Git could not execute in the isolated fixture environment.' }
+    @{ GitPath = $gitCommand.Source; GitVersion = [string]$gitVersion; PathExt = $env:PATHEXT } |
+        ConvertTo-Json | Set-Content ./environment.json -Encoding utf8NoBOM
+    exit 0
+}
 $env:FIXTURE_ROOT = $PSScriptRoot
 $env:FIXTURE_CASE = $case.Case
 $env:RUNNER_TEMP = Join-Path $PSScriptRoot 'runner'
@@ -211,8 +219,9 @@ function gh {
         foreach ($argument in '-NoLogo', '-NoProfile', '-NonInteractive', '-File', (Join-Path $root 'fixture.ps1')) { $start.ArgumentList.Add($argument) }
         $start.WorkingDirectory = $root
         # Do not inherit authentication, Git overrides, profiles, or global config.
+        # PowerShell on Windows needs PATHEXT to resolve extensionless Git commands.
         $start.Environment.Clear()
-        foreach ($name in 'PATH', 'SystemRoot', 'PSModulePath') {
+        foreach ($name in 'PATH', 'PATHEXT', 'SystemRoot', 'PSModulePath') {
             $value = [Environment]::GetEnvironmentVariable($name)
             if ($value) { $start.Environment[$name] = $value }
         }
@@ -304,6 +313,24 @@ Describe 'Portfolio release workflow trust boundaries' {
 }
 
 Describe 'Portfolio release workflow offline execution' {
+    It 'resolves and executes Git in the isolated child with native executable extensions preserved' {
+        $originalPathExt = [Environment]::GetEnvironmentVariable('PATHEXT')
+        $expectedPathExt = if ($originalPathExt) { $originalPathExt } else { '.COM;.EXE;.BAT;.CMD' }
+        try {
+            # Supply the Windows lookup variable on every host so Linux also detects
+            # an accidental removal from the child-process environment allowlist.
+            [Environment]::SetEnvironmentVariable('PATHEXT', $expectedPathExt)
+            $result = Invoke-PortfolioReleaseWorkflowFixture -Phase Environment
+            $result.ExitCode | Should -Be 0 -Because $result.Output
+            $environment = Get-Content (Join-Path $result.Root 'environment.json') -Raw | ConvertFrom-Json
+            $environment.PathExt | Should -BeExactly $expectedPathExt
+            $environment.GitVersion | Should -Match '^git version '
+            Test-Path -LiteralPath $environment.GitPath -PathType Leaf | Should -BeTrue
+            if ($IsWindows) { $environment.GitPath | Should -Match '\.exe$' }
+        }
+        finally { [Environment]::SetEnvironmentVariable('PATHEXT', $originalPathExt) }
+    }
+
     It 'acquires and accepts the exact trusted tag before preparation and consumer validation' {
         $result = Invoke-PortfolioReleaseWorkflowFixture -Phase Prepare
         $result.ExitCode | Should -Be 0 -Because $result.Output

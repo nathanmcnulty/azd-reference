@@ -16,6 +16,7 @@ Describe 'Guarded portfolio publication' {
         & git init --bare --initial-branch main $remote | Out-Null
 
         & git -C $consumer init --initial-branch main | Out-Null
+        & git -C $consumer config core.autocrlf false
         & git -C $consumer config user.name 'publisher tests'
         & git -C $consumer config user.email 'publisher-tests@example.invalid'
         & git -C $consumer remote add origin "$repository.git"
@@ -78,6 +79,7 @@ Describe 'Guarded portfolio publication' {
                 New-Item -ItemType Directory -Path $secondCheckout | Out-Null
                 & git init --bare --initial-branch main $secondRemote | Out-Null
                 & git -C $secondCheckout init --initial-branch main | Out-Null
+                & git -C $secondCheckout config core.autocrlf false
                 & git -C $secondCheckout config user.name 'publisher tests'
                 & git -C $secondCheckout config user.email 'publisher-tests@example.invalid'
                 & git -C $secondCheckout remote add origin "$secondRepository.git"
@@ -474,6 +476,67 @@ Describe 'Guarded portfolio publication' {
                 -WorktreeRoot $worktrees `
                 -RegistryPath $registryPath `
                 -Confirm:$false } | Should -Throw '*Git failed*'
+    }
+
+    It 'publishes canonical Git content under automatic CRLF checkout without changing consumer settings' {
+        & git -C $consumer config core.autocrlf true
+        & git -C $consumer config core.eol crlf
+        $result = & $publisher @publishEvidence -Component deployment-validation -Version 0.3.3 -ConsumerId consumer-one `
+            -PortfolioRoot $portfolioRoot -WorktreeRoot $worktrees -RegistryPath $registryPath -Confirm:$false
+        $result.state | Should -Be 'published'
+        (& git -C $consumer config core.autocrlf).Trim() | Should -BeExactly 'true'
+        (& git -C $consumer config core.eol).Trim() | Should -BeExactly 'crlf'
+        $global:PublisherTestVerifyCount | Should -Be 2
+    }
+
+    It 'replays a prepared upgrade from canonical parent blobs under CRLF defaults' {
+        & (Join-Path $script:repoRoot 'tooling/Sync-AzdComponent.ps1') -Component deployment-validation `
+            -Version 0.3.2 -TargetPath $consumer -Confirm:$false | Out-Null
+        & git -C $consumer add --all
+        & git -C $consumer commit -m 'Previous canonical component' | Out-Null
+        & git -C $consumer push $remote main 2>&1 | Out-Null
+        & git -C $consumer update-ref refs/remotes/origin/main HEAD
+        $prepared = & (Join-Path $script:repoRoot 'tooling/Update-AzdPortfolio.ps1') `
+            -Component deployment-validation -Version 0.3.3 -ExpectedRevision $expectedRevision -ConsumerId consumer-one `
+            -PortfolioRoot $portfolioRoot -WorktreeRoot $worktrees -RegistryPath $registryPath -Operation Prepare -Confirm:$false
+        & git -C $consumer config core.autocrlf true
+        & git -C $consumer config core.eol crlf
+        $result = & $publisher @publishEvidence -Component deployment-validation -Version 0.3.3 -ConsumerId consumer-one `
+            -PortfolioRoot $portfolioRoot -WorktreeRoot $worktrees -RegistryPath $registryPath -PreparedBranchesOnly -Confirm:$false
+        $result.state | Should -Be 'published'
+        $result.commit | Should -BeExactly $prepared.commit
+        (& git -C $consumer config core.autocrlf).Trim() | Should -BeExactly 'true'
+        (& git -C $consumer config core.eol).Trim() | Should -BeExactly 'crlf'
+    }
+
+    It 'rejects changed canonical content under automatic CRLF checkout with forged hashes <Forge>' -ForEach @(
+        @{ Forge = $false; Error = '*Managed file drift*' },
+        @{ Forge = $true; Error = '*different managed content*' }
+    ) {
+        & git -C $consumer config core.autocrlf true
+        & git -C $consumer config core.eol crlf
+        $prepared = & (Join-Path $script:repoRoot 'tooling/Update-AzdPortfolio.ps1') `
+            -Component deployment-validation -Version 0.3.3 -ExpectedRevision $expectedRevision -ConsumerId consumer-one `
+            -PortfolioRoot $portfolioRoot -WorktreeRoot $worktrees -RegistryPath $registryPath -Operation Prepare -Confirm:$false
+        & git -C $consumer checkout $prepared.branch 2>&1 | Out-Null
+        $lockPath = Join-Path $consumer 'azd-components.lock.json'
+        $lock = Get-Content $lockPath -Raw | ConvertFrom-Json
+        $file = $lock.components[0].files[0]
+        $managedPath = Join-Path $consumer $file.target
+        $text = [IO.File]::ReadAllText($managedPath).Replace("`r`n", "`n") + "# changed canonical content`n"
+        [IO.File]::WriteAllText($managedPath, $text, [Text.UTF8Encoding]::new($false))
+        if ($Forge) {
+            $file.sha256 = (Get-FileHash $managedPath -Algorithm SHA256).Hash.ToLowerInvariant()
+            $lock | ConvertTo-Json -Depth 30 | Set-Content $lockPath
+        }
+        & git -C $consumer add --all
+        & git -C $consumer commit --amend --no-edit | Out-Null
+        { & $publisher @publishEvidence -Component deployment-validation -Version 0.3.3 -ConsumerId consumer-one `
+            -PortfolioRoot $portfolioRoot -WorktreeRoot $worktrees -RegistryPath $registryPath -PreparedBranchesOnly -Confirm:$false } |
+            Should -Throw $Error
+        $global:PublisherTestWriteTokens.Count | Should -Be 0
+        $global:PublisherTestPullRequests.Count | Should -Be 0
+        (& git -C $consumer config core.autocrlf).Trim() | Should -BeExactly 'true'
     }
 
     It 'reproduces an explicitly approved baseline during publication' {

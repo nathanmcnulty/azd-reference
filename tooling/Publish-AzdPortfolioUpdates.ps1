@@ -367,7 +367,13 @@ foreach ($consumer in $selectedConsumers) {
     $previousReplaceSetting = $env:GIT_NO_REPLACE_OBJECTS
     try {
         $env:GIT_NO_REPLACE_OBJECTS = '1'
-        Invoke-GitChecked -RepositoryRoot $checkoutRoot -Arguments @('worktree', 'add', '--detach', $inspectionPath, $prepared.commit) | Out-Null
+        # Inspect canonical blobs without host-default CRLF expansion. These
+        # command-local settings leave the consumer's configuration unchanged;
+        # its committed attributes and the exact-tree comparison still apply.
+        Invoke-GitChecked -RepositoryRoot $checkoutRoot -Arguments @(
+            '-c', 'core.autocrlf=false', '-c', 'core.eol=lf',
+            'worktree', 'add', '--detach', $inspectionPath, $prepared.commit
+        ) | Out-Null
         $inspectionSolution = if ($consumer.solutionRoot -ceq '.') { $inspectionPath } else {
             Resolve-ConsumerCheckout -Root $inspectionPath -RelativePath $consumer.solutionRoot
         }
@@ -379,7 +385,9 @@ foreach ($consumer in $selectedConsumers) {
         # Reproduce the one-component update from its exact parent using the
         # existing synchronizer. Exact tree equality also covers other lock
         # entries, baseline policy, deleted paths, and unrelated branch changes.
-        Invoke-GitChecked -RepositoryRoot $inspectionPath -Arguments @('reset', '--hard', "$($prepared.commit)^") | Out-Null
+        Invoke-GitChecked -RepositoryRoot $inspectionPath -Arguments @(
+            '-c', 'core.autocrlf=false', '-c', 'core.eol=lf', 'reset', '--hard', "$($prepared.commit)^"
+        ) | Out-Null
         $replayParameters = @{
             Component = $Component
             Revision = $ExpectedRevision
