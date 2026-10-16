@@ -18,7 +18,7 @@ recalculate the hash.
 - Refuse dirty canonical source and dirty managed consumer files.
 - Stage all files before replacement and restore prior content on failure.
 - Never infer file deletion from a changed manifest.
-- Never execute consumer code while holding a future cross-repository write token.
+- Never execute consumer code while holding a cross-repository write token.
 
 ## Authentication
 
@@ -35,9 +35,22 @@ Webhook URLs, Logic App callback URLs, SAS query strings, and authorization quer
 parameters are bearer credentials. Treat them as secrets and exclude them from
 receipts, validation reports, locks, logs, and ordinary outputs.
 
-## Future updater
+## Portfolio updater
 
-Cross-repository update automation is deferred. When introduced, use a GitHub App
-limited to selected repositories with Contents write, Pull requests write, and
-Metadata read. It may open update pull requests but must never approve or merge
-them. Remove the installation token before consumer CI executes.
+Cross-repository draft publication is implemented in
+[the portfolio update workflow](../docs/portfolio-updates.md#automated-draft-update-pull-requests).
+It uses a GitHub App limited to registered repositories with Contents write,
+Pull requests write, and Metadata read. It must never approve or merge its PRs.
+Consumer validation runs on a credential-free preparation runner; the App token
+exists only on a separate publication runner that restores the validated branch.
+
+Manual dispatch requires an exact consumer ID and defaults to plan-only. That
+mode does not prepare branches, request the publication environment, mint an App
+token, or publish. Every publication candidate is rechecked against the trusted
+registry and requested consumer before App authentication; downloaded bundles
+cannot select a different repository, component, version, or branch. Scheduled
+and registry-triggered runs retain the existing portfolio-wide scope.
+
+Implementation is not evidence of operational App configuration or a successful
+publication. Verify a real bounded draft-PR run separately before claiming that
+end-to-end publication works.

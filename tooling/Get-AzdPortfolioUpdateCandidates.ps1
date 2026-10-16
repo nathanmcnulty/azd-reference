@@ -7,6 +7,8 @@ param(
 
     [string] $StatusPath,
 
+    [string] $ConsumerId,
+
     [switch] $ExcludeOpenPullRequests,
 
     [switch] $AsJson
@@ -36,6 +38,17 @@ if (-not ($registryRaw | Test-Json -SchemaFile (Join-Path $referenceRoot 'schema
 }
 $registry = $registryRaw | ConvertFrom-Json
 
+# Resolve the explicit selector before reading or computing status.
+if ($ConsumerId.Length -gt 0) {
+    if ($ConsumerId -cnotmatch '\A[a-z][a-z0-9-]{1,62}[a-z0-9]\z') {
+        throw "ConsumerId must be one exact registry ID: '$ConsumerId'."
+    }
+    $selectedConsumers = @($registry.consumers | Where-Object { $_.id -ceq $ConsumerId })
+    if ($selectedConsumers.Count -ne 1) {
+        throw "ConsumerId references an unknown or duplicate consumer: '$ConsumerId'."
+    }
+}
+
 $status = if ($StatusPath) {
     @(Get-Content -LiteralPath $StatusPath -Raw | ConvertFrom-Json)
 }
@@ -47,8 +60,10 @@ else {
     @($statusJson | ConvertFrom-Json)
 }
 
+$seenCandidates = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
 $candidates = @(
     foreach ($entry in $status) {
+        if ($ConsumerId.Length -gt 0 -and $entry.consumer -cne $ConsumerId) { continue }
         if ([string] $entry.state -notin @('outdated', 'notAdopted')) { continue }
 
         $blockingFindings = @($entry.findings | Where-Object {
@@ -59,9 +74,20 @@ $candidates = @(
             throw "Consumer '$($entry.consumer)' is not safe to update: $($blockingFindings -join ', ')."
         }
 
+        if ($entry.consumer -isnot [string]) { throw 'Status consumer must be a scalar string.' }
         $consumer = @($registry.consumers | Where-Object { [string] $_.id -ceq [string] $entry.consumer })
         if ($consumer.Count -ne 1) { throw "Status references an unknown or duplicate consumer: '$($entry.consumer)'." }
         $consumer = $consumer[0]
+        if ($entry.component -isnot [string] -or $entry.desiredVersion -isnot [string]) {
+            throw 'Status component and desiredVersion must be scalar strings.'
+        }
+        $component = @($consumer.components | Where-Object { $_.id -ceq $entry.component })
+        if ($component.Count -ne 1 -or $component[0].desiredVersion -cne $entry.desiredVersion) {
+            throw "Status component or desiredVersion does not match the registry for '$($consumer.id)'."
+        }
+        if (-not $seenCandidates.Add("$($consumer.id)/$($entry.component)")) {
+            throw "Duplicate consumer/component candidate: '$($consumer.id)/$($entry.component)'."
+        }
         $parts = Get-RepositoryPart -Repository ([string] $consumer.repository)
         $branch = "codex/update-$($consumer.id)-$($entry.component)-v$($entry.desiredVersion)"
 

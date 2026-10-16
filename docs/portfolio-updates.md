@@ -211,3 +211,54 @@ Install the App only on registered consumer repositories. It does not need Azure
 or Microsoft Graph permissions, Actions administration, repository
 administration, issue access, or access to unregistered repositories. The weekly
 read-only drift workflow remains independent of this publishing credential.
+
+### Bounded manual runs
+
+Manual dispatch requires `consumer`, the exact case-sensitive `id` from the
+registry, and defaults `plan_only` to `true`. Wildcards, whitespace, unknown IDs,
+and duplicate IDs are rejected. A selected consumer may have more than one
+approved component update; the scope is one repository, not necessarily one PR.
+Scheduled and registry-change runs continue to reconcile all registered consumers.
+
+Plan-only clones and audits the selected public repository and checks for existing
+exact update PRs with the workflow's read-only token. It uploads
+`portfolio-update-plan.json` beside the status report and writes the candidate
+list to the job summary. It does not run consumer validation, prepare a branch,
+request the publication environment, mint an App token, or publish. An empty
+candidate list is a successful no-op, not evidence that App publication works.
+The status report can contain `checkoutUnavailable` for unselected consumers;
+those repositories are intentionally not cloned for a bounded run.
+
+Before preparation and before App authentication, a side-effect-free guard checks
+all candidate destination fields, the branch, component, and version against the
+checked-out registry. It rejects a target outside the requested consumer. Bundle
+artifacts carry Git objects only; they cannot redefine the candidate or expand the
+App token's repository scope. Publication rechecks the guard and still uses the
+existing prepared-branch validation and draft-only publisher.
+
+For a bounded proof:
+
+1. Review and merge the workflow change separately, then choose one consumer with
+   a genuine approved outstanding update, immutable release, clean managed files,
+   and a registered validator. Do not manufacture drift or change desired versions
+   merely to create a test target.
+2. Dispatch with that exact consumer and `plan_only=true`. Review the plan and
+   require exactly one candidate for the initial proof. If empty, select no
+   substitute silently; report that no eligible update exists.
+3. Before the proof publication dispatch, verify that the `portfolio-updates`
+   environment actually has an effective required-reviewer gate. Naming the
+   environment in YAML does not configure that protection. If the gate is absent
+   or unavailable, stop and report the blocker; do not dispatch publication or
+   change environment settings as part of this proof.
+4. After approving the exact planned target, dispatch the same consumer with
+   `plan_only=false`. Discovery runs again, so compare its current plan before
+   allowing the protected publication environment. A changed candidate requires
+   fresh review; the first plan is evidence, not a durable authorization token.
+   Without a reviewer gate, this mode can publish every currently eligible
+   component for the selected consumer before anyone can review the new plan.
+5. Verify the App-authored draft PR, exact branch/files/locks, validator and hosted
+   CI. Then rediscover read-only and confirm exact existing-PR suppression. Stop
+   with the draft PR open; no merge or deployment is part of this proof.
+
+Use only the existing App configuration. A missing installation or configuration
+is a blocker to report, not permission to create credentials or expand grants.
