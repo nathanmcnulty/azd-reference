@@ -2,6 +2,7 @@ Describe 'Portfolio update candidate selection' {
     BeforeAll {
         $script:repoRoot = Split-Path $PSScriptRoot -Parent
         $script:selector = Join-Path $script:repoRoot 'tooling/Get-AzdPortfolioUpdateCandidates.ps1'
+        function gh { throw 'GitHub CLI must be mocked in candidate tests.' }
     }
 
     BeforeEach {
@@ -28,6 +29,7 @@ Describe 'Portfolio update candidate selection' {
             )
         } | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $registryPath -Encoding utf8NoBOM
         $statusPath = Join-Path $caseRoot 'status.json'
+        $diagnosticsPath = Join-Path $caseRoot 'selection.json'
     }
 
     It 'selects only explicitly desired safe version or adoption changes' {
@@ -148,6 +150,64 @@ Describe 'Portfolio update candidate selection' {
         ) | ConvertTo-Json -Depth 10 | Set-Content $statusPath
         $result = @((& $script:selector -PortfolioRoot $portfolioRoot -RegistryPath $registryPath -StatusPath $statusPath -ConsumerId '' -AsJson) | ConvertFrom-Json)
         $result.Count | Should -Be 2
+    }
+
+    It 'records only observed exact open PR suppression without changing the candidate output' {
+        @{ consumer = 'consumer-one'; component = 'example-component'; desiredVersion = '1.2.3'; state = 'outdated'; findings = @() } |
+            ConvertTo-Json | Set-Content $statusPath
+        Mock gh {
+            $global:LASTEXITCODE = 0
+            '[{"url":"https://github.com/example/consumer-one/pull/7","headRefName":"codex/update-consumer-one-example-component-v1.2.3","baseRefName":"main","title":"chore: update example-component to 1.2.3"}]'
+        }
+        (& $script:selector -PortfolioRoot $portfolioRoot -RegistryPath $registryPath -StatusPath $statusPath -ExcludeOpenPullRequests -DiagnosticsPath $diagnosticsPath -AsJson) | Should -Be '[]'
+        $observed = Get-Content $diagnosticsPath -Raw | ConvertFrom-Json
+        $observed.state | Should -Be 'completed'
+        $observed.excludeOpenPullRequests | Should -BeTrue
+        $observed.suppressed.Count | Should -Be 1
+        $observed.suppressed[0].base | Should -Be 'main'
+        $observed.suppressed[0].pullRequestUrls | Should -Be @('https://github.com/example/consumer-one/pull/7')
+    }
+
+    It 'does not suppress an inexact PR <field>' -ForEach @(
+        @{ field = 'headRefName' }, @{ field = 'baseRefName' }, @{ field = 'title' }
+    ) {
+        @{ consumer = 'consumer-one'; component = 'example-component'; desiredVersion = '1.2.3'; state = 'outdated'; findings = @() } |
+            ConvertTo-Json | Set-Content $statusPath
+        $pullRequest = @{ url = 'https://github.com/example/consumer-one/pull/7'; headRefName = 'codex/update-consumer-one-example-component-v1.2.3'; baseRefName = 'main'; title = 'chore: update example-component to 1.2.3' }
+        $pullRequest[$field] = 'different'
+        Mock gh -MockWith ({ $global:LASTEXITCODE = 0; ConvertTo-Json -InputObject @($pullRequest) -Compress }.GetNewClosure())
+        $candidates = @((& $script:selector -PortfolioRoot $portfolioRoot -RegistryPath $registryPath -StatusPath $statusPath -ExcludeOpenPullRequests -DiagnosticsPath $diagnosticsPath -AsJson) | ConvertFrom-Json)
+        $candidates.Count | Should -Be 1
+        (Get-Content $diagnosticsPath -Raw | ConvertFrom-Json).suppressed.Count | Should -Be 0
+    }
+
+    It 'retains the original selection failure while writing diagnostics' {
+        @{ consumer = 'consumer-one'; component = 'example-component'; desiredVersion = '1.2.3'; state = 'outdated'; findings = @('desiredReleaseTagMissing:example-component@1.2.3') } |
+            ConvertTo-Json | Set-Content $statusPath
+        { & $script:selector -PortfolioRoot $portfolioRoot -RegistryPath $registryPath -StatusPath $statusPath -DiagnosticsPath $diagnosticsPath -AsJson } |
+            Should -Throw '*not safe to update*desiredReleaseTagMissing*'
+        $observed = Get-Content $diagnosticsPath -Raw | ConvertFrom-Json
+        $observed.state | Should -Be 'failed'
+        $observed.error | Should -Match 'desiredReleaseTagMissing:example-component@1.2.3'
+        $observed.suppressed.Count | Should -Be 0
+    }
+
+    It 'retains a failed PR lookup rather than reporting a successful empty selection' {
+        @{ consumer = 'consumer-one'; component = 'example-component'; desiredVersion = '1.2.3'; state = 'outdated'; findings = @() } |
+            ConvertTo-Json | Set-Content $statusPath
+        Mock gh { $global:LASTEXITCODE = 1; 'lookup failed' }
+        { & $script:selector -PortfolioRoot $portfolioRoot -RegistryPath $registryPath -StatusPath $statusPath -ExcludeOpenPullRequests -DiagnosticsPath $diagnosticsPath -AsJson } |
+            Should -Throw '*Unable to inspect existing pull requests*'
+        $observed = Get-Content $diagnosticsPath -Raw | ConvertFrom-Json
+        $observed.state | Should -Be 'failed'
+        $observed.suppressed.Count | Should -Be 0
+    }
+
+    It 'does not mask a selection failure if the optional diagnostics cannot be written' {
+        @{ consumer = 'consumer-one'; component = 'example-component'; desiredVersion = '1.2.3'; state = 'outdated'; findings = @('checkoutDirty') } |
+            ConvertTo-Json | Set-Content $statusPath
+        { & $script:selector -PortfolioRoot $portfolioRoot -RegistryPath $registryPath -StatusPath $statusPath -DiagnosticsPath (Join-Path $caseRoot 'absent/selection.json') -WarningAction SilentlyContinue } |
+            Should -Throw '*not safe to update*checkoutDirty*'
     }
 
 }

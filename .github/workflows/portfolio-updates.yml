@@ -102,14 +102,33 @@ jobs:
             -StatusPath $statusPath `
             -ConsumerId $env:SELECTED_CONSUMER `
             -ExcludeOpenPullRequests `
+            -DiagnosticsPath ./portfolio-update-selection.json `
             -AsJson
           if ($LASTEXITCODE -ne 0) { throw 'Unable to select portfolio update candidates.' }
           $matrix | Set-Content -LiteralPath ./portfolio-update-plan.json -Encoding utf8NoBOM
           $candidateCount = @($matrix | ConvertFrom-Json).Count
-          "Selected consumer: $($env:SELECTED_CONSUMER); candidate count: $candidateCount" | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY
-          $matrix | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY
           "matrix=$matrix" | Add-Content -LiteralPath $env:GITHUB_OUTPUT -Encoding utf8NoBOM
           "has-updates=$($candidateCount -gt 0)".ToLowerInvariant() | Add-Content -LiteralPath $env:GITHUB_OUTPUT -Encoding utf8NoBOM
+
+      - name: Explain portfolio update readiness
+        if: always()
+        shell: pwsh
+        env:
+          SELECTED_CONSUMER: ${{ inputs.consumer }}
+        run: |
+          if (-not (Test-Path -LiteralPath ./portfolio-status.json -PathType Leaf)) {
+            'Portfolio readiness is unknown: the status audit did not produce a report. Review the preceding failed step.' | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY
+          }
+          else {
+            & ./portfolio/azd-reference/tooling/Get-AzdPortfolioUpdateReport.ps1 `
+              -StatusPath ./portfolio-status.json `
+              -CandidatesPath ./portfolio-update-plan.json `
+              -SelectionDiagnosticsPath ./portfolio-update-selection.json `
+              -ConsumerId $env:SELECTED_CONSUMER `
+              -SummaryPath ./portfolio-update-readiness.md `
+              -AsJson | Set-Content -LiteralPath ./portfolio-update-readiness.json -Encoding utf8NoBOM
+            Get-Content -LiteralPath ./portfolio-update-readiness.md | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY
+          }
 
       - name: Upload portfolio report
         if: always()
@@ -119,6 +138,9 @@ jobs:
           path: |
             portfolio-status.json
             portfolio-update-plan.json
+            portfolio-update-selection.json
+            portfolio-update-readiness.json
+            portfolio-update-readiness.md
           if-no-files-found: error
           retention-days: 30
 
