@@ -100,12 +100,42 @@ Describe 'Guarded portfolio publication' {
             }
         }
 
+        $bundlePath = Join-Path $caseRoot 'component-release.tar.gz'
+        'Offline bundle fixture; attestation verification is mocked.' | Set-Content $bundlePath
+        $releaseTag = 'component/deployment-validation/v0.3.3'
+        $expectedRevision = (& git --no-replace-objects -C $script:repoRoot rev-parse "refs/tags/${releaseTag}^{commit}").Trim()
+        $tagObject = (& git --no-replace-objects -C $script:repoRoot rev-parse "refs/tags/${releaseTag}^{tag}").Trim()
+        $publishEvidence = @{ ReleaseBundlePath = $bundlePath; ExpectedRevision = $expectedRevision }
+        $savedToken = $env:GH_TOKEN
+        $savedReadToken = $env:AZD_RELEASE_READ_TOKEN
+        $env:GH_TOKEN = 'fixture-app-credential'
+        $env:AZD_RELEASE_READ_TOKEN = 'fixture-read-credential'
+        $global:PublisherTestReferenceRoot = $script:repoRoot
+        $global:PublisherTestReleaseTag = $releaseTag
+        $global:PublisherTestReleaseCommit = $expectedRevision
+        $global:PublisherTestTagObject = $tagObject
+        $global:PublisherTestVerifyCount = 0
+        $global:PublisherTestFailVerifyAt = 0
+        $global:PublisherTestMoveBranchAtVerify = $false
+        $global:PublisherTestConsumerRoot = $consumer
+        $global:PublisherTestVerificationTokens = [System.Collections.Generic.List[string]]::new()
+        $global:PublisherTestWriteTokens = [System.Collections.Generic.List[string]]::new()
         $global:PublisherTestGitApplication = (Get-Command git -CommandType Application | Select-Object -First 1).Source
         $global:PublisherTestRepositoryMap = @{ $repository = $remote }
         $global:PublisherTestBareRepository = $remote
         $global:PublisherTestCreateRace = $false
         $global:PublisherTestPullRequests = @{}
         function global:git {
+            # No test reads live GitHub tag state. Map only this exact read to
+            # local fixture evidence; all consumer remotes are local bare repos.
+            if ($args -contains 'ls-remote' -and $args -contains 'origin' -and
+                $args -contains $global:PublisherTestReferenceRoot) {
+                $global:LASTEXITCODE = 0
+                "$($global:PublisherTestTagObject)`trefs/tags/$($global:PublisherTestReleaseTag)"
+                "$($global:PublisherTestReleaseCommit)`trefs/tags/$($global:PublisherTestReleaseTag)^{}"
+                return
+            }
+            if ($args -contains 'push') { $global:PublisherTestWriteTokens.Add([string] $env:GH_TOKEN) }
             $mappedArguments = @(
                 foreach ($argument in $args) {
                     $argumentText = [string] $argument
@@ -130,7 +160,27 @@ Describe 'Guarded portfolio publication' {
 
             $global:LASTEXITCODE = 0
             if ($ArgumentList[0] -eq 'auth') { return }
+            if ($ArgumentList[0] -eq 'api') {
+                if ($ArgumentList[-1] -like '*/git/ref/tags/*') {
+                    return (@{ ref = "refs/tags/$global:PublisherTestReleaseTag"; object = @{ type = 'tag'; sha = $global:PublisherTestTagObject } } | ConvertTo-Json -Depth 5)
+                }
+                if ($ArgumentList[-1] -like '*/git/tags/*') {
+                    return (@{ sha = $global:PublisherTestTagObject; tag = $global:PublisherTestReleaseTag; object = @{ type = 'commit'; sha = $global:PublisherTestReleaseCommit }; verification = @{ verified = $true } } | ConvertTo-Json -Depth 5)
+                }
+                throw 'Unexpected API request in offline publisher fixture.'
+            }
+            if ($ArgumentList[0] -eq 'attestation') {
+                $global:PublisherTestVerifyCount++
+                $global:PublisherTestVerificationTokens.Add([string] $env:GH_TOKEN)
+                if ($global:PublisherTestMoveBranchAtVerify -and $global:PublisherTestVerifyCount -eq 2) {
+                    & $global:PublisherTestGitApplication -C $global:PublisherTestConsumerRoot update-ref `
+                        refs/heads/codex/update-consumer-one-deployment-validation-v0.3.3 refs/heads/main
+                }
+                if ($global:PublisherTestVerifyCount -eq $global:PublisherTestFailVerifyAt) { $global:LASTEXITCODE = 1 }
+                return
+            }
             if ($ArgumentList[0] -eq 'pr') {
+                $global:PublisherTestWriteTokens.Add([string] $env:GH_TOKEN)
                 $repoIndex = [Array]::IndexOf($ArgumentList, '--repo')
                 if ($repoIndex -lt 0 -or $repoIndex + 1 -ge $ArgumentList.Count) {
                     $global:LASTEXITCODE = 1
@@ -148,12 +198,14 @@ Describe 'Guarded portfolio publication' {
 
     AfterEach {
         Remove-Item Function:\git, Function:\gh -ErrorAction SilentlyContinue
-        Remove-Variable PublisherTestGitApplication, PublisherTestRepositoryMap, PublisherTestBareRepository, PublisherTestCreateRace, PublisherTestPullRequests -Scope Global -ErrorAction SilentlyContinue
+        Remove-Variable PublisherTest* -Scope Global -ErrorAction SilentlyContinue
+        if ($null -eq $savedToken) { Remove-Item Env:GH_TOKEN -ErrorAction SilentlyContinue } else { $env:GH_TOKEN = $savedToken }
+        if ($null -eq $savedReadToken) { Remove-Item Env:AZD_RELEASE_READ_TOKEN -ErrorAction SilentlyContinue } else { $env:AZD_RELEASE_READ_TOKEN = $savedReadToken }
     }
 
     It 'plans publication without creating a branch, worktree, or remote state' {
         $beforeHead = (& git -C $consumer rev-parse HEAD).Trim()
-        $result = @(& $publisher `
+        $result = @(& $publisher @publishEvidence `
                 -Component deployment-validation `
                 -Version 0.3.3 `
                 -PortfolioRoot $portfolioRoot `
@@ -172,7 +224,7 @@ Describe 'Guarded portfolio publication' {
     It 'rejects an unknown single-consumer selector without mutation' {
         $beforeHead = (& git -C $consumer rev-parse HEAD).Trim()
 
-        { & $publisher `
+        { & $publisher @publishEvidence `
                 -Component deployment-validation `
                 -Version 0.3.3 `
                 -ConsumerId consumer-missing `
@@ -191,7 +243,7 @@ Describe 'Guarded portfolio publication' {
         $second = & $addSecondConsumer
         $beforeHead = (& git -C $consumer rev-parse HEAD).Trim()
 
-        $result = @(& $publisher `
+        $result = @(& $publisher @publishEvidence `
                 -Component deployment-validation `
                 -Version 0.3.3 `
                 -ConsumerId consumer-one `
@@ -212,7 +264,7 @@ Describe 'Guarded portfolio publication' {
     It 'publishes only the exact selected consumer and does not inspect another checkout' {
         $second = & $addSecondConsumer
 
-        $result = @(& $publisher `
+        $result = @(& $publisher @publishEvidence `
                 -Component deployment-validation `
                 -Version 0.3.3 `
                 -ConsumerId consumer-one `
@@ -236,7 +288,7 @@ Describe 'Guarded portfolio publication' {
         $registry.consumers += $duplicate
         $registry | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $registryPath -Encoding utf8NoBOM
 
-        { & $publisher `
+        { & $publisher @publishEvidence `
                 -Component deployment-validation `
                 -Version 0.3.3 `
                 -PortfolioRoot $portfolioRoot `
@@ -255,7 +307,7 @@ Describe 'Guarded portfolio publication' {
         $registry.consumers[0].components += [pscustomobject]@{ id = 'deployment-validation'; desiredVersion = '0.3.3' }
         $registry | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $registryPath -Encoding utf8NoBOM
 
-        { & $publisher `
+        { & $publisher @publishEvidence `
                 -Component deployment-validation `
                 -Version 0.3.3 `
                 -ConsumerId consumer-one `
@@ -275,7 +327,7 @@ Describe 'Guarded portfolio publication' {
         $registry.consumers[0].components[0].desiredVersion = '0.3.2'
         $registry | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $registryPath -Encoding utf8NoBOM
 
-        { & $publisher `
+        { & $publisher @publishEvidence `
                 -Component deployment-validation `
                 -Version 0.3.3 `
                 -ConsumerId consumer-one `
@@ -296,7 +348,7 @@ Describe 'Guarded portfolio publication' {
         & $global:PublisherTestGitApplication --git-dir=$remote update-ref "refs/heads/$earlierBranch" $consumerHead
         $global:PublisherTestPullRequests['example/consumer-one'] = 'https://github.com/example/consumer-one/pull/earlier'
 
-        $result = @(& $publisher `
+        $result = @(& $publisher @publishEvidence `
                 -Component deployment-validation `
                 -Version 0.3.3 `
                 -ConsumerId consumer-two `
@@ -317,7 +369,7 @@ Describe 'Guarded portfolio publication' {
     It 'publishes every eligible consumer when ConsumerId is omitted' {
         $second = & $addSecondConsumer -Materialize
 
-        $result = @(& $publisher `
+        $result = @(& $publisher @publishEvidence `
                 -Component deployment-validation `
                 -Version 0.3.3 `
                 -PortfolioRoot $portfolioRoot `
@@ -339,7 +391,7 @@ Describe 'Guarded portfolio publication' {
         $registry.referenceRepository = 'https://github.com/example/other-reference'
         $registry | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $registryPath -Encoding utf8NoBOM
 
-        { & $publisher `
+        { & $publisher @publishEvidence `
                 -Component deployment-validation `
                 -Version 0.3.3 `
                 -PortfolioRoot $portfolioRoot `
@@ -349,7 +401,7 @@ Describe 'Guarded portfolio publication' {
     }
 
     It 'publishes an atomically created ref through the exact registered URL' {
-        $result = @(& $publisher `
+        $result = @(& $publisher @publishEvidence `
                 -Component deployment-validation `
                 -Version 0.3.3 `
                 -PortfolioRoot $portfolioRoot `
@@ -366,7 +418,7 @@ Describe 'Guarded portfolio publication' {
 
     It 'fails closed when Git URL rewrite configuration is visible' {
         & git -C $consumer config "url.$remote.insteadOf" $repository
-        { & $publisher `
+        { & $publisher @publishEvidence `
                 -Component deployment-validation `
                 -Version 0.3.3 `
                 -PortfolioRoot $portfolioRoot `
@@ -388,7 +440,7 @@ Describe 'Guarded portfolio publication' {
         $liveMain = (& git -C $remoteClone rev-parse HEAD).Trim()
         (& git -C $consumer rev-parse refs/remotes/origin/main).Trim() | Should -Not -Be $liveMain
 
-        $result = @(& $publisher `
+        $result = @(& $publisher @publishEvidence `
                 -Component deployment-validation `
                 -Version 0.3.3 `
                 -PortfolioRoot $portfolioRoot `
@@ -403,7 +455,7 @@ Describe 'Guarded portfolio publication' {
         $branch = 'codex/update-consumer-one-deployment-validation-v0.3.3'
         & git -C $consumer push $remote "HEAD:refs/heads/$branch" | Out-Null
 
-        { & $publisher `
+        { & $publisher @publishEvidence `
                 -Component deployment-validation `
                 -Version 0.3.3 `
                 -PortfolioRoot $portfolioRoot `
@@ -415,7 +467,7 @@ Describe 'Guarded portfolio publication' {
 
     It 'fails atomic creation when the branch appears during validation' {
         $global:PublisherTestCreateRace = $true
-        { & $publisher `
+        { & $publisher @publishEvidence `
                 -Component deployment-validation `
                 -Version 0.3.3 `
                 -PortfolioRoot $portfolioRoot `
@@ -424,11 +476,177 @@ Describe 'Guarded portfolio publication' {
                 -Confirm:$false } | Should -Throw '*Git failed*'
     }
 
+    It 'reproduces an explicitly approved baseline during publication' {
+        $registry = Get-Content $registryPath -Raw | ConvertFrom-Json
+        $registry.consumers[0] | Add-Member -NotePropertyName desiredBaseline -NotePropertyValue '2026.10'
+        $registry | ConvertTo-Json -Depth 20 | Set-Content $registryPath
+        $result = & $publisher @publishEvidence -Component deployment-validation -Version 0.3.3 -ConsumerId consumer-one `
+            -PortfolioRoot $portfolioRoot -WorktreeRoot $worktrees -RegistryPath $registryPath -Confirm:$false
+        $result.state | Should -Be 'published'
+        $lock = (& git -C $consumer show "$($result.commit):azd-components.lock.json" | Out-String) | ConvertFrom-Json
+        $lock.baseline | Should -BeExactly '2026.10'
+    }
+
+    It 'reproduces an approved removal without restoring a retired managed file' {
+        & (Join-Path $script:repoRoot 'tooling/Sync-AzdComponent.ps1') -Component deployment-validation `
+            -Version 0.3.2 -TargetPath $consumer -Confirm:$false | Out-Null
+        $retiredPath = Join-Path $consumer 'retired-fixture.txt'
+        'Retired fixture bytes' | Set-Content $retiredPath
+        $lockPath = Join-Path $consumer 'azd-components.lock.json'
+        $lock = Get-Content $lockPath -Raw | ConvertFrom-Json
+        $lock.components[0].files += [pscustomobject]@{
+            source = 'retired-fixture.txt'; target = 'retired-fixture.txt'
+            sha256 = (Get-FileHash $retiredPath -Algorithm SHA256).Hash.ToLowerInvariant()
+        }
+        $lock | ConvertTo-Json -Depth 20 | Set-Content $lockPath
+        & git -C $consumer add --all
+        & git -C $consumer commit -m 'Previously managed file fixture' | Out-Null
+        & git -C $consumer push $remote main 2>&1 | Out-Null
+        $global:PublisherTestWriteTokens.Clear()
+        & git -C $consumer update-ref refs/remotes/origin/main HEAD
+        $result = & $publisher @publishEvidence -Component deployment-validation -Version 0.3.3 -ConsumerId consumer-one `
+            -PortfolioRoot $portfolioRoot -WorktreeRoot $worktrees -RegistryPath $registryPath -PruneRemovedFiles -Confirm:$false
+        $result.state | Should -Be 'published'
+        @(& git -C $consumer ls-tree --name-only $result.commit -- retired-fixture.txt).Count | Should -Be 0
+    }
+
+    It 'requires supplied release evidence before preparation or any write' {
+        { & $publisher -Component deployment-validation -Version 0.3.3 -ConsumerId consumer-one `
+            -PortfolioRoot $portfolioRoot -WorktreeRoot $worktrees -RegistryPath $registryPath -Confirm:$false } |
+            Should -Throw '*requires -ReleaseBundlePath and -ExpectedRevision*'
+        $global:PublisherTestVerifyCount | Should -Be 0
+        $global:PublisherTestWriteTokens.Count | Should -Be 0
+        @(Get-ChildItem $worktrees -Force).Count | Should -Be 0
+    }
+
+    It 'rejects an expected revision that differs from the trusted selected tag' {
+        $publishEvidence.ExpectedRevision = 'a' * 40
+        { & $publisher @publishEvidence -Component deployment-validation -Version 0.3.3 -ConsumerId consumer-one `
+            -PortfolioRoot $portfolioRoot -WorktreeRoot $worktrees -RegistryPath $registryPath -Confirm:$false } |
+            Should -Throw '*ExpectedRevision does not match*'
+        $global:PublisherTestVerifyCount | Should -Be 0
+        $global:PublisherTestWriteTokens.Count | Should -Be 0
+    }
+
+    It 'restores an initially absent GH_TOKEN on verification <Outcome>' -ForEach @(
+        @{ Outcome = 'success'; FailAt = 0 }, @{ Outcome = 'failure'; FailAt = 1 }
+    ) {
+        Remove-Item Env:GH_TOKEN
+        $global:PublisherTestFailVerifyAt = $FailAt
+        $invoke = {
+            & $publisher @publishEvidence -Component deployment-validation -Version 0.3.3 -ConsumerId consumer-one `
+                -PortfolioRoot $portfolioRoot -WorktreeRoot $worktrees -RegistryPath $registryPath -Confirm:$false
+        }
+        if ($FailAt) { $invoke | Should -Throw '*attestation verification failed*' }
+        else { (& $invoke).state | Should -Be 'published' }
+        Test-Path Env:GH_TOKEN | Should -BeFalse
+        @($global:PublisherTestVerificationTokens | Where-Object { $_ -cne 'fixture-read-credential' }).Count | Should -Be 0
+        @($global:PublisherTestWriteTokens | Where-Object { $_ -ne '' }).Count | Should -Be 0
+    }
+
+    It 'restores the App credential after verification and uses it only for writes' {
+        (& $publisher @publishEvidence -Component deployment-validation -Version 0.3.3 -ConsumerId consumer-one `
+            -PortfolioRoot $portfolioRoot -WorktreeRoot $worktrees -RegistryPath $registryPath -Confirm:$false).state | Should -Be 'published'
+        $global:PublisherTestVerifyCount | Should -Be 2
+        @($global:PublisherTestVerificationTokens | Where-Object { $_ -cne 'fixture-read-credential' }).Count | Should -Be 0
+        @($global:PublisherTestWriteTokens | Where-Object { $_ -cne 'fixture-app-credential' }).Count | Should -Be 0
+        $env:GH_TOKEN | Should -BeExactly 'fixture-app-credential'
+    }
+
+    It 'uses the existing CLI authentication when a separate read credential is absent' {
+        Remove-Item Env:AZD_RELEASE_READ_TOKEN
+        (& $publisher @publishEvidence -Component deployment-validation -Version 0.3.3 -ConsumerId consumer-one `
+            -PortfolioRoot $portfolioRoot -WorktreeRoot $worktrees -RegistryPath $registryPath -Confirm:$false).state | Should -Be 'published'
+        @($global:PublisherTestVerificationTokens | Where-Object { $_ -cne 'fixture-app-credential' }).Count | Should -Be 0
+        $env:GH_TOKEN | Should -BeExactly 'fixture-app-credential'
+    }
+
+    It 'stops before writes and restores the App credential when verification fails at boundary <_>' -ForEach @(1, 2) {
+        $global:PublisherTestFailVerifyAt = $_
+        { & $publisher @publishEvidence -Component deployment-validation -Version 0.3.3 -ConsumerId consumer-one `
+            -PortfolioRoot $portfolioRoot -WorktreeRoot $worktrees -RegistryPath $registryPath -Confirm:$false } |
+            Should -Throw '*attestation verification failed*'
+        $global:PublisherTestWriteTokens.Count | Should -Be 0
+        $global:PublisherTestPullRequests.Count | Should -Be 0
+        $env:GH_TOKEN | Should -BeExactly 'fixture-app-credential'
+    }
+
+    It 'rejects tampered prepared <Attack> before any write' -ForEach @(
+        @{ Attack = 'revision'; Mode = 'sourceRevision'; Error = '*Prepared lock provenance does not match*' },
+        @{ Attack = 'revision array'; Mode = 'sourceRevisionArray'; Error = '*JSON*' },
+        @{ Attack = 'version array'; Mode = 'versionArray'; Error = '*JSON*' },
+        @{ Attack = 'repository array'; Mode = 'sourceRepositoryArray'; Error = '*JSON*' },
+        @{ Attack = 'managed bytes'; Mode = 'bytes'; Error = '*Managed file drift*' },
+        @{ Attack = 'managed bytes and forged lock hashes'; Mode = 'forged'; Error = '*different managed content*' },
+        @{ Attack = 'unmanaged paths'; Mode = 'extra'; Error = '*Prepared branch tree does not match*' },
+        @{ Attack = 'unapproved baseline'; Mode = 'baseline'; Error = '*Prepared branch tree does not match*' },
+        @{ Attack = 'unrelated lock component'; Mode = 'otherComponent'; Error = '*Prepared branch tree does not match*' }
+    ) {
+        $prepared = & (Join-Path $script:repoRoot 'tooling/Update-AzdPortfolio.ps1') `
+            -Component deployment-validation -Version 0.3.3 -ExpectedRevision $expectedRevision -ConsumerId consumer-one `
+            -PortfolioRoot $portfolioRoot -WorktreeRoot $worktrees -RegistryPath $registryPath -Operation Prepare -Confirm:$false
+        & git -C $consumer checkout $prepared.branch 2>&1 | Out-Null
+        $lockPath = Join-Path $consumer 'azd-components.lock.json'
+        $lock = Get-Content $lockPath -Raw | ConvertFrom-Json
+        $locked = $lock.components[0]
+        if ($Mode -eq 'sourceRevision') { $locked.sourceRevision = 'a' * 40 }
+        elseif ($Mode.EndsWith('Array')) { $field = $Mode -replace 'Array$', ''; $locked.$field = @($locked.$field) }
+        elseif ($Mode -eq 'baseline') { $lock | Add-Member -NotePropertyName baseline -NotePropertyValue '2099.01' -Force }
+        elseif ($Mode -eq 'otherComponent') {
+            $other = $locked | ConvertTo-Json -Depth 20 | ConvertFrom-Json
+            $other.id = 'unrelated-component'
+            foreach ($file in $other.files) { $file.target = 'unrelated/' + $file.target }
+            $lock.components += $other
+        }
+        elseif ($Mode -eq 'extra') { Set-Content (Join-Path $consumer 'unexpected.txt') 'Unmanaged fixture change' }
+        else {
+            $managedPath = Join-Path $consumer $locked.files[0].target
+            Add-Content $managedPath '# Tampered prepared content'
+            if ($Mode -eq 'forged') { $locked.files[0].sha256 = (Get-FileHash $managedPath -Algorithm SHA256).Hash.ToLowerInvariant() }
+        }
+        $lock | ConvertTo-Json -Depth 30 | Set-Content $lockPath
+        & git -C $consumer add --all
+        & git -C $consumer commit --amend --no-edit | Out-Null
+        { & $publisher @publishEvidence -Component deployment-validation -Version 0.3.3 -ConsumerId consumer-one `
+            -PortfolioRoot $portfolioRoot -WorktreeRoot $worktrees -RegistryPath $registryPath -PreparedBranchesOnly -Confirm:$false } |
+            Should -Throw $Error
+        $global:PublisherTestWriteTokens.Count | Should -Be 0
+        $global:PublisherTestPullRequests.Count | Should -Be 0
+    }
+
+    It 'rejects a forged two-parent merge even when its first parent and tree are approved' {
+        $prepared = & (Join-Path $script:repoRoot 'tooling/Update-AzdPortfolio.ps1') `
+            -Component deployment-validation -Version 0.3.3 -ExpectedRevision $expectedRevision -ConsumerId consumer-one `
+            -PortfolioRoot $portfolioRoot -WorktreeRoot $worktrees -RegistryPath $registryPath -Operation Prepare -Confirm:$false
+        $tree = (& git -C $consumer rev-parse "$($prepared.commit)^{tree}").Trim()
+        $otherParent = (& git -C $consumer commit-tree $tree -m 'Unrelated fixture history').Trim()
+        $merge = (& git -C $consumer commit-tree $tree -p $consumerHead -p $otherParent -m 'Forged identical-tree merge').Trim()
+        & git -C $consumer update-ref "refs/heads/$($prepared.branch)" $merge
+        (& git -C $consumer rev-parse "$merge^1").Trim() | Should -BeExactly $consumerHead
+        (& git -C $consumer rev-parse "$merge^{tree}").Trim() | Should -BeExactly $tree
+        { & $publisher @publishEvidence -Component deployment-validation -Version 0.3.3 -ConsumerId consumer-one `
+            -PortfolioRoot $portfolioRoot -WorktreeRoot $worktrees -RegistryPath $registryPath -PreparedBranchesOnly -Confirm:$false } |
+            Should -Throw '*exactly one parent equal to the current live default branch*'
+        $global:PublisherTestVerifyCount | Should -Be 1
+        $global:PublisherTestWriteTokens.Count | Should -Be 0
+        $global:PublisherTestPullRequests.Count | Should -Be 0
+    }
+
+    It 'refuses a prepared branch moved during last-mile release verification' {
+        $global:PublisherTestMoveBranchAtVerify = $true
+        { & $publisher @publishEvidence -Component deployment-validation -Version 0.3.3 -ConsumerId consumer-one `
+            -PortfolioRoot $portfolioRoot -WorktreeRoot $worktrees -RegistryPath $registryPath -Confirm:$false } |
+            Should -Throw '*Prepared branch moved during release verification*'
+        $global:PublisherTestWriteTokens.Count | Should -Be 0
+        $global:PublisherTestPullRequests.Count | Should -Be 0
+    }
+
     It 'contains only expected-absent branch creation and draft pull-request publication commands' {
         $source = Get-Content -LiteralPath $publisher -Raw
         $source | Should -Match "--force-with-lease=refs/heads/"
         $source | Should -Match "'pr', 'create', '--draft'"
-        $source | Should -Not -Match "'--force'"
+        $source | Should -Match ([regex]::Escape('"$($prepared.commit):refs/heads/$($prepared.branch)"'))
+        $source | Should -Not -Match "(?s)'push'[^)]*'--force'"
         $source | Should -Not -Match "'pr',\s*'(?:merge|review)'"
     }
 
@@ -447,7 +665,7 @@ Describe 'Guarded portfolio publication' {
         $prepared.Count | Should -Be 1
         $prepared[0].state | Should -Be 'prepared'
 
-        $published = @(& $publisher `
+        $published = @(& $publisher @publishEvidence `
                 -Component deployment-validation `
                 -Version 0.3.3 `
                 -ConsumerId consumer-one `

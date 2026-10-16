@@ -72,6 +72,109 @@ Describe 'Portfolio update preparation' {
         $updater = Join-Path $reference 'tooling/Update-AzdPortfolio.ps1'
     }
 
+    It 'rejects fixed revision mismatch before preparation' {
+        { & $updater -Component deployment-validation -Version $currentVersion -ExpectedRevision ('a' * 40) `
+            -PortfolioRoot $portfolioRoot -RegistryPath $registryPath -Operation Prepare -WorktreeRoot $worktrees -Confirm:$false } |
+            Should -Throw '*ExpectedRevision does not match*'
+        @(Get-ChildItem $worktrees -Force).Count | Should -Be 0
+        @(& git -C $consumer branch --list 'codex/update-*').Count | Should -Be 0
+    }
+
+    It 'rejects a mislabeled fixed-revision tag before worktree creation' {
+        $manifestPath = Join-Path $reference 'components/powershell/deployment-validation/component.json'
+        $manifest = Get-Content $manifestPath -Raw | ConvertFrom-Json
+        $manifest.version = '99.0.0'
+        $manifest | ConvertTo-Json -Depth 30 | Set-Content $manifestPath
+        & git -C $reference add --all
+        & git -C $reference commit -m 'Mismatched fixture manifest' | Out-Null
+        $revision = (& git -C $reference rev-parse HEAD).Trim()
+        & git -C $reference tag -f "component/deployment-validation/v$currentVersion" | Out-Null
+        { & $updater -Component deployment-validation -Version $currentVersion -ExpectedRevision $revision `
+            -PortfolioRoot $portfolioRoot -RegistryPath $registryPath -Operation Prepare -WorktreeRoot $worktrees -Confirm:$false } |
+            Should -Throw '*fixed-revision synchronization plan does not match*'
+        @(Get-ChildItem $worktrees -Force).Count | Should -Be 0
+        @(& git -C $consumer branch --list 'codex/update-*').Count | Should -Be 0
+    }
+
+    It 'syncs original accepted bytes despite a local replacement object and restores the environment' {
+        $revision = (& git -C $reference rev-parse HEAD).Trim()
+        $sourcePath = Join-Path $reference 'components/powershell/deployment-validation/Azd.DeploymentValidation.psm1'
+        $originalHash = (Get-FileHash $sourcePath -Algorithm SHA256).Hash.ToLowerInvariant()
+        Add-Content $sourcePath '# Malicious replacement fixture'
+        & git -C $reference add --all
+        & git -C $reference commit -m 'Replacement fixture' | Out-Null
+        $replacement = (& git -C $reference rev-parse HEAD).Trim()
+        & git -C $reference replace $revision $replacement
+        $savedSetting = $env:GIT_NO_REPLACE_OBJECTS
+        Remove-Item Env:GIT_NO_REPLACE_OBJECTS -ErrorAction SilentlyContinue
+        try {
+            $result = & $updater -Component deployment-validation -Version $currentVersion -ExpectedRevision $revision `
+                -PortfolioRoot $portfolioRoot -RegistryPath $registryPath -Operation Prepare -WorktreeRoot $worktrees -Confirm:$false
+            $result.sourceRevision | Should -BeExactly $revision
+            $lock = (& git -C $consumer show "$($result.commit):azd-components.lock.json" | Out-String) | ConvertFrom-Json
+            $component = @($lock.components | Where-Object id -eq deployment-validation)[0]
+            $component.sourceRevision | Should -BeExactly $revision
+            $file = @($component.files | Where-Object source -eq 'components/powershell/deployment-validation/Azd.DeploymentValidation.psm1')[0]
+            $file.sha256 | Should -BeExactly $originalHash
+            Test-Path Env:GIT_NO_REPLACE_OBJECTS | Should -BeFalse
+        }
+        finally {
+            if ($null -eq $savedSetting) { Remove-Item Env:GIT_NO_REPLACE_OBJECTS -ErrorAction SilentlyContinue }
+            else { $env:GIT_NO_REPLACE_OBJECTS = $savedSetting }
+        }
+    }
+
+    It 'does not pass publication or release-read token variables to validation' {
+        @'
+foreach ($name in 'GH_TOKEN', 'GITHUB_TOKEN', 'AZD_RELEASE_READ_TOKEN') {
+    if (Test-Path "Env:$name") { throw "Unexpected inherited credential variable: $name" }
+}
+'@ | Set-Content (Join-Path $consumer 'scripts/Test-Repository.ps1')
+        & git -C $consumer add --all
+        & git -C $consumer commit -m 'Validation credential fixture' | Out-Null
+        & git -C $consumer update-ref refs/remotes/origin/main HEAD
+        $saved = @{}
+        foreach ($name in 'GH_TOKEN', 'GITHUB_TOKEN', 'AZD_RELEASE_READ_TOKEN') {
+            $saved[$name] = [Environment]::GetEnvironmentVariable($name)
+            [Environment]::SetEnvironmentVariable($name, 'fixture-credential')
+        }
+        try {
+            (& $updater -Component deployment-validation -Version $currentVersion -PortfolioRoot $portfolioRoot `
+                -RegistryPath $registryPath -Operation Prepare -WorktreeRoot $worktrees -Confirm:$false).state | Should -Be 'prepared'
+            foreach ($name in $saved.Keys) { [Environment]::GetEnvironmentVariable($name) | Should -BeExactly 'fixture-credential' }
+        }
+        finally { foreach ($name in $saved.Keys) { [Environment]::SetEnvironmentVariable($name, $saved[$name]) } }
+    }
+
+    It 'rejects consumer validation that changes <Attack> before committing' -ForEach @(
+        @{ Attack = 'managed bytes'; Forge = $false; Extra = $false; Error = '*Managed file drift*' },
+        @{ Attack = 'managed bytes and forged lock hashes'; Forge = $true; Extra = $false; Error = '*validation changed the generated component lock*' },
+        @{ Attack = 'unmanaged paths'; Forge = $false; Extra = $true; Error = '*Validation changed an unmanaged path*' }
+    ) {
+        $validation = @'
+$lock = Get-Content ./azd-components.lock.json -Raw | ConvertFrom-Json
+$file = $lock.components[0].files[0]
+'@
+        if ($Extra) { $validation += "`nSet-Content ./unexpected.txt 'unmanaged validator output'" }
+        else {
+            $validation += "`nAdd-Content -LiteralPath `$file.target -Value '# modified by validation'"
+            if ($Forge) {
+                $validation += "`n`$file.sha256 = (Get-FileHash `$file.target -Algorithm SHA256).Hash.ToLowerInvariant()"
+                $validation += "`n`$lock | ConvertTo-Json -Depth 20 | Set-Content ./azd-components.lock.json"
+            }
+        }
+        $validation | Set-Content (Join-Path $consumer 'scripts/Test-Repository.ps1')
+        & git -C $consumer add --all
+        & git -C $consumer commit -m 'Hostile validator fixture' | Out-Null
+        & git -C $consumer update-ref refs/remotes/origin/main HEAD
+        $base = (& git -C $consumer rev-parse HEAD).Trim()
+        $revision = (& git -C $reference rev-parse HEAD).Trim()
+        { & $updater -Component deployment-validation -Version $currentVersion -ExpectedRevision $revision `
+            -PortfolioRoot $portfolioRoot -RegistryPath $registryPath -Operation Prepare -WorktreeRoot $worktrees -Confirm:$false } |
+            Should -Throw $Error
+        (& git -C $consumer rev-parse "refs/heads/codex/update-consumer-one-deployment-validation-v$currentVersion").Trim() | Should -BeExactly $base
+    }
+
     It 'plans without changing a consumer, branch, or worktree' {
         $beforeHead = (& git -C $consumer rev-parse HEAD).Trim()
         $result = @(& $updater -Component deployment-validation -Version $currentVersion -PortfolioRoot $portfolioRoot -RegistryPath $registryPath)

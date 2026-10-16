@@ -19,6 +19,12 @@ param(
     [ValidatePattern('^[a-z][a-z0-9-]+$')]
     [string] $ConsumerId,
 
+    # Required for real publication; WhatIf remains a release-evidence-free plan.
+    [string] $ReleaseBundlePath,
+
+    [ValidatePattern('(?-i)^[0-9a-f]{40}\z')]
+    [string] $ExpectedRevision,
+
     [switch] $PreparedBranchesOnly,
 
     [switch] $PruneRemovedFiles
@@ -33,7 +39,7 @@ function Invoke-GitChecked {
         [Parameter(Mandatory)][string[]] $Arguments
     )
 
-    $output = @(& git -C $RepositoryRoot @Arguments 2>&1)
+    $output = @(& git --no-replace-objects -C $RepositoryRoot @Arguments 2>&1)
     if ($LASTEXITCODE -ne 0) {
         throw "Git failed in '$RepositoryRoot': git $($Arguments -join ' ')`n$($output -join "`n")"
     }
@@ -136,6 +142,25 @@ function Invoke-GhChecked {
     @($output)
 }
 
+function Assert-ComponentReleaseAcceptance {
+    # The workflow read token is deliberately separate from the consumer App
+    # token. Never pass either credential as an argument or retain it in output.
+    $hadToken = Test-Path Env:GH_TOKEN
+    $previousToken = $env:GH_TOKEN
+    try {
+        if ($env:AZD_RELEASE_READ_TOKEN) { $env:GH_TOKEN = $env:AZD_RELEASE_READ_TOKEN }
+        & (Join-Path $referenceRoot 'tooling/Test-AzdReleaseIntegrity.ps1') `
+            -AcceptComponentRelease -RepositoryRoot $referenceRoot `
+            -ExpectedRepository 'nathanmcnulty/azd-reference' `
+            -ExpectedTag $tag -ExpectedCommit $ExpectedRevision `
+            -BundlePath $ReleaseBundlePath | Out-Null
+    }
+    finally {
+        if ($hadToken) { $env:GH_TOKEN = $previousToken }
+        else { Remove-Item Env:GH_TOKEN -ErrorAction SilentlyContinue }
+    }
+}
+
 $referenceRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 if (-not $RegistryPath) { $RegistryPath = Join-Path $referenceRoot 'portfolio/consumers.json' }
 $registryRaw = Get-Content -LiteralPath $RegistryPath -Raw
@@ -218,6 +243,15 @@ if (-not $PSCmdlet.ShouldProcess("$Component@$Version", 'prepare validated branc
     return
 }
 
+if (-not $ReleaseBundlePath -or -not $ExpectedRevision) {
+    throw 'Publication requires -ReleaseBundlePath and -ExpectedRevision from the reviewed release tag.'
+}
+if ($ExpectedRevision -cne $localRevision) {
+    throw 'ExpectedRevision does not match the trusted local and origin component tag.'
+}
+$updateParameters.ExpectedRevision = $ExpectedRevision
+Assert-ComponentReleaseAcceptance
+
 if (-not (Get-Command gh -CommandType Application -ErrorAction SilentlyContinue)) {
     throw 'GitHub CLI is required to publish portfolio updates.'
 }
@@ -257,12 +291,6 @@ foreach ($consumer in $selectedConsumers) {
         $preparedRevision = [string] (Invoke-GitChecked -RepositoryRoot $checkoutRoot -Arguments @(
                 'rev-parse', '--verify', '--end-of-options', "refs/heads/$branch"
             ) | Select-Object -First 1)
-        $preparedParent = [string] (Invoke-GitChecked -RepositoryRoot $checkoutRoot -Arguments @(
-                'rev-parse', '--verify', '--end-of-options', "$preparedRevision^"
-            ) | Select-Object -First 1)
-        if ($preparedParent -ne $liveDefaultRevision) {
-            throw "Prepared branch is not based on the current live default branch: '$branch'."
-        }
         $prepared = [pscustomobject] [ordered]@{
             consumer = [string] $consumer.id
             branch = $branch
@@ -304,6 +332,14 @@ foreach ($consumer in $selectedConsumers) {
     if ($branchRevision -ne [string] $prepared.commit) {
         throw "Prepared branch moved before publication: '$($prepared.branch)'."
     }
+    # Tree equality cannot establish history: a merge can have the same tree
+    # and first parent while importing an unrelated second-parent history.
+    $preparedParents = @(Invoke-GitChecked -RepositoryRoot $checkoutRoot -Arguments @(
+        'show', '--no-patch', '--format=%P', '--end-of-options', $prepared.commit
+    ))
+    if ($preparedParents.Count -ne 1 -or [string] $preparedParents[0] -cne $liveDefaultRevision) {
+        throw "Prepared commit must have exactly one parent equal to the current live default branch: '$($prepared.branch)'."
+    }
 
     $lockPath = if ([string] $consumer.solutionRoot -eq '.') {
         'azd-components.lock.json'
@@ -312,17 +348,81 @@ foreach ($consumer in $selectedConsumers) {
         ([string] $consumer.solutionRoot).TrimEnd('/').Replace('\', '/') + '/azd-components.lock.json'
     }
     $lockRaw = @(Invoke-GitChecked -RepositoryRoot $checkoutRoot -Arguments @('show', "$($prepared.commit):$lockPath")) -join "`n"
+    if (-not ($lockRaw | Test-Json -SchemaFile (Join-Path $referenceRoot 'schemas/azd-components-lock.schema.json') -ErrorAction Stop)) {
+        throw 'Prepared lock does not satisfy its schema.'
+    }
     $lock = $lockRaw | ConvertFrom-Json
     $lockedComponent = @($lock.components | Where-Object { [string] $_.id -eq $Component })
-    if ($lockedComponent.Count -ne 1 -or [string] $lockedComponent[0].sourceRevision -ne $localRevision) {
+    if ($lockedComponent.Count -ne 1 -or [string] $lockedComponent[0].sourceRevision -cne $ExpectedRevision -or
+        [string] $lockedComponent[0].version -cne $Version -or
+        [string] $lockedComponent[0].sourceRepository -cne [string] $registry.referenceRepository) {
         throw "Prepared lock provenance does not match '$tag' for '$($prepared.consumer)'."
     }
     $hashEvidence = @($lockedComponent[0].files | ForEach-Object { "- ``$($_.target)``: ``$($_.sha256)``" }) -join "`n"
 
+    # Inspect and reproduce exact Git objects in a disposable detached worktree,
+    # without running consumer code. Reuse the existing synchronization guards.
+    $inspectionPath = Join-Path ([System.IO.Path]::GetTempPath()) ('azd-release-inspect-' + [guid]::NewGuid().ToString('N'))
+    $hadReplaceSetting = Test-Path Env:GIT_NO_REPLACE_OBJECTS
+    $previousReplaceSetting = $env:GIT_NO_REPLACE_OBJECTS
+    try {
+        $env:GIT_NO_REPLACE_OBJECTS = '1'
+        Invoke-GitChecked -RepositoryRoot $checkoutRoot -Arguments @('worktree', 'add', '--detach', $inspectionPath, $prepared.commit) | Out-Null
+        $inspectionSolution = if ($consumer.solutionRoot -ceq '.') { $inspectionPath } else {
+            Resolve-ConsumerCheckout -Root $inspectionPath -RelativePath $consumer.solutionRoot
+        }
+        $inspection = & (Join-Path $referenceRoot 'tooling/Sync-AzdComponent.ps1') `
+            -Component $Component -Revision $ExpectedRevision -TargetPath $inspectionSolution -WhatIf
+        if ($inspection.version -cne $Version -or $inspection.sourceRevision -cne $ExpectedRevision) {
+            throw 'Prepared component content does not match the accepted release.'
+        }
+        # Reproduce the one-component update from its exact parent using the
+        # existing synchronizer. Exact tree equality also covers other lock
+        # entries, baseline policy, deleted paths, and unrelated branch changes.
+        Invoke-GitChecked -RepositoryRoot $inspectionPath -Arguments @('reset', '--hard', "$($prepared.commit)^") | Out-Null
+        $replayParameters = @{
+            Component = $Component
+            Revision = $ExpectedRevision
+            TargetPath = $inspectionSolution
+            Confirm = $false
+        }
+        if ($consumer.PSObject.Properties.Name -contains 'desiredBaseline') {
+            $replayParameters.Baseline = [string] $consumer.desiredBaseline
+        }
+        if ($PruneRemovedFiles) { $replayParameters.PruneRemovedFiles = $true }
+        & (Join-Path $referenceRoot 'tooling/Sync-AzdComponent.ps1') @replayParameters | Out-Null
+        Invoke-GitChecked -RepositoryRoot $inspectionPath -Arguments @('add', '--all') | Out-Null
+        $expectedTree = [string] (Invoke-GitChecked -RepositoryRoot $inspectionPath -Arguments @('write-tree') | Select-Object -First 1)
+        $preparedTree = [string] (Invoke-GitChecked -RepositoryRoot $checkoutRoot -Arguments @('rev-parse', '--verify', "$($prepared.commit)^{tree}") | Select-Object -First 1)
+        if ($expectedTree -cne $preparedTree) {
+            throw 'Prepared branch tree does not match the exact registry-approved component update.'
+        }
+    }
+    finally {
+        try {
+            if (Test-Path -LiteralPath $inspectionPath) {
+                Invoke-GitChecked -RepositoryRoot $checkoutRoot -Arguments @('worktree', 'remove', '--force', $inspectionPath) | Out-Null
+            }
+        }
+        finally {
+            if ($hadReplaceSetting) { $env:GIT_NO_REPLACE_OBJECTS = $previousReplaceSetting }
+            else { Remove-Item Env:GIT_NO_REPLACE_OBJECTS -ErrorAction SilentlyContinue }
+        }
+    }
+
+    # Recheck the actual bytes and signed identity immediately before writes.
+    # An earlier accepted result is not authorization for this publication.
+    Assert-ComponentReleaseAcceptance
+    $finalBranchRevision = [string] (Invoke-GitChecked -RepositoryRoot $checkoutRoot -Arguments @(
+        'rev-parse', '--verify', '--end-of-options', "refs/heads/$($prepared.branch)"
+    ) | Select-Object -First 1)
+    if ($finalBranchRevision -cne [string] $prepared.commit) {
+        throw "Prepared branch moved during release verification: '$($prepared.branch)'."
+    }
     Assert-NoGitUrlRewrite -RepositoryRoot $checkoutRoot
     Invoke-GitChecked -RepositoryRoot $checkoutRoot -Arguments @(
         'push', '--porcelain', "--force-with-lease=refs/heads/$($prepared.branch):",
-        ([string] $consumer.repository), "refs/heads/$($prepared.branch):refs/heads/$($prepared.branch)"
+        ([string] $consumer.repository), "$($prepared.commit):refs/heads/$($prepared.branch)"
     ) | Out-Null
 
     Assert-NoGitUrlRewrite -RepositoryRoot $checkoutRoot
