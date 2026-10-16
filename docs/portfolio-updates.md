@@ -70,8 +70,11 @@ and committed manifest before accepting that provenance. Repository rules should
 block tag update and deletion while retaining an administrator recovery path.
 Create and verify releases using the fail-closed
 [component release procedure](component-releases.md). Portfolio adoption starts
-only after GitHub verifies the signed annotated tag and its exact attestation
-workflow succeeds.
+only after the explicit `Test-AzdReleaseIntegrity.ps1 -AcceptComponentRelease`
+gate verifies the exact signed tag, reviewed commit and supplied attested bundle,
+in addition to maintainer review and immutable-tag governance preflight. A green
+attestation workflow alone is insufficient. The existing updater/publisher does
+not yet invoke this opt-in gate; follow the linked procedure before adoption.
 
 ## Planning
 
