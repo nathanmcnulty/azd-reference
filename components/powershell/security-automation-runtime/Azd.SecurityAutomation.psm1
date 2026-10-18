@@ -4,14 +4,22 @@ $ErrorActionPreference = 'Stop'
 function Get-SecurityAccessToken {
     [CmdletBinding()]
     param([Parameter(Mandatory)][ValidateSet('https://graph.microsoft.com','https://management.azure.com/','https://storage.azure.com/','https://api.security.microsoft.com')][string]$Resource,
-        [ValidateSet('AzureCli','ManagedIdentity')][string]$AuthMode = 'ManagedIdentity', [string]$TenantId)
+        [ValidateSet('AzureCli','ManagedIdentity')][string]$AuthMode = 'ManagedIdentity', [string]$TenantId, [string]$SubscriptionId)
     if ($AuthMode -eq 'AzureCli') {
+        if ($Resource -in @('https://management.azure.com/','https://storage.azure.com/')) {
+            Assert-SecurityAzureSelector -SubscriptionId $SubscriptionId -TenantId $TenantId
+        }
         $arguments = @('account','get-access-token','--resource',$Resource,'--output','json','--only-show-errors')
-        if ($TenantId) { $arguments += @('--tenant',$TenantId) }
+        # Azure CLI treats --tenant and --subscription as mutually exclusive.
+        # Select the subscription and verify both returned metadata selectors.
+        if ($SubscriptionId) { $arguments += @('--subscription',$SubscriptionId) }
+        elseif ($TenantId) { $arguments += @('--tenant',$TenantId) }
         $raw = & az @arguments 2>$null
         if ($LASTEXITCODE -ne 0) { throw 'No usable Azure CLI session. Authenticate through the normal browser or account broker.' }
-        $result = ($raw -join "`n") | ConvertFrom-Json
-        if ($TenantId -and $result.tenant -ne $TenantId) { throw 'Token tenant does not match the selected tenant.' }
+        try { $result = ($raw -join "`n") | ConvertFrom-Json } catch { throw 'Azure CLI returned invalid token metadata.' }
+        if ($TenantId -and ($result.tenant -isnot [string] -or $result.tenant -ne $TenantId)) { throw 'Token tenant does not match the selected tenant.' }
+        if ($SubscriptionId -and ($result.subscription -isnot [string] -or $result.subscription -ne $SubscriptionId)) { throw 'Token subscription does not match the selected subscription.' }
+        if ($result.accessToken -isnot [string] -or [string]::IsNullOrWhiteSpace($result.accessToken)) { throw 'Azure CLI did not return an access token.' }
         return $result.accessToken
     }
     if (-not $env:IDENTITY_ENDPOINT -or -not $env:IDENTITY_HEADER) { throw 'Managed identity endpoint is unavailable.' }
@@ -33,6 +41,63 @@ function Get-SecurityAccessToken {
         } catch { throw 'Managed identity token does not match the selected tenant.' }
     }
     return $result.access_token
+}
+
+function Assert-SecurityAzureSelector {
+    param([string]$SubscriptionId, [string]$TenantId)
+    foreach ($value in @($SubscriptionId, $TenantId)) {
+        $parsed = [guid]::Empty
+        if ($value -notmatch '\A[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\z' -or -not [guid]::TryParseExact($value, 'D', [ref]$parsed) -or $parsed -eq [guid]::Empty) {
+            throw 'Explicit nonempty subscription and expected tenant GUIDs are required.'
+        }
+    }
+}
+
+function Assert-SecurityAzureTarget {
+    [CmdletBinding()]
+    param([string]$SubscriptionId, [string]$TenantId)
+    Assert-SecurityAzureSelector -SubscriptionId $SubscriptionId -TenantId $TenantId
+    try {
+        $raw = & az account show --subscription $SubscriptionId --output json --only-show-errors 2>$null
+        if ($LASTEXITCODE -ne 0) { throw 'Account lookup failed.' }
+        $account = ($raw -join "`n") | ConvertFrom-Json
+        if ($account.id -isnot [string] -or $account.tenantId -isnot [string] -or $account.environmentName -isnot [string] -or $account.id -ne $SubscriptionId -or $account.tenantId -ne $TenantId -or $account.environmentName -ne 'AzureCloud') { throw 'Account mismatch.' }
+        $token = Get-SecurityAccessToken -Resource 'https://management.azure.com/' -AuthMode AzureCli -SubscriptionId $SubscriptionId -TenantId $TenantId
+        $request = @{
+            Uri="https://management.azure.com/subscriptions/${SubscriptionId}?api-version=2022-12-01"
+            Method='Get'; Headers=@{Authorization="Bearer $token"}; MaximumRedirection=0; TimeoutSec=30
+        }
+        $subscription = Invoke-RestMethod @request
+        if ($subscription.id -isnot [string] -or $subscription.subscriptionId -isnot [string] -or $subscription.tenantId -isnot [string] -or $subscription.state -isnot [string] -or $subscription.id -ne "/subscriptions/$SubscriptionId" -or $subscription.subscriptionId -ne $SubscriptionId -or
+            $subscription.tenantId -ne $TenantId -or $subscription.state -cne 'Enabled') { throw 'Subscription mismatch or not Enabled.' }
+    } catch { throw 'Unable to verify the explicit Azure public-cloud target and current Enabled subscription state.' }
+}
+
+function Assert-SecurityAzureResource {
+    [CmdletBinding()]
+    param([string]$SubscriptionId, [string]$TenantId, [string]$ResourceGroup,
+        [ValidateSet('Microsoft.Storage/storageAccounts','Microsoft.Web/sites','Microsoft.Automation/automationAccounts')][string]$ResourceType,
+        [string]$Name)
+    Assert-SecurityAzureSelector -SubscriptionId $SubscriptionId -TenantId $TenantId
+    if ($ResourceGroup -cnotmatch '\A[A-Za-z0-9_().-]{1,90}\z' -or $ResourceGroup.EndsWith('.') -or
+        $Name -cnotmatch '\A[A-Za-z0-9][A-Za-z0-9-]{0,62}\z') { throw 'An exact resource group and resource name are required.' }
+    if ($ResourceType -eq 'Microsoft.Storage/storageAccounts' -and $Name -cnotmatch '\A[a-z0-9]{3,24}\z') { throw 'Invalid storage account name.' }
+    Assert-SecurityAzureTarget -SubscriptionId $SubscriptionId -TenantId $TenantId
+    $id = "/subscriptions/$SubscriptionId/resourceGroups/$ResourceGroup/providers/$ResourceType/$Name"
+    $version = switch ($ResourceType) {
+        'Microsoft.Storage/storageAccounts' { '2023-05-01' }
+        'Microsoft.Web/sites' { '2024-04-01' }
+        'Microsoft.Automation/automationAccounts' { '2024-10-23' }
+    }
+    try {
+        $token = Get-SecurityAccessToken -Resource 'https://management.azure.com/' -AuthMode AzureCli -SubscriptionId $SubscriptionId -TenantId $TenantId
+        $resource = Invoke-RestMethod -Uri "https://management.azure.com${id}?api-version=$version" -Method Get -Headers @{Authorization="Bearer $token"} -MaximumRedirection 0 -TimeoutSec 30
+        if ($resource.id -isnot [string] -or $resource.type -isnot [string] -or $resource.name -isnot [string] -or $resource.id -ne $id -or $resource.type -ne $ResourceType -or $resource.name -ne $Name) { throw 'Resource binding mismatch.' }
+        if ($ResourceType -eq 'Microsoft.Storage/storageAccounts' -and ($resource.properties.primaryEndpoints.blob -isnot [string] -or $resource.properties.primaryEndpoints.blob -cne "https://$Name.blob.core.windows.net/")) { throw 'Storage endpoint mismatch.' }
+    } catch { throw 'Unable to verify the exact Azure resource binding.' }
+    # Resource reads and token acquisition can take time. Never cache this write guard.
+    Assert-SecurityAzureTarget -SubscriptionId $SubscriptionId -TenantId $TenantId
+    return $resource
 }
 
 function Invoke-SecurityGraphRead {
@@ -112,11 +177,20 @@ function Invoke-SecurityBlobTransfer {
         [Parameter(Mandatory)][ValidatePattern('^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$')][string]$Container,
         [Parameter(Mandatory)][string]$Blob,[Parameter(Mandatory)][string]$Path,
         [ValidateSet('Download','Upload')][string]$Direction='Download',
-        [ValidateSet('AzureCli','ManagedIdentity')][string]$AuthMode='ManagedIdentity')
+        [ValidateSet('AzureCli','ManagedIdentity')][string]$AuthMode='ManagedIdentity',
+        [string]$SubscriptionId, [string]$TenantId, [string]$ResourceGroup)
     if (-not $Blob -or $Blob -match '(^|/)\.\.(/|$)' -or $Blob -match '[\\\x00-\x1f]') { throw 'Invalid blob name.' }
     $encoded = (@($Blob -split '/' | ForEach-Object { [uri]::EscapeDataString($_) }) -join '/')
     $uri = "https://$Account.blob.core.windows.net/$Container/$encoded"
-    $token = Get-SecurityAccessToken -Resource 'https://storage.azure.com/' -AuthMode $AuthMode
+    $context = @{}
+    if ($AuthMode -eq 'AzureCli') {
+        Assert-SecurityAzureSelector -SubscriptionId $SubscriptionId -TenantId $TenantId
+        $context = @{SubscriptionId=$SubscriptionId;TenantId=$TenantId}
+    }
+    $token = Get-SecurityAccessToken -Resource 'https://storage.azure.com/' -AuthMode $AuthMode @context
+    if ($AuthMode -eq 'AzureCli') {
+        Assert-SecurityAzureResource @context -ResourceGroup $ResourceGroup -ResourceType 'Microsoft.Storage/storageAccounts' -Name $Account | Out-Null
+    }
     $headers = @{ Authorization="Bearer $token"; 'x-ms-version'='2023-11-03'; 'x-ms-date'=[DateTime]::UtcNow.ToString('R') }
     try {
         if ($Direction -eq 'Download') { Invoke-WebRequest -Uri $uri -Headers $headers -OutFile $Path -TimeoutSec 120 -MaximumRedirection 0 | Out-Null }
@@ -130,7 +204,7 @@ function Invoke-SecurityBlobTransfer {
         if ($Direction -eq 'Upload' -and $Container -eq 'packages' -and $status -in 409,412) {
             $existing = Join-Path ([IO.Path]::GetTempPath()) ('security-existing-'+[guid]::NewGuid().ToString('N')+'.zip')
             try {
-                Invoke-SecurityBlobTransfer -Account $Account -Container $Container -Blob $Blob -Path $existing -Direction Download -AuthMode $AuthMode
+                Invoke-SecurityBlobTransfer -Account $Account -Container $Container -Blob $Blob -Path $existing -Direction Download -AuthMode $AuthMode -ResourceGroup $ResourceGroup @context
                 if ((Get-FileHash -LiteralPath $existing).Hash -ne (Get-FileHash -LiteralPath $Path).Hash) { throw 'Existing immutable package differs.' }
                 return
             } catch { throw 'Immutable package verification failed; publication stopped.' }
@@ -252,4 +326,4 @@ function Invoke-HostedSecurityBundle {
 }
 }
 
-Export-ModuleMember -Function Get-SecurityAccessToken,Invoke-SecurityGraphRead,Resolve-SecurityBundlePath,Invoke-SecurityBundle,Invoke-SecurityBlobTransfer,Invoke-HostedSecurityBundle
+Export-ModuleMember -Function Assert-SecurityAzureTarget,Assert-SecurityAzureResource,Get-SecurityAccessToken,Invoke-SecurityGraphRead,Resolve-SecurityBundlePath,Invoke-SecurityBundle,Invoke-SecurityBlobTransfer,Invoke-HostedSecurityBundle

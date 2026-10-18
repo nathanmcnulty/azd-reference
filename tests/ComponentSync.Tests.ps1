@@ -47,6 +47,20 @@ Describe 'Component synchronization' {
         { & $drift -TargetPath $consumer } | Should -Not -Throw
     }
 
+    It 'synchronizes the guarded security runtime at a new major version and detects drift' {
+        & $sync -Component security-automation-runtime -TargetPath $consumer | Out-Null
+        $lock = Get-Content -LiteralPath (Join-Path $consumer 'azd-components.lock.json') -Raw | ConvertFrom-Json
+        $lock.components[0].id | Should -BeExactly 'security-automation-runtime'
+        $lock.components[0].version | Should -BeExactly '1.0.0'
+        $lock.components[0].sourceRevision | Should -BeExactly $initialRevision
+        foreach ($file in $lock.components[0].files) {
+            (Get-FileHash -LiteralPath (Join-Path $consumer $file.target)).Hash.ToLowerInvariant() | Should -BeExactly $file.sha256
+        }
+        { & $drift -TargetPath $consumer } | Should -Not -Throw
+        Add-Content -LiteralPath (Join-Path $consumer 'scripts/vendor/Azd.SecurityAutomation/Publish-SecurityHost.ps1') '# changed'
+        { & $drift -TargetPath $consumer } | Should -Throw
+    }
+
     It 'synchronizes notification contracts as a first-class component' {
         & $sync -Component notification-contracts -TargetPath $consumer | Out-Null
         $lock = Get-Content -LiteralPath (Join-Path $consumer 'azd-components.lock.json') -Raw | ConvertFrom-Json

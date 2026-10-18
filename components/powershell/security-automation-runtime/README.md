@@ -51,6 +51,42 @@ deployment which invokes its own PowerShell runbook every six hours; it adds
 Automation Job Operator for its identity at the Automation account scope. It does
 not attempt to execute PowerShell inside a Consumption Logic App action.
 
+## Operator migration to 1.0.0
+
+This major version changes the operator contract; lifecycle status remains pilot. Upgrade only through a
+reviewed immutable component revision and normal synchronization tooling; do not
+patch vendored files or modify existing locks in place. The host Bicep contract
+and hosted managed-identity permission scopes are unchanged.
+
+- Pass `-TenantId <expected-tenant-guid>` and `-SubscriptionId <subscription-guid>`
+  to the publisher and schedule helper. These values express the approved target;
+  they are never inferred from the CLI default.
+- For exported `Invoke-SecurityBlobTransfer -AuthMode AzureCli`, also pass
+  `-ResourceGroup <group>` with those selectors, for both upload and collision
+  readback. ManagedIdentity mode requires none of these operator parameters.
+- Set the intended `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`, `AZURE_RESOURCE_GROUP`
+  and `AZURE_ENV_NAME` in the selected azd environment, plus the existing storage
+  and compute outputs, before hosted deployment. Hooks validate before packaging
+  and bind persistent writes/provision to that named environment.
+- The operator must already be permitted to read the selected ARM subscription
+  and exact storage/compute metadata. A current `Enabled` subscription, matching
+  tenant/resource IDs and exact public Azure Blob endpoint are required. The
+  component grants no additional permissions to satisfy these checks.
+
+Operator ARM/Blob token requests use `--subscription` and verify returned tenant
+and subscription metadata against both expected selectors (Azure CLI makes
+`--tenant` and `--subscription` mutually exclusive). Tenant-only
+read-only Graph token use remains separate. Every actual write refreshes the
+subscription guard; a change after packaging or an earlier write stops later
+writes without retries or a success receipt. Earlier successful writes are not
+rolled back automatically. CLI global defaults are never selected or modified.
+
+The generic scripts retain `Invoke-SecurityReview` and `SecurityReviewSixHourly`.
+Consumers with custom host names still own their separately reviewed publication,
+pause/readback and teardown wrappers. This change is not existing-host adoption,
+a permission union, runtime qualification, or the separate invocation-context
+correction tracked in #121.
+
 ## Permission boundary
 
 Local engines require no cloud credentials. The snapshot runtime itself requires
