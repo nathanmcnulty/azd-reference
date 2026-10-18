@@ -122,3 +122,11 @@ Inspect and explicitly reconcile the exact account's assignments under separate
 review before adopting or rolling back a deployed consumer. The component does
 not delete assignments automatically. Two fresh-shape proofs do not establish
 in-place migration, state continuity or role-reconciliation behavior.
+
+## Native startup investigation
+
+The 18 October 2026 two-shape native attempt did not qualify the identity-only
+pilot. See the [source comparison and bounded diagnostic plan](flex-startup-diagnostic-20261018.md)
+for the immutable evidence, first-party contracts and remaining distinctions.
+No component defect or version change is established by package-upload success
+followed by host startup failure.
