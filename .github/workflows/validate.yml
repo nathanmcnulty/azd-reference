@@ -6,6 +6,11 @@ on:
     branches: [main]
   workflow_dispatch:
 
+env:
+  POWERSHELL_UPDATECHECK: "Off"
+  POWERSHELL_TELEMETRY_OPTOUT: "1"
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+
 permissions:
   contents: read
 
@@ -133,7 +138,7 @@ jobs:
 
       - name: Run contract and synchronization tests
         run: |
-          Install-Module Pester -RequiredVersion 5.7.1 -Force -Scope CurrentUser
+          Install-Module Pester -RequiredVersion 6.2.0 -Force -Scope CurrentUser
           Install-Module Microsoft.Graph.Authentication -RequiredVersion 2.38.0 -Force -Scope CurrentUser
           Invoke-Pester ./tests -CI
 

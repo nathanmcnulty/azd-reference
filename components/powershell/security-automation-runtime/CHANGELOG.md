@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.0
+
+- Breaking operator contract: require explicit expected tenant and subscription for publisher, schedule helper, and Azure CLI Blob transfer; bind resources to exact ARM identity and public-cloud endpoints.
+- Refresh current ARM subscription Enabled state before each operator write, with explicitly selected token requests and no global CLI default changes.
+- Validate deployment targets before packaging and persistent environment changes; propagate expected selectors from azd hooks and bind writes to the selected named environment.
+- Preserve hosted managed-identity transfers, immutable package collision verification, default runbook/schedule names and container-scoped permissions. Existing consumer locks remain unchanged pending immutable reviewed adoption.
+
 ## 0.1.7
 
 - Require the Automation package blob to be the exact lowercase SHA-256 ZIP leaf bound to the normalized approved bundle hash before requesting a token or downloading content.
