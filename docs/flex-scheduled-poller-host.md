@@ -122,3 +122,8 @@ Inspect and explicitly reconcile the exact account's assignments under separate
 review before adopting or rolling back a deployed consumer. The component does
 not delete assignments automatically. Two fresh-shape proofs do not establish
 in-place migration, state continuity or role-reconciliation behavior.
+
+The [18 October native attempt](flex-native-validation-20261018.md) deployed both
+fresh shapes in sub-mvp, but package upload was followed by host-key and trigger
+synchronization failures. Runtime, timer and state acceptance remains open;
+control-plane success does not qualify the pilot or authorize release/adoption.
