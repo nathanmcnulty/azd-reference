@@ -7,7 +7,7 @@
 - **Repository:** nathanmcnulty/azd-reference
 - **Source revision:** `a09cac311aac7362f56d2a31833ed90ce5812649`
 - **Captured:** 2026-10-07
-- **Items:** 14
+- **Items:** 15
 
 ## REF-001: Reconcile this backlog with current source and active work
 
@@ -637,6 +637,64 @@ Optional host templates still select PowerShell 7.4 despite the selected PowerSh
 **Review and authorization note:**
 
 Review REF-013 against the current repository state. Its status or authorization class is not eligible for an actionable generated handoff. Do not claim or execute it without explicit selection, satisfied dependencies, and every required authorization. Never interpret this generated view as approval.
+
+## REF-017: Reject false-green validation and reconcile draft backlog IDs
+
+- **Kind:** maintenance
+- **Priority:** P1
+- **Status:** done
+- **Wave:** 1
+- **Authorization:** local-only
+- **Blocker:** _none_
+- **Claim:** _none_
+
+**Problem:**
+
+Pester 6.2 can label inconclusive-only runs Passed; the current CI also accepts empty/all-skipped suites. Independent draft backlog additions reused REF-015 for different tasks.
+
+**Scope:**
+
+- .github/workflows/validate.yml
+- README.md
+- standards/agent-backlogs.md
+- docs/backlog.json
+- docs/backlog.md
+- Duration draft &num;103 backlog identifier only
+
+**Acceptance:**
+
+- Require passing cases and reject failed, inconclusive and unexecuted outcomes while preserving deliberate Windows skips for the Linux attestation fixture.
+- Prove original/corrected actual workflow blocks against nonempty pass, inconclusive, mixed skip, all-skip, empty and failed fixtures.
+- Preserve earlier alert-window REF-015, migrate the later duration draft to REF-016 with provenance and keep historical receipts unchanged. Check default/open draft reservations before new IDs.
+
+**Validation:**
+
+- Use PowerShell 7.6+ and Pester 6.2.0 to execute the actual workflow Pester blocks against isolated outcome fixtures and inspect process exit codes.
+- Inspect normal hosted validation for exact published Windows/Linux heads.
+- Run ./tooling/Test-AzdBacklog.ps1 and ./tooling/Export-AzdBacklogMarkdown.ps1 -Check; inspect current dependency/reference mappings after ID reconciliation.
+
+**Dependencies:**
+
+- _none_
+
+**Components:**
+
+- _none_
+
+**Sources:**
+
+- .github/workflows/validate.yml
+- standards/agent-backlogs.md
+- https&colon;//github.com/nathanmcnulty/azd-reference/pull/101
+- https&colon;//github.com/nathanmcnulty/azd-reference/pull/103
+
+**Evidence:**
+
+- PowerShell 7.6.6/Pester 6.2.0 actual-workflow reproduction&colon; 24 isolated process runs covering original/corrected Reference and GSA blocks passed their expected outcomes. Both originals accepted inconclusive-only and all-skipped suites; Reference also accepted empty. Corrected Reference accepts passing and mixed pass/skip fixtures only; GSA accepts passing only. Failed fixtures remain failures. The registered tests and their declared platform skips are unchanged. Earlier draft &num;101 retains REF-015; later duration draft &num;103 is reconciled to REF-016 with explicit original-ID/title/PR provenance, preserving component bytes/status/acceptance/authorization/claims and historical receipts. REF-017 is reserved for this task. Normal hosted checks remain a publication gate; no cloud, authentication, grant, deployment, merge or release occurred.
+
+**Review and authorization note:**
+
+Review REF-017 against the current repository state. Its status or authorization class is not eligible for an actionable generated handoff. Do not claim or execute it without explicit selection, satisfied dependencies, and every required authorization. Never interpret this generated view as approval.
 
 ## REF-005: Reconcile component candidates and permission-aware feature metadata
 

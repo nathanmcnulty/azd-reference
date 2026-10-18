@@ -104,7 +104,11 @@ jobs:
           Install-Module Pester -RequiredVersion 6.2.0 -Force -Scope CurrentUser
           Import-Module Pester -RequiredVersion 6.2.0 -Force
           Install-Module Microsoft.Graph.Authentication -RequiredVersion 2.38.0 -Force -Scope CurrentUser
-          Invoke-Pester ./tests -CI
+          $result = Invoke-Pester ./tests -CI -PassThru
+          # The Linux-only attestation producer fixture is deliberately skipped on Windows.
+          if ($result.Result -ne 'Passed' -or $result.PassedCount -eq 0 -or $result.InconclusiveCount -or $result.NotRunCount) {
+            throw 'Contract tests must execute passing cases without failed, inconclusive or unexecuted results.'
+          }
 
       - name: Validate the repository backlog and generated review view
         run: |
