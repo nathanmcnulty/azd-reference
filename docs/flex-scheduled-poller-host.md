@@ -130,3 +130,6 @@ pilot. See the [source comparison and bounded diagnostic plan](flex-startup-diag
 for the immutable evidence, first-party contracts and remaining distinctions.
 No component defect or version change is established by package-upload success
 followed by host startup failure.
+
+The follow-up [single-PIM startup diagnostic](flex-pim-startup-diagnostic-20261018.md)
+records the later bounded indexing evidence, limitations and completed cleanup.
