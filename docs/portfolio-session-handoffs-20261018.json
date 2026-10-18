@@ -1,0 +1,1801 @@
+[
+  {
+    "repository": "azd-reference",
+    "issue": "https://github.com/nathanmcnulty/azd-reference/issues/117",
+    "deliverable": "Bind security-host operator writes to explicit tenant and Enabled subscription",
+    "nextGate": "Dotty-owned",
+    "readiness": "owned-by-Dotty",
+    "existingIssue": true,
+    "backlogIds": []
+  },
+  {
+    "repository": "azd-reference",
+    "issue": "https://github.com/nathanmcnulty/azd-reference/issues/118",
+    "deliverable": "Reject false-green Pester validation and reconcile draft backlog IDs",
+    "nextGate": "Ready for bounded session",
+    "readiness": "ready",
+    "existingIssue": true,
+    "backlogIds": []
+  },
+  {
+    "repository": "azd-reference",
+    "issue": "https://github.com/nathanmcnulty/azd-reference/issues/110",
+    "deliverable": "Bind Maester pre-write checks and Exchange tokens to the selected tenant and Enabled subscription",
+    "nextGate": "Review existing draft",
+    "readiness": "review/integration",
+    "existingIssue": true,
+    "backlogIds": []
+  },
+  {
+    "repository": "azd-reference",
+    "issue": "https://github.com/nathanmcnulty/azd-reference/issues/102",
+    "deliverable": "Prevent Int32 overflow in deployment-validation duration reports",
+    "nextGate": "Review existing draft",
+    "readiness": "review/integration",
+    "existingIssue": true,
+    "backlogIds": []
+  },
+  {
+    "repository": "azd-reference",
+    "issue": "https://github.com/nathanmcnulty/azd-reference/issues/98",
+    "deliverable": "Adopt PowerShell 7.6 and Pester 6.2 minimums (live Azure validation needed)",
+    "nextGate": "Review existing draft",
+    "readiness": "review/integration",
+    "existingIssue": true,
+    "backlogIds": []
+  },
+  {
+    "repository": "azd-reference",
+    "issue": "https://github.com/nathanmcnulty/azd-reference/issues/88",
+    "deliverable": "Configure the dedicated read-only GitHub governance audit App",
+    "nextGate": "Needs stated input / prerequisite",
+    "readiness": "user-input",
+    "existingIssue": true,
+    "backlogIds": []
+  },
+  {
+    "repository": "azd-reference",
+    "issue": "https://github.com/nathanmcnulty/azd-reference/issues/112",
+    "deliverable": "Investigate identity-only Flex native startup failure before qualifying REF-004",
+    "nextGate": "Review existing draft",
+    "readiness": "review/integration",
+    "existingIssue": true,
+    "backlogIds": []
+  },
+  {
+    "repository": "azd-reference",
+    "issue": "https://github.com/nathanmcnulty/azd-reference/issues/121",
+    "deliverable": "Remove process-global evidence boundaries from overlapping hosted calls",
+    "nextGate": "After linked prerequisite",
+    "readiness": "dependency",
+    "existingIssue": false,
+    "backlogIds": []
+  },
+  {
+    "repository": "azd-reference",
+    "issue": "https://github.com/nathanmcnulty/azd-reference/issues/122",
+    "deliverable": "Qualify in-place identity-only Flex migration and exact RBAC rollback",
+    "nextGate": "Native acceptance",
+    "readiness": "native-validation",
+    "existingIssue": false,
+    "backlogIds": [
+      "REF-004"
+    ]
+  },
+  {
+    "repository": "azd-reference",
+    "issue": "https://github.com/nathanmcnulty/azd-reference/issues/100",
+    "deliverable": "Coordinate canonical Foundry and security-host native qualification",
+    "nextGate": "Coordination",
+    "readiness": "coordination",
+    "existingIssue": true,
+    "backlogIds": [
+      "REF-015 (worker draft; reconcile ID reservation with #118)"
+    ]
+  },
+  {
+    "repository": "azd-reference",
+    "issue": "https://github.com/nathanmcnulty/azd-reference/issues/123",
+    "deliverable": "Qualify the canonical Function security-worker lifecycle",
+    "nextGate": "After linked prerequisite",
+    "readiness": "dependency",
+    "existingIssue": false,
+    "backlogIds": []
+  },
+  {
+    "repository": "azd-reference",
+    "issue": "https://github.com/nathanmcnulty/azd-reference/issues/124",
+    "deliverable": "Qualify the canonical Automation security-worker lifecycle",
+    "nextGate": "After linked prerequisite",
+    "readiness": "dependency",
+    "existingIssue": false,
+    "backlogIds": []
+  },
+  {
+    "repository": "azd-reference",
+    "issue": "https://github.com/nathanmcnulty/azd-reference/issues/125",
+    "deliverable": "Qualify the canonical Logic App-to-Automation security-worker lifecycle",
+    "nextGate": "After linked prerequisite",
+    "readiness": "dependency",
+    "existingIssue": false,
+    "backlogIds": []
+  },
+  {
+    "repository": "azd-reference",
+    "issue": "https://github.com/nathanmcnulty/azd-reference/issues/126",
+    "deliverable": "Qualify one bounded stateless Foundry Responses route and runtime role",
+    "nextGate": "Needs stated input / prerequisite",
+    "readiness": "user-input",
+    "existingIssue": false,
+    "backlogIds": []
+  },
+  {
+    "repository": "azd-reference",
+    "issue": "https://github.com/nathanmcnulty/azd-reference/issues/127",
+    "deliverable": "Prepare a reusable immutable Caddy report-viewer component",
+    "nextGate": "After linked prerequisite",
+    "readiness": "dependency",
+    "existingIssue": false,
+    "backlogIds": []
+  },
+  {
+    "repository": "azd-reference",
+    "issue": "https://github.com/nathanmcnulty/azd-reference/issues/128",
+    "deliverable": "Qualify the SWA Standard viewer authorization and publisher seam",
+    "nextGate": "Ready for bounded session",
+    "readiness": "ready",
+    "existingIssue": false,
+    "backlogIds": []
+  },
+  {
+    "repository": "azd-maester",
+    "issue": "https://github.com/nathanmcnulty/azd-maester/issues/2",
+    "deliverable": "Coordinate drift in the canonical standalone hosts",
+    "nextGate": "Coordination",
+    "readiness": "coordination",
+    "existingIssue": true,
+    "backlogIds": []
+  },
+  {
+    "repository": "azd-maester",
+    "issue": "https://github.com/nathanmcnulty/azd-maester/issues/4",
+    "deliverable": "Coordinate SWA in the canonical standalone hosts",
+    "nextGate": "Coordination",
+    "readiness": "coordination",
+    "existingIssue": true,
+    "backlogIds": []
+  },
+  {
+    "repository": "azd-maester",
+    "issue": "https://github.com/nathanmcnulty/azd-maester/issues/5",
+    "deliverable": "Coordinate Caddy in the canonical standalone hosts",
+    "nextGate": "Coordination",
+    "readiness": "coordination",
+    "existingIssue": true,
+    "backlogIds": []
+  },
+  {
+    "repository": "azd-maester",
+    "issue": "https://github.com/nathanmcnulty/azd-maester/issues/8",
+    "deliverable": "Coordinate custom tests in the canonical standalone hosts",
+    "nextGate": "Coordination",
+    "readiness": "coordination",
+    "existingIssue": true,
+    "backlogIds": []
+  },
+  {
+    "repository": "azd-maester",
+    "issue": "https://github.com/nathanmcnulty/azd-maester/issues/12",
+    "deliverable": "Azure DevOps Solution - postprovision fails to push to empty repository",
+    "nextGate": "Review existing draft",
+    "readiness": "review/integration",
+    "existingIssue": true,
+    "backlogIds": []
+  },
+  {
+    "repository": "azd-maester",
+    "issue": "https://github.com/nathanmcnulty/azd-maester/issues/13",
+    "deliverable": "Azure DevOps solution - Null Path Binding error in manual fallback instructions",
+    "nextGate": "Review existing draft",
+    "readiness": "review/integration",
+    "existingIssue": true,
+    "backlogIds": []
+  },
+  {
+    "repository": "azd-maester",
+    "issue": "https://github.com/nathanmcnulty/azd-maester/issues/14",
+    "deliverable": "Azure DevOps Solution - Interactive Wizard - Security Group Validation",
+    "nextGate": "Review existing draft",
+    "readiness": "review/integration",
+    "existingIssue": true,
+    "backlogIds": []
+  },
+  {
+    "repository": "azd-maester",
+    "issue": "https://github.com/nathanmcnulty/azd-maester/issues/15",
+    "deliverable": "Azure DevOps solution - Authentication Sync between az and azd",
+    "nextGate": "Review existing draft",
+    "readiness": "review/integration",
+    "existingIssue": true,
+    "backlogIds": []
+  },
+  {
+    "repository": "azd-maester",
+    "issue": "https://github.com/nathanmcnulty/azd-maester/issues/36",
+    "deliverable": "Move hosted PowerShell runtimes from .NET 8 to .NET 10 LTS (live Azure validation needed)",
+    "nextGate": "Review existing draft",
+    "readiness": "review/integration",
+    "existingIssue": true,
+    "backlogIds": []
+  },
+  {
+    "repository": "azd-maester-containerappjob",
+    "issue": "https://github.com/nathanmcnulty/azd-maester-containerappjob/issues/33",
+    "deliverable": "Run non-ACR Container App Jobs on PowerShell 7.6 and .NET 10",
+    "nextGate": "Review existing draft",
+    "readiness": "review/integration",
+    "existingIssue": true,
+    "backlogIds": []
+  },
+  {
+    "repository": "azd-maester-containerappjob",
+    "issue": "https://github.com/nathanmcnulty/azd-maester-containerappjob/issues/34",
+    "deliverable": "Adopt canonical tenant and Enabled-subscription guards across deployment entrypoints",
+    "nextGate": "Review existing draft",
+    "readiness": "review/integration",
+    "existingIssue": true,
+    "backlogIds": []
+  },
+  {
+    "repository": "azd-maester-containerappjob",
+    "issue": "https://github.com/nathanmcnulty/azd-maester-containerappjob/issues/38",
+    "deliverable": "Guard direct runtime file publication with explicit target and fresh Enabled state",
+    "nextGate": "Ready for bounded session",
+    "readiness": "ready",
+    "existingIssue": true,
+    "backlogIds": []
+  },
+  {
+    "repository": "azd-maester-containerappjob",
+    "issue": "https://github.com/nathanmcnulty/azd-maester-containerappjob/issues/39",
+    "deliverable": "Reconcile reviewed host draft stacks into one validation candidate",
+    "nextGate": "After linked prerequisite",
+    "readiness": "dependency",
+    "existingIssue": false,
+    "backlogIds": []
+  },
+  {
+    "repository": "azd-maester-containerappjob",
+    "issue": "https://github.com/nathanmcnulty/azd-maester-containerappjob/issues/40",
+    "deliverable": "Qualify one Container Apps Job assessment and existing report-webapp lifecycle",
+    "nextGate": "Native acceptance",
+    "readiness": "native-validation",
+    "existingIssue": false,
+    "backlogIds": [
+      "MCAJ-002"
+    ]
+  },
+  {
+    "repository": "azd-maester-containerappjob",
+    "issue": "https://github.com/nathanmcnulty/azd-maester-containerappjob/issues/41",
+    "deliverable": "Implement approved default-off custom-test packages for this host",
+    "nextGate": "After linked prerequisite",
+    "readiness": "dependency",
+    "existingIssue": false,
+    "backlogIds": []
+  },
+  {
+    "repository": "azd-maester-containerappjob",
+    "issue": "https://github.com/nathanmcnulty/azd-maester-containerappjob/issues/42",
+    "deliverable": "Integrate the optional immutable Caddy report viewer",
+    "nextGate": "After linked prerequisite",
+    "readiness": "dependency",
+    "existingIssue": false,
+    "backlogIds": [
+      "MCAJ-007"
+    ]
+  },
+  {
+    "repository": "azd-maester-containerappjob",
+    "issue": "https://github.com/nathanmcnulty/azd-maester-containerappjob/issues/43",
+    "deliverable": "Integrate the optional SWA Standard report viewer",
+    "nextGate": "After linked prerequisite",
+    "readiness": "dependency",
+    "existingIssue": false,
+    "backlogIds": [
+      "MCAJ-008"
+    ]
+  },
+  {
+    "repository": "azd-maester-containerappjob",
+    "issue": "https://github.com/nathanmcnulty/azd-maester-containerappjob/issues/44",
+    "deliverable": "Qualify optional approved drift on the native host",
+    "nextGate": "Native acceptance",
+    "readiness": "native-validation",
+    "existingIssue": false,
+    "backlogIds": [
+      "MCAJ-010"
+    ]
+  },
+  {
+    "repository": "azd-maester-azureautomation",
+    "issue": "https://github.com/nathanmcnulty/azd-maester-azureautomation/issues/30",
+    "deliverable": "Adopt canonical tenant and Enabled-subscription guards across deployment entrypoints",
+    "nextGate": "Review existing draft",
+    "readiness": "review/integration",
+    "existingIssue": true,
+    "backlogIds": []
+  },
+  {
+    "repository": "azd-maester-azureautomation",
+    "issue": "https://github.com/nathanmcnulty/azd-maester-azureautomation/issues/32",
+    "deliverable": "Add opt-in runtime-only validation to the maintained runbook",
+    "nextGate": "Ready for bounded session",
+    "readiness": "ready",
+    "existingIssue": true,
+    "backlogIds": []
+  },
+  {
+    "repository": "azd-maester-azureautomation",
+    "issue": "https://github.com/nathanmcnulty/azd-maester-azureautomation/issues/33",
+    "deliverable": "Reconcile reviewed host draft stacks into one validation candidate",
+    "nextGate": "After linked prerequisite",
+    "readiness": "dependency",
+    "existingIssue": false,
+    "backlogIds": []
+  },
+  {
+    "repository": "azd-maester-azureautomation",
+    "issue": "https://github.com/nathanmcnulty/azd-maester-azureautomation/issues/34",
+    "deliverable": "Qualify one Automation assessment and existing report-webapp lifecycle",
+    "nextGate": "Native acceptance",
+    "readiness": "native-validation",
+    "existingIssue": false,
+    "backlogIds": [
+      "MAUTO-002"
+    ]
+  },
+  {
+    "repository": "azd-maester-azureautomation",
+    "issue": "https://github.com/nathanmcnulty/azd-maester-azureautomation/issues/35",
+    "deliverable": "Implement approved default-off custom-test packages for this host",
+    "nextGate": "After linked prerequisite",
+    "readiness": "dependency",
+    "existingIssue": false,
+    "backlogIds": []
+  },
+  {
+    "repository": "azd-maester-azureautomation",
+    "issue": "https://github.com/nathanmcnulty/azd-maester-azureautomation/issues/36",
+    "deliverable": "Integrate the optional immutable Caddy report viewer",
+    "nextGate": "After linked prerequisite",
+    "readiness": "dependency",
+    "existingIssue": false,
+    "backlogIds": [
+      "MAUTO-006"
+    ]
+  },
+  {
+    "repository": "azd-maester-azureautomation",
+    "issue": "https://github.com/nathanmcnulty/azd-maester-azureautomation/issues/37",
+    "deliverable": "Integrate the optional SWA Standard report viewer",
+    "nextGate": "After linked prerequisite",
+    "readiness": "dependency",
+    "existingIssue": false,
+    "backlogIds": [
+      "MAUTO-007"
+    ]
+  },
+  {
+    "repository": "azd-maester-azureautomation",
+    "issue": "https://github.com/nathanmcnulty/azd-maester-azureautomation/issues/38",
+    "deliverable": "Implement approved data-only drift inputs for this host",
+    "nextGate": "After linked prerequisite",
+    "readiness": "dependency",
+    "existingIssue": false,
+    "backlogIds": [
+      "MAUTO-010"
+    ]
+  },
+  {
+    "repository": "azd-maester-functionapp",
+    "issue": "https://github.com/nathanmcnulty/azd-maester-functionapp/issues/30",
+    "deliverable": "Adopt fresh target guards and close direct ZIP and Exchange context bypasses",
+    "nextGate": "Review existing draft",
+    "readiness": "review/integration",
+    "existingIssue": true,
+    "backlogIds": []
+  },
+  {
+    "repository": "azd-maester-functionapp",
+    "issue": "https://github.com/nathanmcnulty/azd-maester-functionapp/issues/33",
+    "deliverable": "Reconcile reviewed host draft stacks into one validation candidate",
+    "nextGate": "After linked prerequisite",
+    "readiness": "dependency",
+    "existingIssue": false,
+    "backlogIds": []
+  },
+  {
+    "repository": "azd-maester-functionapp",
+    "issue": "https://github.com/nathanmcnulty/azd-maester-functionapp/issues/34",
+    "deliverable": "Qualify one Function App assessment and existing report-webapp lifecycle",
+    "nextGate": "Native acceptance",
+    "readiness": "native-validation",
+    "existingIssue": false,
+    "backlogIds": [
+      "MFUNC-002"
+    ]
+  },
+  {
+    "repository": "azd-maester-functionapp",
+    "issue": "https://github.com/nathanmcnulty/azd-maester-functionapp/issues/35",
+    "deliverable": "Implement approved default-off custom-test packages for this host",
+    "nextGate": "After linked prerequisite",
+    "readiness": "dependency",
+    "existingIssue": false,
+    "backlogIds": []
+  },
+  {
+    "repository": "azd-maester-functionapp",
+    "issue": "https://github.com/nathanmcnulty/azd-maester-functionapp/issues/36",
+    "deliverable": "Integrate the optional immutable Caddy report viewer",
+    "nextGate": "After linked prerequisite",
+    "readiness": "dependency",
+    "existingIssue": false,
+    "backlogIds": [
+      "MFUNC-007"
+    ]
+  },
+  {
+    "repository": "azd-maester-functionapp",
+    "issue": "https://github.com/nathanmcnulty/azd-maester-functionapp/issues/37",
+    "deliverable": "Integrate the optional SWA Standard report viewer",
+    "nextGate": "After linked prerequisite",
+    "readiness": "dependency",
+    "existingIssue": false,
+    "backlogIds": [
+      "MFUNC-008"
+    ]
+  },
+  {
+    "repository": "azd-maester-functionapp",
+    "issue": "https://github.com/nathanmcnulty/azd-maester-functionapp/issues/38",
+    "deliverable": "Implement approved data-only drift inputs for this host",
+    "nextGate": "After linked prerequisite",
+    "readiness": "dependency",
+    "existingIssue": false,
+    "backlogIds": [
+      "MFUNC-010"
+    ]
+  },
+  {
+    "repository": "azd-maester-azuredevops",
+    "issue": "https://github.com/nathanmcnulty/azd-maester-azuredevops/issues/23",
+    "deliverable": "Adopt PowerShell 7.6 and Pester 6.2 minimums",
+    "nextGate": "Review existing draft",
+    "readiness": "review/integration",
+    "existingIssue": true,
+    "backlogIds": []
+  },
+  {
+    "repository": "azd-maester-azuredevops",
+    "issue": "https://github.com/nathanmcnulty/azd-maester-azuredevops/issues/27",
+    "deliverable": "Adopt canonical tenant and Enabled-subscription guards across deployment entrypoints",
+    "nextGate": "Review existing draft",
+    "readiness": "review/integration",
+    "existingIssue": true,
+    "backlogIds": []
+  },
+  {
+    "repository": "azd-maester-azuredevops",
+    "issue": "https://github.com/nathanmcnulty/azd-maester-azuredevops/issues/29",
+    "deliverable": "Reconcile reviewed host draft stacks into one validation candidate",
+    "nextGate": "After linked prerequisite",
+    "readiness": "dependency",
+    "existingIssue": false,
+    "backlogIds": []
+  },
+  {
+    "repository": "azd-maester-azuredevops",
+    "issue": "https://github.com/nathanmcnulty/azd-maester-azuredevops/issues/30",
+    "deliverable": "Qualify one Azure DevOps assessment and existing report-webapp lifecycle",
+    "nextGate": "Native acceptance",
+    "readiness": "native-validation",
+    "existingIssue": false,
+    "backlogIds": [
+      "MADO-002"
+    ]
+  },
+  {
+    "repository": "azd-maester-azuredevops",
+    "issue": "https://github.com/nathanmcnulty/azd-maester-azuredevops/issues/31",
+    "deliverable": "Implement approved default-off custom-test packages for this host",
+    "nextGate": "After linked prerequisite",
+    "readiness": "dependency",
+    "existingIssue": false,
+    "backlogIds": []
+  },
+  {
+    "repository": "azd-maester-azuredevops",
+    "issue": "https://github.com/nathanmcnulty/azd-maester-azuredevops/issues/32",
+    "deliverable": "Qualify optional approved drift on the native host",
+    "nextGate": "Native acceptance",
+    "readiness": "native-validation",
+    "existingIssue": false,
+    "backlogIds": [
+      "MADO-012"
+    ]
+  },
+  {
+    "repository": "azd-maester-azuredevops",
+    "issue": "https://github.com/nathanmcnulty/azd-maester-azuredevops/issues/33",
+    "deliverable": "Reproduce selected-account az and azd authentication synchronization",
+    "nextGate": "Needs stated input / prerequisite",
+    "readiness": "user-input",
+    "existingIssue": false,
+    "backlogIds": [
+      "MADO-005"
+    ]
+  },
+  {
+    "repository": "azd-maester-azuredevops",
+    "issue": "https://github.com/nathanmcnulty/azd-maester-azuredevops/issues/34",
+    "deliverable": "Qualify empty-repository provisioning against Azure DevOps",
+    "nextGate": "Needs stated input / prerequisite",
+    "readiness": "user-input",
+    "existingIssue": false,
+    "backlogIds": [
+      "MADO-008"
+    ]
+  },
+  {
+    "repository": "azd-gui",
+    "issue": "https://github.com/nathanmcnulty/azd-gui/issues/149",
+    "deliverable": "Adopt PowerShell 7.6 and Pester 6.2 tooling minimums",
+    "nextGate": "Ready for bounded session",
+    "readiness": "ready",
+    "existingIssue": true,
+    "backlogIds": []
+  },
+  {
+    "repository": "azd-gui",
+    "issue": "https://github.com/nathanmcnulty/azd-gui/issues/143",
+    "deliverable": "Complete exact-candidate Windows acceptance after human sign-in",
+    "nextGate": "Needs stated input / prerequisite",
+    "readiness": "user-input",
+    "existingIssue": true,
+    "backlogIds": [
+      "GUI-002"
+    ]
+  },
+  {
+    "repository": "azd-gui",
+    "issue": "https://github.com/nathanmcnulty/azd-gui/issues/59",
+    "deliverable": "Support tenant-object ownership preflight and verified adoption",
+    "nextGate": "After linked prerequisite",
+    "readiness": "dependency",
+    "existingIssue": true,
+    "backlogIds": [
+      "GUI-006"
+    ]
+  },
+  {
+    "repository": "azd-gui",
+    "issue": "https://github.com/nathanmcnulty/azd-gui/issues/56",
+    "deliverable": "Support conditional acknowledgements that must be accepted before deployment",
+    "nextGate": "Ready for bounded session",
+    "readiness": "ready",
+    "existingIssue": true,
+    "backlogIds": [
+      "GUI-009"
+    ]
+  },
+  {
+    "repository": "azd-gui",
+    "issue": "https://github.com/nathanmcnulty/azd-gui/issues/42",
+    "deliverable": "Support conditional connections, scopes, prerequisites, and permission checks",
+    "nextGate": "Ready for bounded session",
+    "readiness": "ready",
+    "existingIssue": true,
+    "backlogIds": [
+      "GUI-011"
+    ]
+  },
+  {
+    "repository": "azd-gui",
+    "issue": "https://github.com/nathanmcnulty/azd-gui/issues/58",
+    "deliverable": "Surface vendored component provenance, drift, and update status",
+    "nextGate": "Ready for bounded session",
+    "readiness": "ready",
+    "existingIssue": true,
+    "backlogIds": [
+      "GUI-007"
+    ]
+  },
+  {
+    "repository": "azd-gui",
+    "issue": "https://github.com/nathanmcnulty/azd-gui/issues/57",
+    "deliverable": "Publish the manifest schema at a stable anonymously accessible URL",
+    "nextGate": "Needs stated input / prerequisite",
+    "readiness": "user-input",
+    "existingIssue": true,
+    "backlogIds": [
+      "GUI-008"
+    ]
+  },
+  {
+    "repository": "azd-gui",
+    "issue": "https://github.com/nathanmcnulty/azd-gui/issues/55",
+    "deliverable": "Support structured post-deployment reports and verification workflows",
+    "nextGate": "Ready for bounded session",
+    "readiness": "ready",
+    "existingIssue": true,
+    "backlogIds": [
+      "GUI-010"
+    ]
+  },
+  {
+    "repository": "azd-gui",
+    "issue": "https://github.com/nathanmcnulty/azd-gui/issues/41",
+    "deliverable": "Support trusted dynamic option providers for tenant-backed template inputs",
+    "nextGate": "Ready for bounded session",
+    "readiness": "ready",
+    "existingIssue": true,
+    "backlogIds": [
+      "GUI-012"
+    ]
+  },
+  {
+    "repository": "azd-gui",
+    "issue": "https://github.com/nathanmcnulty/azd-gui/issues/11",
+    "deliverable": "Track upstream glib security fix in the Tauri Linux stack",
+    "nextGate": "Deferred / upstream",
+    "readiness": "upstream",
+    "existingIssue": true,
+    "backlogIds": [
+      "GUI-013"
+    ]
+  },
+  {
+    "repository": "azd-gui",
+    "issue": "https://github.com/nathanmcnulty/azd-gui/issues/5",
+    "deliverable": "Evaluate remote environment backends and optional ADE compatibility",
+    "nextGate": "Ready for bounded session",
+    "readiness": "ready",
+    "existingIssue": true,
+    "backlogIds": [
+      "GUI-014"
+    ]
+  },
+  {
+    "repository": "azd-gui",
+    "issue": "https://github.com/nathanmcnulty/azd-gui/issues/151",
+    "deliverable": "Design provider account transitions from the Windows multi-account trial",
+    "nextGate": "After linked prerequisite",
+    "readiness": "dependency",
+    "existingIssue": false,
+    "backlogIds": [
+      "GUI-003"
+    ]
+  },
+  {
+    "repository": "azd-gui",
+    "issue": "https://github.com/nathanmcnulty/azd-gui/issues/152",
+    "deliverable": "Show optional-feature recommendations from proven permission deltas and receipts",
+    "nextGate": "After linked prerequisite",
+    "readiness": "dependency",
+    "existingIssue": false,
+    "backlogIds": [
+      "GUI-004"
+    ]
+  },
+  {
+    "repository": "azd-gui",
+    "issue": "https://github.com/nathanmcnulty/azd-gui/issues/153",
+    "deliverable": "Prepare the exact-candidate release approval packet",
+    "nextGate": "After linked prerequisite",
+    "readiness": "dependency",
+    "existingIssue": false,
+    "backlogIds": [
+      "GUI-005"
+    ]
+  },
+  {
+    "repository": "azd-gui",
+    "issue": "https://github.com/nathanmcnulty/azd-gui/issues/154",
+    "deliverable": "Review and reconcile the current dependency-update PR batch",
+    "nextGate": "Ready for bounded session",
+    "readiness": "ready",
+    "existingIssue": false,
+    "backlogIds": []
+  },
+  {
+    "repository": "azd-myworkid",
+    "issue": "https://github.com/nathanmcnulty/azd-myworkid/issues/53",
+    "deliverable": "Deferred: preserve local candidates and resume only after upstream readiness",
+    "nextGate": "Deferred / upstream",
+    "readiness": "deferred",
+    "existingIssue": false,
+    "backlogIds": [
+      "MWID-002",
+      "MWID-007"
+    ]
+  },
+  {
+    "repository": "azd-maester-containerappjob",
+    "issue": "https://github.com/nathanmcnulty/azd-maester-containerappjob/issues/45",
+    "deliverable": "Qualify one Caddy viewer audience and lifecycle",
+    "nextGate": "After linked prerequisite",
+    "readiness": "dependency",
+    "existingIssue": false,
+    "backlogIds": []
+  },
+  {
+    "repository": "azd-maester-containerappjob",
+    "issue": "https://github.com/nathanmcnulty/azd-maester-containerappjob/issues/46",
+    "deliverable": "Qualify one SWA Standard viewer audience and lifecycle",
+    "nextGate": "After linked prerequisite",
+    "readiness": "dependency",
+    "existingIssue": false,
+    "backlogIds": []
+  },
+  {
+    "repository": "azd-maester-azureautomation",
+    "issue": "https://github.com/nathanmcnulty/azd-maester-azureautomation/issues/39",
+    "deliverable": "Qualify one Caddy viewer audience and lifecycle",
+    "nextGate": "After linked prerequisite",
+    "readiness": "dependency",
+    "existingIssue": false,
+    "backlogIds": []
+  },
+  {
+    "repository": "azd-maester-azureautomation",
+    "issue": "https://github.com/nathanmcnulty/azd-maester-azureautomation/issues/40",
+    "deliverable": "Qualify one SWA Standard viewer audience and lifecycle",
+    "nextGate": "After linked prerequisite",
+    "readiness": "dependency",
+    "existingIssue": false,
+    "backlogIds": []
+  },
+  {
+    "repository": "azd-maester-functionapp",
+    "issue": "https://github.com/nathanmcnulty/azd-maester-functionapp/issues/39",
+    "deliverable": "Qualify one Caddy viewer audience and lifecycle",
+    "nextGate": "After linked prerequisite",
+    "readiness": "dependency",
+    "existingIssue": false,
+    "backlogIds": []
+  },
+  {
+    "repository": "azd-maester-functionapp",
+    "issue": "https://github.com/nathanmcnulty/azd-maester-functionapp/issues/40",
+    "deliverable": "Qualify one SWA Standard viewer audience and lifecycle",
+    "nextGate": "After linked prerequisite",
+    "readiness": "dependency",
+    "existingIssue": false,
+    "backlogIds": []
+  },
+  {
+    "repository": "azd-maester-containerappjob",
+    "issue": "https://github.com/nathanmcnulty/azd-maester-containerappjob/issues/47",
+    "deliverable": "Qualify one approved custom-test package on the native host",
+    "nextGate": "After linked prerequisite",
+    "readiness": "dependency",
+    "existingIssue": false,
+    "backlogIds": []
+  },
+  {
+    "repository": "azd-maester-azureautomation",
+    "issue": "https://github.com/nathanmcnulty/azd-maester-azureautomation/issues/41",
+    "deliverable": "Qualify one approved custom-test package on the native host",
+    "nextGate": "After linked prerequisite",
+    "readiness": "dependency",
+    "existingIssue": false,
+    "backlogIds": []
+  },
+  {
+    "repository": "azd-maester-azureautomation",
+    "issue": "https://github.com/nathanmcnulty/azd-maester-azureautomation/issues/42",
+    "deliverable": "Qualify approved data-only drift on the native host",
+    "nextGate": "After linked prerequisite",
+    "readiness": "dependency",
+    "existingIssue": false,
+    "backlogIds": []
+  },
+  {
+    "repository": "azd-maester-functionapp",
+    "issue": "https://github.com/nathanmcnulty/azd-maester-functionapp/issues/41",
+    "deliverable": "Qualify one approved custom-test package on the native host",
+    "nextGate": "After linked prerequisite",
+    "readiness": "dependency",
+    "existingIssue": false,
+    "backlogIds": []
+  },
+  {
+    "repository": "azd-maester-functionapp",
+    "issue": "https://github.com/nathanmcnulty/azd-maester-functionapp/issues/42",
+    "deliverable": "Qualify approved data-only drift on the native host",
+    "nextGate": "After linked prerequisite",
+    "readiness": "dependency",
+    "existingIssue": false,
+    "backlogIds": []
+  },
+  {
+    "repository": "azd-maester-azuredevops",
+    "issue": "https://github.com/nathanmcnulty/azd-maester-azuredevops/issues/35",
+    "deliverable": "Qualify one approved custom-test package on the native host",
+    "nextGate": "After linked prerequisite",
+    "readiness": "dependency",
+    "existingIssue": false,
+    "backlogIds": []
+  },
+  {
+    "repository": "azd-maester-containerappjob",
+    "issue": "https://github.com/nathanmcnulty/azd-maester-containerappjob/issues/26",
+    "deliverable": "Complete the remaining single-cell runtime baseline acceptance",
+    "nextGate": "Native acceptance",
+    "readiness": "native-validation",
+    "existingIssue": true,
+    "backlogIds": []
+  },
+  {
+    "repository": "azd-maester-azureautomation",
+    "issue": "https://github.com/nathanmcnulty/azd-maester-azureautomation/issues/24",
+    "deliverable": "Complete the remaining single-cell runtime baseline acceptance",
+    "nextGate": "Native acceptance",
+    "readiness": "native-validation",
+    "existingIssue": true,
+    "backlogIds": []
+  },
+  {
+    "repository": "azd-maester-functionapp",
+    "issue": "https://github.com/nathanmcnulty/azd-maester-functionapp/issues/26",
+    "deliverable": "Complete the remaining single-cell runtime baseline acceptance",
+    "nextGate": "Native acceptance",
+    "readiness": "native-validation",
+    "existingIssue": true,
+    "backlogIds": []
+  },
+  {
+    "repository": "azd-reference",
+    "issue": "https://github.com/nathanmcnulty/azd-reference/issues/129",
+    "deliverable": "Review two-host Caddy component adoption before promotion",
+    "nextGate": "After linked prerequisite",
+    "readiness": "dependency",
+    "existingIssue": false,
+    "backlogIds": []
+  },
+  {
+    "repository": "azd-gui",
+    "issue": "https://github.com/nathanmcnulty/azd-gui/issues/155",
+    "deliverable": "Add the PIM role-definition provider to the registered boundary",
+    "nextGate": "After linked prerequisite",
+    "readiness": "dependency",
+    "existingIssue": false,
+    "backlogIds": []
+  },
+  {
+    "repository": "azd-gui",
+    "issue": "https://github.com/nathanmcnulty/azd-gui/issues/156",
+    "deliverable": "Wire conditional permission and prerequisite surfaces to the shared snapshot",
+    "nextGate": "After linked prerequisite",
+    "readiness": "dependency",
+    "existingIssue": false,
+    "backlogIds": []
+  },
+  {
+    "repository": "azd-gui",
+    "issue": "https://github.com/nathanmcnulty/azd-gui/issues/157",
+    "deliverable": "Add trusted typed verification actions and separate verification state",
+    "nextGate": "After linked prerequisite",
+    "readiness": "dependency",
+    "existingIssue": false,
+    "backlogIds": []
+  },
+  {
+    "repository": "azd-gui",
+    "issue": "https://github.com/nathanmcnulty/azd-gui/issues/158",
+    "deliverable": "Show remote component update availability without blocking deployment",
+    "nextGate": "After linked prerequisite",
+    "readiness": "dependency",
+    "existingIssue": false,
+    "backlogIds": []
+  },
+  {
+    "repository": "azd-gui",
+    "issue": "https://github.com/nathanmcnulty/azd-gui/issues/159",
+    "deliverable": "Add explicitly trusted component sync from the provenance view",
+    "nextGate": "After linked prerequisite",
+    "readiness": "dependency",
+    "existingIssue": false,
+    "backlogIds": []
+  },
+  {
+    "repository": "azd-gui",
+    "issue": "https://github.com/nathanmcnulty/azd-gui/issues/160",
+    "deliverable": "Invalidate acknowledgements when tenant-backed option results change",
+    "nextGate": "After linked prerequisite",
+    "readiness": "dependency",
+    "existingIssue": false,
+    "backlogIds": []
+  },
+  {
+    "repository": "azd-gui",
+    "issue": "https://github.com/nathanmcnulty/azd-gui/issues/161",
+    "deliverable": "Wire one existing-object ownership verifier and explicit adoption path",
+    "nextGate": "After linked prerequisite",
+    "readiness": "dependency",
+    "existingIssue": false,
+    "backlogIds": []
+  },
+  {
+    "repository": "azd-gui",
+    "issue": "https://github.com/nathanmcnulty/azd-gui/issues/162",
+    "deliverable": "Qualify the PIM option provider in one verified tenant",
+    "nextGate": "After linked prerequisite",
+    "readiness": "dependency",
+    "existingIssue": false,
+    "backlogIds": []
+  },
+  {
+    "repository": "azd-auth-notifications",
+    "issue": "https://github.com/nathanmcnulty/azd-auth-notifications/issues/9",
+    "deliverable": "registration and recipient delivery",
+    "nextGate": "Needs stated input / prerequisite",
+    "readiness": "user-input",
+    "existingIssue": true,
+    "backlogIds": [
+      "AUTH-002"
+    ]
+  },
+  {
+    "repository": "azd-auth-notifications",
+    "issue": "https://github.com/nathanmcnulty/azd-auth-notifications/issues/20",
+    "deliverable": "AUTH-006 sanitized method-sample expansion",
+    "nextGate": "Needs stated input / prerequisite",
+    "readiness": "user-input",
+    "existingIssue": false,
+    "backlogIds": [
+      "AUTH-006"
+    ]
+  },
+  {
+    "repository": "azd-entra-health-monitoring",
+    "issue": "https://github.com/nathanmcnulty/azd-entra-health-monitoring/issues/17",
+    "deliverable": "HEALTH-004 subscription, consent and delivery",
+    "nextGate": "Needs stated input / prerequisite",
+    "readiness": "user-input",
+    "existingIssue": false,
+    "backlogIds": [
+      "HEALTH-004"
+    ]
+  },
+  {
+    "repository": "azd-entra-health-monitoring",
+    "issue": "https://github.com/nathanmcnulty/azd-entra-health-monitoring/issues/18",
+    "deliverable": "HEALTH-006 historical callback exposure assessment",
+    "nextGate": "Deferred / upstream",
+    "readiness": "deferred",
+    "existingIssue": false,
+    "backlogIds": [
+      "HEALTH-006"
+    ]
+  },
+  {
+    "repository": "azd-emergency-access",
+    "issue": "https://github.com/nathanmcnulty/azd-emergency-access/issues/32",
+    "deliverable": "EA-002 onboarding, alert routes and recovery",
+    "nextGate": "Needs stated input / prerequisite",
+    "readiness": "user-input",
+    "existingIssue": false,
+    "backlogIds": [
+      "EA-002"
+    ]
+  },
+  {
+    "repository": "azd-device-notifications",
+    "issue": "https://github.com/nathanmcnulty/azd-device-notifications/issues/47",
+    "deliverable": "DEVICE-002 recipient routes and Teams lifecycle",
+    "nextGate": "Needs stated input / prerequisite",
+    "readiness": "user-input",
+    "existingIssue": false,
+    "backlogIds": [
+      "DEVICE-002"
+    ]
+  },
+  {
+    "repository": "azd-sysmon",
+    "issue": "https://github.com/nathanmcnulty/azd-sysmon/issues/27",
+    "deliverable": "SYS-002/SYS-003 disposable Windows qualification",
+    "nextGate": "Native acceptance",
+    "readiness": "native-validation",
+    "existingIssue": false,
+    "backlogIds": [
+      "SYS-002",
+      "SYS-003"
+    ]
+  },
+  {
+    "repository": "azd-sysmon",
+    "issue": "https://github.com/nathanmcnulty/azd-sysmon/issues/28",
+    "deliverable": "SYS-004/SYS-005 service publication qualification",
+    "nextGate": "Native acceptance",
+    "readiness": "native-validation",
+    "existingIssue": false,
+    "backlogIds": [
+      "SYS-004",
+      "SYS-005"
+    ]
+  },
+  {
+    "repository": "azd-sysmon",
+    "issue": "https://github.com/nathanmcnulty/azd-sysmon/issues/29",
+    "deliverable": "SYS-006/SYS-007/SYS-008 disposable tenant canary and recovery",
+    "nextGate": "Needs stated input / prerequisite",
+    "readiness": "user-input",
+    "existingIssue": false,
+    "backlogIds": [
+      "SYS-006",
+      "SYS-007",
+      "SYS-008"
+    ]
+  },
+  {
+    "repository": "azd-pim",
+    "issue": "https://github.com/nathanmcnulty/azd-pim/issues/25",
+    "deliverable": "PIM-002 selected-role pilot",
+    "nextGate": "Needs stated input / prerequisite",
+    "readiness": "user-input",
+    "existingIssue": false,
+    "backlogIds": [
+      "PIM-002"
+    ]
+  },
+  {
+    "repository": "azd-device-cleanup",
+    "issue": "https://github.com/nathanmcnulty/azd-device-cleanup/issues/24",
+    "deliverable": "CLEAN-002 recovery proof",
+    "nextGate": "Needs stated input / prerequisite",
+    "readiness": "user-input",
+    "existingIssue": false,
+    "backlogIds": [
+      "CLEAN-002"
+    ]
+  },
+  {
+    "repository": "azd-device-cleanup",
+    "issue": "https://github.com/nathanmcnulty/azd-device-cleanup/issues/25",
+    "deliverable": "CLEAN-007 notification route qualification",
+    "nextGate": "After linked prerequisite",
+    "readiness": "dependency",
+    "existingIssue": false,
+    "backlogIds": [
+      "CLEAN-007"
+    ]
+  },
+  {
+    "repository": "azd-risk-based-ca",
+    "issue": "https://github.com/nathanmcnulty/azd-risk-based-ca/issues/29",
+    "deliverable": "RISK-002 report-only canary and rollback",
+    "nextGate": "Needs stated input / prerequisite",
+    "readiness": "user-input",
+    "existingIssue": false,
+    "backlogIds": [
+      "RISK-002"
+    ]
+  },
+  {
+    "repository": "azd-auth-notifications",
+    "issue": "https://github.com/nathanmcnulty/azd-auth-notifications/issues/17",
+    "deliverable": "baseline review and integration",
+    "nextGate": "Review existing draft",
+    "readiness": "dependency",
+    "existingIssue": true,
+    "backlogIds": [
+      "AUTH-011"
+    ]
+  },
+  {
+    "repository": "azd-entra-health-monitoring",
+    "issue": "https://github.com/nathanmcnulty/azd-entra-health-monitoring/issues/14",
+    "deliverable": "baseline review and integration",
+    "nextGate": "Review existing draft",
+    "readiness": "dependency",
+    "existingIssue": true,
+    "backlogIds": [
+      "HEALTH-007",
+      "HEALTH-008"
+    ]
+  },
+  {
+    "repository": "azd-emergency-access",
+    "issue": "https://github.com/nathanmcnulty/azd-emergency-access/issues/27",
+    "deliverable": "hosted runtime baseline review",
+    "nextGate": "Review existing draft",
+    "readiness": "dependency",
+    "existingIssue": true,
+    "backlogIds": []
+  },
+  {
+    "repository": "azd-emergency-access",
+    "issue": "https://github.com/nathanmcnulty/azd-emergency-access/issues/20",
+    "deliverable": "HOL purge guard decision",
+    "nextGate": "Needs stated input / prerequisite",
+    "readiness": "user-input",
+    "existingIssue": true,
+    "backlogIds": [
+      "EA-005"
+    ]
+  },
+  {
+    "repository": "azd-device-notifications",
+    "issue": "https://github.com/nathanmcnulty/azd-device-notifications/issues/42",
+    "deliverable": "baseline review and integration",
+    "nextGate": "Review existing draft",
+    "readiness": "dependency",
+    "existingIssue": true,
+    "backlogIds": [
+      "DEVICE-004"
+    ]
+  },
+  {
+    "repository": "azd-sysmon",
+    "issue": "https://github.com/nathanmcnulty/azd-sysmon/issues/18",
+    "deliverable": "baseline ownership and checks review",
+    "nextGate": "Review existing draft",
+    "readiness": "dependency",
+    "existingIssue": true,
+    "backlogIds": [
+      "SYS-018"
+    ]
+  },
+  {
+    "repository": "azd-sysmon",
+    "issue": "https://github.com/nathanmcnulty/azd-sysmon/issues/24",
+    "deliverable": "AMA metadata-handle fix review",
+    "nextGate": "Review existing draft",
+    "readiness": "dependency",
+    "existingIssue": true,
+    "backlogIds": []
+  },
+  {
+    "repository": "azd-pim",
+    "issue": "https://github.com/nathanmcnulty/azd-pim/issues/21",
+    "deliverable": "baseline review and integration",
+    "nextGate": "Review existing draft",
+    "readiness": "dependency",
+    "existingIssue": true,
+    "backlogIds": []
+  },
+  {
+    "repository": "azd-device-cleanup",
+    "issue": "https://github.com/nathanmcnulty/azd-device-cleanup/issues/22",
+    "deliverable": "baseline review and integration",
+    "nextGate": "Review existing draft",
+    "readiness": "dependency",
+    "existingIssue": true,
+    "backlogIds": []
+  },
+  {
+    "repository": "azd-risk-based-ca",
+    "issue": "https://github.com/nathanmcnulty/azd-risk-based-ca/issues/27",
+    "deliverable": "baseline review and integration",
+    "nextGate": "Review existing draft",
+    "readiness": "dependency",
+    "existingIssue": true,
+    "backlogIds": []
+  },
+  {
+    "repository": "azd-entra-iga",
+    "issue": "https://github.com/nathanmcnulty/azd-entra-iga/issues/23",
+    "deliverable": "Integrate the reviewed PowerShell prerequisite draft",
+    "nextGate": "Ready for bounded session",
+    "readiness": "ready",
+    "existingIssue": true,
+    "backlogIds": []
+  },
+  {
+    "repository": "azd-entra-iga",
+    "issue": "https://github.com/nathanmcnulty/azd-entra-iga/issues/30",
+    "deliverable": "Review the staged IGA safety stack without merging it",
+    "nextGate": "Ready for bounded session",
+    "readiness": "ready",
+    "existingIssue": false,
+    "backlogIds": [
+      "IGA-007",
+      "IGA-008",
+      "IGA-009",
+      "IGA-010"
+    ]
+  },
+  {
+    "repository": "azd-entra-iga",
+    "issue": "https://github.com/nathanmcnulty/azd-entra-iga/issues/31",
+    "deliverable": "Decide the delegated administrator session contract",
+    "nextGate": "Needs stated input / prerequisite",
+    "readiness": "user-input",
+    "existingIssue": false,
+    "backlogIds": [
+      "IGA-004"
+    ]
+  },
+  {
+    "repository": "azd-entra-iga",
+    "issue": "https://github.com/nathanmcnulty/azd-entra-iga/issues/32",
+    "deliverable": "Run the selected-profile plan, apply, retirement, and recovery pilot",
+    "nextGate": "Needs stated input / prerequisite",
+    "readiness": "user-input",
+    "existingIssue": false,
+    "backlogIds": [
+      "IGA-002"
+    ]
+  },
+  {
+    "repository": "azd-global-secure-access",
+    "issue": "https://github.com/nathanmcnulty/azd-global-secure-access/issues/19",
+    "deliverable": "Integrate the PowerShell 7.6 and Pester 6.2 baseline and retain its live gate",
+    "nextGate": "Native acceptance",
+    "readiness": "native-validation",
+    "existingIssue": true,
+    "backlogIds": []
+  },
+  {
+    "repository": "azd-global-secure-access",
+    "issue": "https://github.com/nathanmcnulty/azd-global-secure-access/issues/25",
+    "deliverable": "Integrate expected-operator Graph preflight",
+    "nextGate": "Ready for bounded session",
+    "readiness": "ready",
+    "existingIssue": true,
+    "backlogIds": [
+      "GSA-003"
+    ]
+  },
+  {
+    "repository": "azd-global-secure-access",
+    "issue": "https://github.com/nathanmcnulty/azd-global-secure-access/issues/27",
+    "deliverable": "Qualify one named read-only GSA feature pilot",
+    "nextGate": "Needs stated input / prerequisite",
+    "readiness": "user-input",
+    "existingIssue": false,
+    "backlogIds": [
+      "GSA-002",
+      "GSA-003"
+    ]
+  },
+  {
+    "repository": "azd-verified-id",
+    "issue": "https://github.com/nathanmcnulty/azd-verified-id/issues/13",
+    "deliverable": "Integrate the supported authoring and validation baseline",
+    "nextGate": "Ready for bounded session",
+    "readiness": "ready",
+    "existingIssue": true,
+    "backlogIds": [
+      "VID-007"
+    ]
+  },
+  {
+    "repository": "azd-verified-id",
+    "issue": "https://github.com/nathanmcnulty/azd-verified-id/issues/15",
+    "deliverable": "Qualify domain, authority, issuance, presentation, resume, and cleanup",
+    "nextGate": "Needs stated input / prerequisite",
+    "readiness": "user-input",
+    "existingIssue": false,
+    "backlogIds": [
+      "VID-002"
+    ]
+  },
+  {
+    "repository": "azd-cloud-pc-recommendations",
+    "issue": "https://github.com/nathanmcnulty/azd-cloud-pc-recommendations/issues/13",
+    "deliverable": "Qualify the read-only Cloud PC monitor from the reviewed validation draft",
+    "nextGate": "Needs stated input / prerequisite",
+    "readiness": "user-input",
+    "existingIssue": false,
+    "backlogIds": [
+      "CPC-002",
+      "CPC-007"
+    ]
+  },
+  {
+    "repository": "azd-santa",
+    "issue": "https://github.com/nathanmcnulty/azd-santa/issues/29",
+    "deliverable": "Complete the PowerShell 7.6 and Pester 6.2 baseline",
+    "nextGate": "Ready for bounded session",
+    "readiness": "ready",
+    "existingIssue": true,
+    "backlogIds": []
+  },
+  {
+    "repository": "azd-santa",
+    "issue": "https://github.com/nathanmcnulty/azd-santa/issues/32",
+    "deliverable": "Review deterministic Santa candidates and sync-profile guidance",
+    "nextGate": "Ready for bounded session",
+    "readiness": "ready",
+    "existingIssue": false,
+    "backlogIds": [
+      "SANTA-003",
+      "SANTA-004"
+    ]
+  },
+  {
+    "repository": "azd-santa",
+    "issue": "https://github.com/nathanmcnulty/azd-santa/issues/33",
+    "deliverable": "Close the one-device Monitor and selected-sync native evidence gate",
+    "nextGate": "Needs stated input / prerequisite",
+    "readiness": "user-input",
+    "existingIssue": false,
+    "backlogIds": [
+      "SANTA-002",
+      "SANTA-007"
+    ]
+  },
+  {
+    "repository": "azd-advanced-auditing",
+    "issue": "https://github.com/nathanmcnulty/azd-advanced-auditing/issues/21",
+    "deliverable": "Integrate bounded operational validation and Purview bootstrap corrections",
+    "nextGate": "Ready for bounded session",
+    "readiness": "ready",
+    "existingIssue": true,
+    "backlogIds": [
+      "AUD-003"
+    ]
+  },
+  {
+    "repository": "azd-advanced-auditing",
+    "issue": "https://github.com/nathanmcnulty/azd-advanced-auditing/issues/20",
+    "deliverable": "Complete the supported PowerShell and Pester baseline on the reviewed stack",
+    "nextGate": "After linked prerequisite",
+    "readiness": "dependency",
+    "existingIssue": true,
+    "backlogIds": []
+  },
+  {
+    "repository": "azd-advanced-auditing",
+    "issue": "https://github.com/nathanmcnulty/azd-advanced-auditing/issues/23",
+    "deliverable": "Bind all operator hook mutations to the approved tenant and Enabled subscription",
+    "nextGate": "After linked prerequisite",
+    "readiness": "dependency",
+    "existingIssue": true,
+    "backlogIds": [
+      "AUD-002",
+      "AUD-003"
+    ]
+  },
+  {
+    "repository": "azd-advanced-auditing",
+    "issue": "https://github.com/nathanmcnulty/azd-advanced-auditing/issues/1",
+    "deliverable": "Retest Exchange and Purview on one Azure Automation host",
+    "nextGate": "Needs stated input / prerequisite",
+    "readiness": "user-input",
+    "existingIssue": true,
+    "backlogIds": [
+      "AUD-002",
+      "AUD-003"
+    ]
+  },
+  {
+    "repository": "azd-defender-reporting",
+    "issue": "https://github.com/nathanmcnulty/azd-defender-reporting/issues/20",
+    "deliverable": "Integrate the .NET 10, PowerShell 7.6, and Pester 6.2 wrapper stack",
+    "nextGate": "Native acceptance",
+    "readiness": "native-validation",
+    "existingIssue": true,
+    "backlogIds": [
+      "REPORT-005"
+    ]
+  },
+  {
+    "repository": "azd-defender-reporting",
+    "issue": "https://github.com/nathanmcnulty/azd-defender-reporting/issues/23",
+    "deliverable": "Bind wrapper publication to the approved tenant and Enabled subscription",
+    "nextGate": "After linked prerequisite",
+    "readiness": "dependency",
+    "existingIssue": true,
+    "backlogIds": [
+      "REPORT-002"
+    ]
+  },
+  {
+    "repository": "azd-defender-reporting",
+    "issue": "https://github.com/nathanmcnulty/azd-defender-reporting/issues/24",
+    "deliverable": "Qualify Function App self-contained reporting",
+    "nextGate": "Needs stated input / prerequisite",
+    "readiness": "user-input",
+    "existingIssue": false,
+    "backlogIds": [
+      "REPORT-002"
+    ]
+  },
+  {
+    "repository": "azd-defender-reporting",
+    "issue": "https://github.com/nathanmcnulty/azd-defender-reporting/issues/25",
+    "deliverable": "Qualify Function App hosted Container App reporting",
+    "nextGate": "Needs stated input / prerequisite",
+    "readiness": "user-input",
+    "existingIssue": false,
+    "backlogIds": [
+      "REPORT-002"
+    ]
+  },
+  {
+    "repository": "azd-defender-reporting",
+    "issue": "https://github.com/nathanmcnulty/azd-defender-reporting/issues/26",
+    "deliverable": "Qualify Azure Automation self-contained reporting",
+    "nextGate": "Needs stated input / prerequisite",
+    "readiness": "user-input",
+    "existingIssue": false,
+    "backlogIds": [
+      "REPORT-002"
+    ]
+  },
+  {
+    "repository": "azd-defender-reporting",
+    "issue": "https://github.com/nathanmcnulty/azd-defender-reporting/issues/27",
+    "deliverable": "Qualify Azure Automation hosted Container App reporting",
+    "nextGate": "Needs stated input / prerequisite",
+    "readiness": "user-input",
+    "existingIssue": false,
+    "backlogIds": [
+      "REPORT-002"
+    ]
+  },
+  {
+    "repository": "azd-website",
+    "issue": "https://github.com/nathanmcnulty/azd-website/issues/73",
+    "deliverable": "Review the catalog source-contract draft",
+    "nextGate": "Ready for bounded session",
+    "readiness": "ready",
+    "existingIssue": false,
+    "backlogIds": [
+      "WEB-002",
+      "WEB-003",
+      "WEB-006"
+    ]
+  },
+  {
+    "repository": "azd-website",
+    "issue": "https://github.com/nathanmcnulty/azd-website/issues/74",
+    "deliverable": "Decide and implement opt-in public validation summaries",
+    "nextGate": "Needs stated input / prerequisite",
+    "readiness": "user-input",
+    "existingIssue": false,
+    "backlogIds": [
+      "WEB-005"
+    ]
+  },
+  {
+    "repository": "azd-website",
+    "issue": "https://github.com/nathanmcnulty/azd-website/issues/53",
+    "deliverable": "Refresh the grouped dependency reachability record",
+    "nextGate": "Deferred / upstream",
+    "readiness": "deferred",
+    "existingIssue": true,
+    "backlogIds": [
+      "WEB-004"
+    ]
+  },
+  {
+    "repository": "azd-work-in-progress",
+    "issue": "https://github.com/nathanmcnulty/azd-work-in-progress/issues/53",
+    "deliverable": "Finish the supported PowerShell and Pester baseline integration",
+    "nextGate": "Review existing draft",
+    "readiness": "reviewed-in-open-pr",
+    "existingIssue": true,
+    "backlogIds": []
+  },
+  {
+    "repository": "azd-work-in-progress",
+    "issue": "https://github.com/nathanmcnulty/azd-work-in-progress/issues/65",
+    "deliverable": "Prepare one named standalone publication packet",
+    "nextGate": "Needs stated input / prerequisite",
+    "readiness": "blocked-named-solution-approval",
+    "existingIssue": false,
+    "backlogIds": [
+      "STAGE-003"
+    ]
+  },
+  {
+    "repository": "azd-work-in-progress",
+    "issue": "https://github.com/nathanmcnulty/azd-work-in-progress/issues/36",
+    "deliverable": "Qualify the Phase 0 read-only Intune and MDE contracts",
+    "nextGate": "Needs stated input / prerequisite",
+    "readiness": "blocked-effective-read-access",
+    "existingIssue": true,
+    "backlogIds": [
+      "APP0-004"
+    ]
+  },
+  {
+    "repository": "azd-work-in-progress",
+    "issue": "https://github.com/nathanmcnulty/azd-work-in-progress/issues/66",
+    "deliverable": "Qualify the native Intune conditional-write and cross-resource contract",
+    "nextGate": "Needs stated input / prerequisite",
+    "readiness": "blocked-disposable-target-and-write-approval",
+    "existingIssue": false,
+    "backlogIds": [
+      "ACFB-003"
+    ]
+  },
+  {
+    "repository": "azd-work-in-progress",
+    "issue": "https://github.com/nathanmcnulty/azd-work-in-progress/issues/55",
+    "deliverable": "Implement the audit-only stale-safe plan/apply adapter",
+    "nextGate": "Needs stated input / prerequisite",
+    "readiness": "blocked-native-api-contract",
+    "existingIssue": true,
+    "backlogIds": [
+      "ACFB-003"
+    ]
+  },
+  {
+    "repository": "azd-work-in-progress",
+    "issue": "https://github.com/nathanmcnulty/azd-work-in-progress/issues/35",
+    "deliverable": "Run one populated audit-only endpoint convergence and removal pilot",
+    "nextGate": "Needs stated input / prerequisite",
+    "readiness": "blocked-concrete-endpoint-targets",
+    "existingIssue": true,
+    "backlogIds": [
+      "ACFB-002"
+    ]
+  },
+  {
+    "repository": "azd-work-in-progress",
+    "issue": "https://github.com/nathanmcnulty/azd-work-in-progress/issues/62",
+    "deliverable": "Adopt the immutable Reference #117 target-guard correction",
+    "nextGate": "Needs stated input / prerequisite",
+    "readiness": "blocked-reference-117",
+    "existingIssue": true,
+    "backlogIds": [
+      "ASR-006",
+      "AV-006",
+      "FW-006",
+      "ACFB-008"
+    ]
+  },
+  {
+    "repository": "azd-work-in-progress",
+    "issue": "https://github.com/nathanmcnulty/azd-work-in-progress/issues/67",
+    "deliverable": "Qualify one selected ASR optional host mode",
+    "nextGate": "Needs stated input / prerequisite",
+    "readiness": "blocked-mode-target-and-guard-adoption",
+    "existingIssue": false,
+    "backlogIds": [
+      "ASR-007"
+    ]
+  },
+  {
+    "repository": "azd-work-in-progress",
+    "issue": "https://github.com/nathanmcnulty/azd-work-in-progress/issues/68",
+    "deliverable": "Qualify one selected Antivirus optional host mode",
+    "nextGate": "Needs stated input / prerequisite",
+    "readiness": "blocked-mode-target-and-guard-adoption",
+    "existingIssue": false,
+    "backlogIds": [
+      "AV-007"
+    ]
+  },
+  {
+    "repository": "azd-work-in-progress",
+    "issue": "https://github.com/nathanmcnulty/azd-work-in-progress/issues/69",
+    "deliverable": "Qualify one selected Firewall optional host mode",
+    "nextGate": "Needs stated input / prerequisite",
+    "readiness": "blocked-mode-target-and-guard-adoption",
+    "existingIssue": false,
+    "backlogIds": [
+      "FW-007"
+    ]
+  },
+  {
+    "repository": "azd-work-in-progress",
+    "issue": "https://github.com/nathanmcnulty/azd-work-in-progress/issues/70",
+    "deliverable": "Qualify one selected ACFB optional host mode",
+    "nextGate": "Needs stated input / prerequisite",
+    "readiness": "blocked-mode-target-and-guard-adoption",
+    "existingIssue": false,
+    "backlogIds": [
+      "ACFB-009"
+    ]
+  },
+  {
+    "repository": "azd-work-in-progress",
+    "issue": "https://github.com/nathanmcnulty/azd-work-in-progress/issues/71",
+    "deliverable": "Prepare a coordinated ASR and Antivirus canary/rollback packet",
+    "nextGate": "Needs stated input / prerequisite",
+    "readiness": "blocked-concrete-canary-inputs",
+    "existingIssue": false,
+    "backlogIds": [
+      "ASR-004",
+      "AV-004"
+    ]
+  },
+  {
+    "repository": "azd-work-in-progress",
+    "issue": "https://github.com/nathanmcnulty/azd-work-in-progress/issues/72",
+    "deliverable": "Prepare the Firewall profile-specific canary/rollback packet",
+    "nextGate": "Needs stated input / prerequisite",
+    "readiness": "blocked-concrete-canary-inputs",
+    "existingIssue": false,
+    "backlogIds": [
+      "FW-004"
+    ]
+  },
+  {
+    "repository": "azd-work-in-progress",
+    "issue": "https://github.com/nathanmcnulty/azd-work-in-progress/issues/54",
+    "deliverable": "Split the Exchange live-acceptance umbrella into bounded children",
+    "nextGate": "Coordination",
+    "readiness": "ready-tracking-only",
+    "existingIssue": true,
+    "backlogIds": [
+      "EXCHANGE-001",
+      "EXCHANGE-002",
+      "EXCHANGE-005",
+      "EXCHANGE-006",
+      "EXCHANGE-010",
+      "EXCHANGE-011",
+      "EXCHANGE-012"
+    ]
+  },
+  {
+    "repository": "azd-work-in-progress",
+    "issue": "https://github.com/nathanmcnulty/azd-work-in-progress/issues/79",
+    "deliverable": "Qualify one Exchange host deployment and effective permissions",
+    "nextGate": "Needs stated input / prerequisite",
+    "readiness": "blocked-host-target-and-operation-approval",
+    "existingIssue": false,
+    "backlogIds": [
+      "EXCHANGE-005"
+    ]
+  },
+  {
+    "repository": "azd-work-in-progress",
+    "issue": "https://github.com/nathanmcnulty/azd-work-in-progress/issues/80",
+    "deliverable": "Qualify Trace V2, Blob policy history and authenticated review",
+    "nextGate": "Needs stated input / prerequisite",
+    "readiness": "blocked-deployed-host-and-effective-access",
+    "existingIssue": false,
+    "backlogIds": [
+      "EXCHANGE-001",
+      "EXCHANGE-002",
+      "EXCHANGE-010"
+    ]
+  },
+  {
+    "repository": "azd-work-in-progress",
+    "issue": "https://github.com/nathanmcnulty/azd-work-in-progress/issues/81",
+    "deliverable": "Qualify the disabled Exchange gate publisher and capacity contract",
+    "nextGate": "Needs stated input / prerequisite",
+    "readiness": "blocked-exchange-target-and-rule-approval",
+    "existingIssue": false,
+    "backlogIds": [
+      "EXCHANGE-011",
+      "EXCHANGE-006"
+    ]
+  },
+  {
+    "repository": "azd-work-in-progress",
+    "issue": "https://github.com/nathanmcnulty/azd-work-in-progress/issues/82",
+    "deliverable": "Run the enabled pilot mail-flow, expiry and rollback acceptance",
+    "nextGate": "Needs stated input / prerequisite",
+    "readiness": "blocked-recipient-and-mailflow-approval",
+    "existingIssue": false,
+    "backlogIds": [
+      "EXCHANGE-006"
+    ]
+  },
+  {
+    "repository": "azd-work-in-progress",
+    "issue": "https://github.com/nathanmcnulty/azd-work-in-progress/issues/73",
+    "deliverable": "Implement an executable owned-state restore path",
+    "nextGate": "Ready for bounded session",
+    "readiness": "ready-local-source",
+    "existingIssue": false,
+    "backlogIds": [
+      "EXCHANGE-010"
+    ]
+  },
+  {
+    "repository": "azd-work-in-progress",
+    "issue": "https://github.com/nathanmcnulty/azd-work-in-progress/issues/83",
+    "deliverable": "Qualify point-in-time restore and owned cleanup",
+    "nextGate": "Needs stated input / prerequisite",
+    "readiness": "blocked-restore-source-and-disposable-state",
+    "existingIssue": false,
+    "backlogIds": [
+      "EXCHANGE-010",
+      "EXCHANGE-006"
+    ]
+  },
+  {
+    "repository": "azd-work-in-progress",
+    "issue": "https://github.com/nathanmcnulty/azd-work-in-progress/issues/74",
+    "deliverable": "Implement the durable admin notification outbox",
+    "nextGate": "Ready for bounded session",
+    "readiness": "ready-local-source",
+    "existingIssue": false,
+    "backlogIds": [
+      "EXCHANGE-003"
+    ]
+  },
+  {
+    "repository": "azd-work-in-progress",
+    "issue": "https://github.com/nathanmcnulty/azd-work-in-progress/issues/84",
+    "deliverable": "Verify one approved notification route",
+    "nextGate": "Needs stated input / prerequisite",
+    "readiness": "blocked-recipient-route-consent",
+    "existingIssue": false,
+    "backlogIds": [
+      "EXCHANGE-004"
+    ]
+  },
+  {
+    "repository": "azd-work-in-progress",
+    "issue": "https://github.com/nathanmcnulty/azd-work-in-progress/issues/75",
+    "deliverable": "Implement the shared-mailbox agent evidence adapter",
+    "nextGate": "Ready for bounded session",
+    "readiness": "ready-local-source",
+    "existingIssue": false,
+    "backlogIds": [
+      "EXCHANGE-007"
+    ]
+  },
+  {
+    "repository": "azd-work-in-progress",
+    "issue": "https://github.com/nathanmcnulty/azd-work-in-progress/issues/76",
+    "deliverable": "Implement the direct quarantine evidence adapter",
+    "nextGate": "Ready for bounded session",
+    "readiness": "ready-local-source",
+    "existingIssue": false,
+    "backlogIds": [
+      "EXCHANGE-007"
+    ]
+  },
+  {
+    "repository": "azd-work-in-progress",
+    "issue": "https://github.com/nathanmcnulty/azd-work-in-progress/issues/85",
+    "deliverable": "Qualify the optional Foundry advisory deployment and paid invocation",
+    "nextGate": "Needs stated input / prerequisite",
+    "readiness": "blocked-model-spend-retention-approval",
+    "existingIssue": false,
+    "backlogIds": [
+      "EXCHANGE-012"
+    ]
+  },
+  {
+    "repository": "azd-work-in-progress",
+    "issue": "https://github.com/nathanmcnulty/azd-work-in-progress/issues/77",
+    "deliverable": "Decide optional hunting coverage and high-volume partitioning from evidence",
+    "nextGate": "Deferred / upstream",
+    "readiness": "deferred-needs-native-volume-evidence",
+    "existingIssue": false,
+    "backlogIds": [
+      "EXCHANGE-001",
+      "EXCHANGE-010"
+    ]
+  },
+  {
+    "repository": "azd-work-in-progress",
+    "issue": "https://github.com/nathanmcnulty/azd-work-in-progress/issues/78",
+    "deliverable": "Require fresh target guards in the solution-owned Exchange operator paths",
+    "nextGate": "Ready for bounded session",
+    "readiness": "ready-local-source",
+    "existingIssue": false,
+    "backlogIds": [
+      "EXCHANGE-005"
+    ]
+  },
+  {
+    "repository": "azd-work-in-progress",
+    "issue": "https://github.com/nathanmcnulty/azd-work-in-progress/issues/63",
+    "deliverable": "Coordinate selected staged hosting acceptance",
+    "nextGate": "Coordination",
+    "readiness": "coordination",
+    "existingIssue": true,
+    "backlogIds": [
+      "ASR-007",
+      "AV-007",
+      "FW-007",
+      "ACFB-009"
+    ]
+  }
+]

@@ -1,5 +1,9 @@
 # Portfolio backlog preparation and reconciliation
 
+The [18 October focused-session handoff](portfolio-session-handoffs-20261018.md)
+is the newer issue-by-issue inventory of current work and draft integration gates.
+It preserves the dated captures below and does not replace repository-owned backlogs.
+
 Prepared 3 October and refreshed from immutable default-branch captures on 15 October 2026. This is an aggregate review view of repository-local backlogs, not a second task database. Regenerate counts and links from `docs/backlog.json`; update task status only in the owning repository. The proposed order favors reliability and deployment readiness before new capabilities. No feature implementation, tenant deployment, delivery, release, merge, cleanup or required-check change is authorized by this report.
 
 Coverage: 25 owning GitHub `nathanmcnulty/azd-*` repositories across 30 backlog roots, including the staging repository and five staged solutions. The exact default-branch captures linked below contain 218 records: 138 done, 78 proposed and two blocked, with no ready, in-progress or deferred records in that published snapshot. Of the proposed records, 45 are local-only; that label does not establish satisfied dependencies, readiness or approval. All 30 captured backlogs passed the canonical schema and cross-repository dependency validator on PowerShell 7.6.6. The snapshot excludes newer owner-branch claims, including unmerged AUTH-007 owner-branch work, and is not an atomic portfolio revision.
