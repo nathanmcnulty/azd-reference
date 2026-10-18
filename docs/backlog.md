@@ -292,11 +292,14 @@ Review REF-003 against the current repository state. Its status or authorization
 
 - **Kind:** discovery
 - **Priority:** P1
-- **Status:** proposed
+- **Status:** in-progress
 - **Wave:** 1
 - **Authorization:** local-only
 - **Blocker:** _none_
-- **Claim:** _none_
+- **Claim owner:** codex
+- **Claim worktree:** C&colon;&bsol;azd-reconciliation-20261016&bsol;reference-maester-target-preflight
+- **Claim base revision:** `6c43761136907a8d07e817f507619546c28c80c6`
+- **Claim started:** 10/18/2026 10&colon;25&colon;25
 
 **Problem:**
 
@@ -335,6 +338,7 @@ The Flex host is a pilot; its existing storage credential boundary should be com
 **Evidence:**
 
 - 2026-10-11 source-only pilot0.2.0 adds opt-in identityOnlyStorage with compatibility defaultfalse, host Blob Data Owner scoped to the shared account, SystemAssignedIdentity deployment, actual service endpoint host settings and identity-only reserved-name filtering. Exact PIM4c6ddfdb1cc0d5f30c9cac817a259decd181cc31 and riskf8eda4504566e0521204fd884fd630c3a9910d24 wrapper/lock shapes preserve naming, settings, aliases, state and7/14day retention. Compiled two-shape assertions,13 security negatives,72 actual compiled predicate cases and default resource/settings parity are offline evidence only. Incremental ARM conditions do not delete existing roles&colon; adoption/rollback need separately reviewed exact role inventory/reconciliation, and fresh-shape proofs do not establish in-place migration. Full registered validation and independent review remain separate evidence gates; no tag, consumer adoption, native package/runtime/checkpoint or effective grant claim. REF-004 remains proposed with original acceptance and separate live/release gates preserved.
+- 2026-10-18 native execution evidence at canonical source3f88050332f9647da5e3bc8044f87cf2c7101c08&colon; fresh PIM- and risk-shaped wrappers deployed with identity-only storage, indexed the exact synthetic fixture, returned anonymous401 and function-key-authenticated200, ran Node22.23.2, observed each distinct timer receipt, created/read back exact nonce-owned state/dead-letter blobs through the bound managed identity, preserved exact blobs with advanced process/module timestamps across one guarded restart per shape, confirmed both timers disabled afterward, and completed exact owned-group cleanup with both recorded roles and managed identities returning404. Terminal manifest88b54ac50a50f17d088c1cce2dd23429e46dcc323cbe43bc3cd8d2a5b6bbe6ea binds58 evidence leaves outside the unchanged reviewed packet manifest99152298925668acf3d43c6d1b815fc94ecaf749d08a3e3db3bdd4b105908ec1. The executed cleanup preserved timestamp instants but reserialized earlier UTC receipt strings to the equivalent local offset; an unexecuted one-line sibling fix and offline serialization proof are recorded in the report. This is consumer-shaped fixture evidence, not production PIM/risk, Graph/webhook, worker-count or scale-out timer-lease, migration, role-reconciliation, release or adoption proof.
 
 **Review and authorization note:**
 

@@ -133,3 +133,8 @@ followed by host startup failure.
 
 The follow-up [single-PIM startup diagnostic](flex-pim-startup-diagnostic-20261018.md)
 records the later bounded indexing evidence, limitations and completed cleanup.
+
+The subsequent [two-shape execution qualification](flex-two-shape-execution-20261018.md)
+records fresh PIM- and risk-shaped fixture deployment, indexing, authenticated
+execution, restart continuity, managed-identity Blob readback and completed
+cleanup. It does not qualify either production consumer, release or migration.
