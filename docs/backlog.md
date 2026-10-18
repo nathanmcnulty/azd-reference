@@ -827,7 +827,7 @@ The weekly governance audit stops before inspecting repositories because its ded
 
 Review REF-014 against the current repository state. Its status or authorization class is not eligible for an actionable generated handoff. Do not claim or execute it without explicit selection, satisfied dependencies, and every required authorization. Never interpret this generated view as approval.
 
-## REF-015: Prevent Int32 overflow in shared validation durations
+## REF-016: Prevent Int32 overflow in shared validation durations
 
 - **Kind:** maintenance
 - **Priority:** P2
@@ -883,7 +883,8 @@ Report duration calculation throws when elapsed milliseconds exceed Int32 range;
 
 - Source candidate based on main 2b2e784ba11822272c0e4b8389976f95afafa9b9 prepares deployment-validation 2.0.1. Focused 24/24 and full registered 421/421 local tests pass on PowerShell 7.6.6/Pester 6.2.0, with no failed/skipped/not-run cases. Regression coverage includes 30-day past/future cases, schema/JSON serialization and the actual check-result Int64 type; exact base source reproduces both overflow cases. Independent source review, parser, PSScriptAnalyzer 1.25.0, backlog schema/render and canonical version checks pass. Full hosted Windows/Linux checks must be retained for the published head before acceptance. No release, attestation, consumer adoption or cloud action occurred.
 - The first hosted Windows/Linux run passed all 421 tests on each platform but failed generated-backlog parity because automatic JSON date conversion reformatted the active claim timestamp. The exporter now preserves JSON date text; a regression fails before the fix and all 11 backlog tests pass afterward, including two cultures, exact timestamp/offset preservation and generated-view check. Full hosted checks must pass on the corrected published head.
+- Identifier reconciliation on 2026-10-18&colon; this later draft &lpar;&num;103, created 2026-10-16T10&colon;45&colon;51Z&rpar; previously used REF-015, already reserved by the optional alert-window task in earlier draft &num;101 &lpar;created 2026-10-16T06&colon;25&colon;33Z&rpar;. Duration work is now REF-016; REF-015 remains the alert-window task. Historical receipts remain unchanged and must be interpreted with their source commit and task title. No status, acceptance, authorization, dependency, claim or component bytes changed.
 
 **Review and authorization note:**
 
-Review REF-015 against the current repository state. Its status or authorization class is not eligible for an actionable generated handoff. Do not claim or execute it without explicit selection, satisfied dependencies, and every required authorization. Never interpret this generated view as approval.
+Review REF-016 against the current repository state. Its status or authorization class is not eligible for an actionable generated handoff. Do not claim or execute it without explicit selection, satisfied dependencies, and every required authorization. Never interpret this generated view as approval.
