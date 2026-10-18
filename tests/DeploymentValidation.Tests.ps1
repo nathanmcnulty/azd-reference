@@ -10,9 +10,9 @@ Describe 'Deployment validation engine' {
             operation = @{ id = '22222222-2222-2222-2222-222222222222'; kind = 'validate' }
         }
     }
-    It 'publishes the stable 2.0.0 PowerShell baseline contract' {
+    It 'publishes the stable 2.0.1 PowerShell baseline contract' {
         $manifest = Get-Content -LiteralPath (Join-Path $script:repoRoot 'components/powershell/deployment-validation/component.json') -Raw | ConvertFrom-Json
-        $manifest.version | Should -Be '2.0.0'
+        $manifest.version | Should -Be '2.0.1'
         $manifest.status | Should -Be 'stable'
     }
     It 'does not invoke actions while planning' {
@@ -37,6 +37,7 @@ Describe 'Deployment validation engine' {
             -SideEffect syntheticDelivery -AllowSyntheticDelivery -Action { $script:deliveryInvoked = $true }
         $script:deliveryInvoked | Should -BeTrue
         $result.status | Should -Be 'pass'
+        $result.durationMs | Should -BeOfType ([int64])
     }
 
     It 'captures exception type without persisting the exception message' {
@@ -210,6 +211,27 @@ Describe 'Deployment validation engine' {
         $output = Join-Path $TestDrive 'reports/result.json'
         Test-Path -LiteralPath $output | Should -BeTrue
         (Get-Content -LiteralPath $output -Raw | Test-Json -SchemaFile $schemaPath -ErrorAction Stop) | Should -BeTrue
+    }
+
+    It 'preserves a 30-day report duration through schema validation and JSON roundtrip' {
+        $startedAt = [datetimeoffset]::UtcNow.AddDays(-30)
+        $check = Invoke-AzdValidationCheck -Id 'context.long-duration' -Phase context -Title 'Long duration' -Summary 'Long duration' -Action {}
+        $report = New-AzdValidationReport -TemplateName example -TemplateVersion 2.0.1 -Mode verify `
+            -StartedAt $startedAt -Checks @($check) -Requirements @{ tools = @(); modules = @(); permissions = @() }
+        $report.durationMs | Should -BeGreaterThan ([int64][int32]::MaxValue)
+        $schemaPath = Join-Path $script:repoRoot 'schemas/deployment-validation.schema.json'
+        $relative = Write-AzdValidationReport -Report $report -OutputPath 'reports/long-duration.json' -RepositoryRoot $TestDrive -SchemaPath $schemaPath
+        $relative | Should -Be 'reports/long-duration.json'
+        $output = Join-Path $TestDrive 'reports/long-duration.json'
+        (Get-Content -LiteralPath $output -Raw | Test-Json -SchemaFile $schemaPath -ErrorAction Stop) | Should -BeTrue
+        ([int64]((Get-Content -LiteralPath $output -Raw | ConvertFrom-Json).durationMs)) | Should -Be $report.durationMs
+    }
+
+    It 'clamps a future report start time to zero duration' {
+        $check = Invoke-AzdValidationCheck -Id 'context.future-duration' -Phase context -Title 'Future duration' -Summary 'Future duration' -Action {}
+        $report = New-AzdValidationReport -TemplateName example -TemplateVersion 2.0.1 -Mode verify `
+            -StartedAt ([datetimeoffset]::UtcNow.AddDays(30)) -Checks @($check)
+        $report.durationMs | Should -Be 0
     }
 
     It 'emits bounded schema 1.1 validation evidence and preserves environment metadata' {

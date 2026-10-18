@@ -7,7 +7,7 @@
 - **Repository:** nathanmcnulty/azd-reference
 - **Source revision:** `a09cac311aac7362f56d2a31833ed90ce5812649`
 - **Captured:** 2026-10-07
-- **Items:** 14
+- **Items:** 15
 
 ## REF-001: Reconcile this backlog with current source and active work
 
@@ -826,3 +826,65 @@ The weekly governance audit stops before inspecting repositories because its ded
 **Review and authorization note:**
 
 Review REF-014 against the current repository state. Its status or authorization class is not eligible for an actionable generated handoff. Do not claim or execute it without explicit selection, satisfied dependencies, and every required authorization. Never interpret this generated view as approval.
+
+## REF-016: Prevent Int32 overflow in shared validation durations
+
+- **Kind:** maintenance
+- **Priority:** P2
+- **Status:** in-progress
+- **Wave:** 1
+- **Authorization:** local-only
+- **Blocker:** _none_
+- **Claim owner:** codex/root
+- **Claim worktree:** C&colon;/azd-reconciliation-20261016/reference-duration-overflow
+- **Claim base revision:** `2b2e784ba11822272c0e4b8389976f95afafa9b9`
+- **Claim started:** 2026-10-16T03&colon;35&colon;01.3014966-07&colon;00
+
+**Problem:**
+
+Report duration calculation throws when elapsed milliseconds exceed Int32 range; date-dependent Maester evidence fixtures exposed the shared defect. Validation check output also narrows native stopwatch durations.
+
+**Scope:**
+
+- components/powershell/deployment-validation
+- tests/DeploymentValidation.Tests.ps1
+- docs/backlog.json
+- docs/backlog.md
+- tooling/Export-AzdBacklogMarkdown.ps1
+- tests/Backlog.Tests.ps1
+
+**Acceptance:**
+
+- Keep check/report durations nonnegative Int64 values without changing public JSON fields, schema versions, outcome calculation, redaction or evidence binding.
+- Prove reports started more than 24.85 days ago serialize and satisfy the existing schema, preserve their duration through JSON roundtrip and retain the existing zero-duration behavior for future starts.
+- Prepare a compatible semantic patch with synchronized module/manifest versions and changelog; independently review and run registered validation on PowerShell 7.6+ and Pester 6.2.
+- Keep component release, signed attestation and consumer adoption separate&colon; no tags, grants, cloud mutations or consumer lock/vendor changes are performed by this source fix.
+- Preserve literal ISO claim timestamps during generated Markdown export, independent of culture/timezone; retain deterministic generation/check behavior.
+
+**Validation:**
+
+- Invoke-Pester ./tests/DeploymentValidation.Tests.ps1 with Pester 6.2.0 on PowerShell 7.6+.
+- Run the complete registered reference suite, source analysis, backlog schema/render and canonical component-version checks; inspect hosted Windows/Linux checks before declaring validation complete.
+
+**Dependencies:**
+
+- _none_
+
+**Components:**
+
+- deployment-validation
+
+**Sources:**
+
+- https&colon;//github.com/nathanmcnulty/azd-reference/issues/102
+- components/powershell/deployment-validation/CHANGELOG.md
+
+**Evidence:**
+
+- Source candidate based on main 2b2e784ba11822272c0e4b8389976f95afafa9b9 prepares deployment-validation 2.0.1. Focused 24/24 and full registered 421/421 local tests pass on PowerShell 7.6.6/Pester 6.2.0, with no failed/skipped/not-run cases. Regression coverage includes 30-day past/future cases, schema/JSON serialization and the actual check-result Int64 type; exact base source reproduces both overflow cases. Independent source review, parser, PSScriptAnalyzer 1.25.0, backlog schema/render and canonical version checks pass. Full hosted Windows/Linux checks must be retained for the published head before acceptance. No release, attestation, consumer adoption or cloud action occurred.
+- The first hosted Windows/Linux run passed all 421 tests on each platform but failed generated-backlog parity because automatic JSON date conversion reformatted the active claim timestamp. The exporter now preserves JSON date text; a regression fails before the fix and all 11 backlog tests pass afterward, including two cultures, exact timestamp/offset preservation and generated-view check. Full hosted checks must pass on the corrected published head.
+- Identifier reconciliation on 2026-10-18&colon; this later draft &lpar;&num;103, created 2026-10-16T10&colon;45&colon;51Z&rpar; previously used REF-015, already reserved by the optional alert-window task in earlier draft &num;101 &lpar;created 2026-10-16T06&colon;25&colon;33Z&rpar;. Duration work is now REF-016; REF-015 remains the alert-window task. Historical receipts remain unchanged and must be interpreted with their source commit and task title. No status, acceptance, authorization, dependency, claim or component bytes changed.
+
+**Review and authorization note:**
+
+Review REF-016 against the current repository state. Its status or authorization class is not eligible for an actionable generated handoff. Do not claim or execute it without explicit selection, satisfied dependencies, and every required authorization. Never interpret this generated view as approval.
