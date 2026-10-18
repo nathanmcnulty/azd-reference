@@ -147,8 +147,10 @@ Remaining promotion order:
    component.
 3. Flex Consumption host and durable Blob state: available as the
    `flex-scheduled-poller-host@0.2.0` source-only pilot component. Identity-only
-   host/deployment storage is opt-in; native two-shape qualification, consumer
-   adoption and separately authorized immutable release remain pending.
+   host/deployment storage is opt-in. The fresh
+   [two-shape execution fixture](flex-two-shape-execution-20261018.md) now records
+   fresh native runtime and cleanup evidence. Consumer adoption, migration/role
+   reconciliation and separately authorized immutable release remain pending.
 4. Teams managed-connector authorization and delivery proof.
 5. Application-role planning beyond the delegated Graph authentication component.
 6. Polling contracts and fixtures; shared runtime only after compatible state and
