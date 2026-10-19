@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.0.0 - 2026-10-19
+
+- Breaking: use the tenant-owned delegated setup client with explicit tenant/account/client binding and the canonical Graph coordinator; remove Azure CLI Graph tokens and the global SDK command shadow.
+- Collect Full/Minimal explicitly, preserve legacy Extended, and keep mail and report-setting writes separate.
+- Load the reviewed Maester 2.3.0 permission manifest and plan exact managed-identity application-role deltas before writes. Require current plan approval for every expansion; preserve existing grants and verify exact readback.
+- Require setup client bootstrap by an authorized administrator; runtime managed identities cannot self-consent.
+- See [consent flow and migration](../../../docs/maester-consent-flow.md). Source-only pilot; no automatic existing-consumer adoption or live qualification.
+
 ## 1.0.0 - 2026-10-18
 
 - Breaking: require explicit tenant/subscription scope for token requests and an explicit TenantId for Exchange connections; remove unverified interactive Exchange fallback.

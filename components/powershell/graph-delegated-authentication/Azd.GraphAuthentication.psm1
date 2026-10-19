@@ -30,6 +30,7 @@ function Get-AzdGraphContextAssessment {
     param(
         [AllowNull()][object] $Context,
         [Parameter(Mandatory)][guid] $TenantId,
+        [Parameter(Mandatory)][guid] $ExpectedClientId,
         [Parameter(Mandatory)][string] $Environment,
         [Parameter(Mandatory)][string] $ExpectedAccount,
         [Parameter(Mandatory)][string[]] $Scopes
@@ -41,6 +42,18 @@ function Get-AzdGraphContextAssessment {
         $reasons.Add('no Microsoft Graph context is available')
     }
     else {
+        # Older or incomplete contexts cannot prove which application acquired
+        # the token. Never infer the client from tenant, account, or scopes.
+        $clientIdProperty = $Context.PSObject.Properties['ClientId']
+        $contextClientId = [guid]::Empty
+        if ($null -eq $clientIdProperty -or
+            -not [guid]::TryParse([string] $clientIdProperty.Value, [ref] $contextClientId) -or
+            $contextClientId -eq [guid]::Empty) {
+            $reasons.Add('the context client ID is unavailable or invalid')
+        }
+        elseif ($contextClientId -ne $ExpectedClientId) {
+            $reasons.Add('the context client ID does not match')
+        }
         if ([string] $Context.TenantId -ine $TenantId.Guid) {
             $reasons.Add('the context tenant does not match')
         }
@@ -134,6 +147,7 @@ function New-AzdGraphSessionResult {
 
     return [pscustomobject] [ordered]@{
         tenantId = [string] $Context.TenantId
+        clientId = ([guid] $Context.ClientId).Guid
         environment = [string] $Context.Environment
         account = [string] $Context.Account
         authType = [string] $Context.AuthType
@@ -150,6 +164,9 @@ function Connect-AzdGraphSession {
     param(
         [Parameter(Mandatory)]
         [guid] $TenantId,
+
+        [Parameter(Mandatory)]
+        [guid] $ExpectedClientId,
 
         [Parameter(Mandatory)]
         [string[]] $Scopes,
@@ -170,6 +187,13 @@ function Connect-AzdGraphSession {
         [int] $ClientTimeoutSeconds = 300
     )
 
+    if ($TenantId -eq [guid]::Empty) { throw 'TenantId must identify a nonempty tenant.' }
+    # Validate the application binding before any Graph command, including
+    # environment discovery. The SDK default is never a solution-owned client.
+    if ($ExpectedClientId -eq [guid]::Empty -or
+        $ExpectedClientId -eq [guid]'14d82eec-204b-4c2f-b7e8-296a70dab67e') {
+        throw 'ExpectedClientId must identify a nonempty solution-owned application, not Microsoft Graph Command Line Tools.'
+    }
     $expectedAccountName = $ExpectedAccount.Trim()
     if ($expectedAccountName -notmatch '^[^@\s]+@[^@\s]+$') {
         throw 'ExpectedAccount must be a nonempty user principal name.'
@@ -188,6 +212,7 @@ function Connect-AzdGraphSession {
     $assessment = Get-AzdGraphContextAssessment `
         -Context $context `
         -TenantId $TenantId `
+        -ExpectedClientId $ExpectedClientId `
         -Environment $environmentName `
         -ExpectedAccount $expectedAccountName `
         -Scopes $requiredScopes
@@ -221,6 +246,7 @@ function Connect-AzdGraphSession {
 
     $connectParameters = @{
         TenantId = $TenantId.Guid
+        ClientId = $ExpectedClientId.Guid
         Environment = $environmentName
         Scopes = $requiredScopes
         ContextScope = 'CurrentUser'
@@ -239,6 +265,7 @@ function Connect-AzdGraphSession {
     $assessment = Get-AzdGraphContextAssessment `
         -Context $context `
         -TenantId $TenantId `
+        -ExpectedClientId $ExpectedClientId `
         -Environment $environmentName `
         -ExpectedAccount $expectedAccountName `
         -Scopes $requiredScopes
