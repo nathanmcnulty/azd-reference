@@ -80,7 +80,7 @@ Describe 'Delegated Microsoft Graph authentication coordination' {
         { Resolve-AzdGraphScopeSet -Scope @('Policy.Read.All', 'not a scope') } | Should -Throw
     }
 
-    It 'reuses an exact usable context without connecting' {
+    It 'preserves CurrentUser as the default and reuses an exact usable context without connecting' {
         $result = Connect-AzdGraphSession `
             -TenantId $tenantId `
             -ExpectedClientId $clientId `
@@ -89,11 +89,127 @@ Describe 'Delegated Microsoft Graph authentication coordination' {
             -ProbeUri '/v1.0/roleManagement/directory/roleDefinitions?$top=1'
 
         $result.clientId | Should -Be $clientId.Guid
+        $result.contextScope | Should -BeExactly 'CurrentUser'
         $result.contextReused | Should -BeTrue
         $result.connectInvoked | Should -BeFalse
         $result.PSObject.Properties.Name | Should -Not -Contain 'accessToken'
         Should -Invoke Connect-MgGraph -ModuleName Azd.GraphAuthentication -Times 0
         Should -Invoke Invoke-MgGraphRequest -ModuleName Azd.GraphAuthentication -Times 1
+    }
+
+    It 'reuses an exact Process context only when Process is explicitly selected' {
+        Mock Get-MgContext -ModuleName Azd.GraphAuthentication { New-TestGraphContext -ContextScope Process }
+
+        $result = Connect-AzdGraphSession -TenantId $tenantId -ExpectedClientId $clientId -Scopes $scopes -ExpectedAccount 'admin@example.com' -ProbeUri '/v1.0/me' -ContextScope Process
+
+        $result.contextScope | Should -BeExactly 'Process'
+        $result.contextReused | Should -BeTrue
+        $result.connectInvoked | Should -BeFalse
+        Should -Invoke Connect-MgGraph -ModuleName Azd.GraphAuthentication -Times 0 -Exactly
+        Should -Invoke Invoke-MgGraphRequest -ModuleName Azd.GraphAuthentication -Times 1 -Exactly
+    }
+
+    It 'preserves the original positional account and timeout arguments with <selection>' -ForEach @(
+        @{ selection = 'default CurrentUser scope'; expectedScope = 'CurrentUser'; scopeOptions = @{} }
+        @{ selection = 'Process scope selected by name'; expectedScope = 'Process'; scopeOptions = @{ ContextScope = 'Process' } }
+    ) {
+        $script:contextCalls = 0
+        Mock Get-MgContext -ModuleName Azd.GraphAuthentication {
+            $script:contextCalls++
+            if ($script:contextCalls -eq 1) { return $null }
+            return New-TestGraphContext -ContextScope $expectedScope
+        }
+
+        $result = Connect-AzdGraphSession $tenantId $clientId $scopes '/v1.0/me' 'Global' 'admin@example.com' 180 -AllowInteractive @scopeOptions
+
+        $result.account | Should -BeExactly 'admin@example.com'
+        $result.contextScope | Should -BeExactly $expectedScope
+        $result.connectInvoked | Should -BeTrue
+        Should -Invoke Connect-MgGraph -ModuleName Azd.GraphAuthentication -Times 1 -Exactly -ParameterFilter {
+            $TenantId -eq $script:tenantId.Guid -and
+            $ClientId -eq $script:clientId.Guid -and
+            $Environment -eq 'Global' -and
+            $ContextScope -ceq $expectedScope -and
+            $ClientTimeout -eq 180
+        }
+    }
+
+    It 'rejects an invalid requested context scope before any Graph command' {
+        { Connect-AzdGraphSession -TenantId $tenantId -ExpectedClientId $clientId -Scopes $scopes -ExpectedAccount 'admin@example.com' -ProbeUri '/v1.0/me' -ContextScope Machine -AllowInteractive -AllowContextReplacement } |
+            Should -Throw '*ContextScope*'
+        Should -Invoke Get-MgEnvironment -ModuleName Azd.GraphAuthentication -Times 0 -Exactly
+        Should -Invoke Get-MgContext -ModuleName Azd.GraphAuthentication -Times 0 -Exactly
+        Should -Invoke Connect-MgGraph -ModuleName Azd.GraphAuthentication -Times 0 -Exactly
+        Should -Invoke Invoke-MgGraphRequest -ModuleName Azd.GraphAuthentication -Times 0 -Exactly
+    }
+
+    It 'refuses a CurrentUser context for Process with <authorization>' -ForEach @(
+        @{ authorization = 'neither authorization'; interactive = $false; replacement = $false }
+        @{ authorization = 'interactive authorization only'; interactive = $true; replacement = $false }
+        @{ authorization = 'replacement authorization only'; interactive = $false; replacement = $true }
+        @{ authorization = 'both authorizations'; interactive = $true; replacement = $true }
+    ) {
+        { Connect-AzdGraphSession -TenantId $tenantId -ExpectedClientId $clientId -Scopes $scopes -ExpectedAccount 'admin@example.com' -ProbeUri '/v1.0/me' -ContextScope Process -AllowInteractive:$interactive -AllowContextReplacement:$replacement } |
+            Should -Throw '*cannot replace an inherited non-Process context*fresh pwsh -NoProfile*'
+        Should -Invoke Connect-MgGraph -ModuleName Azd.GraphAuthentication -Times 0 -Exactly
+        Should -Invoke Invoke-MgGraphRequest -ModuleName Azd.GraphAuthentication -Times 0 -Exactly
+    }
+
+    It 'connects once with exactly Process scope from <initialContext> and then reuses it' -ForEach @(
+        @{ initialContext = 'no context'; inherited = $false }
+        @{ initialContext = 'an explicitly replaceable mismatched Process context'; inherited = $true }
+    ) {
+        $script:contextCalls = 0
+        Mock Get-MgContext -ModuleName Azd.GraphAuthentication {
+            $script:contextCalls++
+            if ($script:contextCalls -eq 1) {
+                if ($inherited) { return New-TestGraphContext -ContextScope Process -ClientId '44444444-4444-4444-8444-444444444444' }
+                return $null
+            }
+            return New-TestGraphContext -ContextScope Process
+        }
+
+        $first = Connect-AzdGraphSession -TenantId $tenantId -ExpectedClientId $clientId -Scopes $scopes -ExpectedAccount 'admin@example.com' -ProbeUri '/v1.0/me' -ContextScope Process -AllowInteractive -AllowContextReplacement:$inherited
+        $second = Connect-AzdGraphSession -TenantId $tenantId -ExpectedClientId $clientId -Scopes $scopes -ExpectedAccount 'admin@example.com' -ProbeUri '/v1.0/me' -ContextScope Process
+
+        $first.contextScope | Should -BeExactly 'Process'
+        $first.connectInvoked | Should -BeTrue
+        $first.contextReused | Should -BeFalse
+        $second.contextScope | Should -BeExactly 'Process'
+        $second.contextReused | Should -BeTrue
+        Should -Invoke Connect-MgGraph -ModuleName Azd.GraphAuthentication -Times 1 -Exactly -ParameterFilter {
+            $TenantId -eq $script:tenantId.Guid -and
+            $ClientId -eq $script:clientId.Guid -and
+            $Environment -eq 'Global' -and
+            $ContextScope -ceq 'Process' -and
+            $ClientTimeout -eq 300 -and
+            $NoWelcome -eq $true -and
+            (@($Scopes | Sort-Object) -join ',') -eq (@($script:scopes | Sort-Object) -join ',')
+        }
+        Should -Invoke Invoke-MgGraphRequest -ModuleName Azd.GraphAuthentication -Times 2 -Exactly
+    }
+
+    It 'refuses an inherited context with missing scope in Process mode even when replacement is authorized' {
+        Mock Get-MgContext -ModuleName Azd.GraphAuthentication { New-TestGraphContext | Select-Object -Property * -ExcludeProperty ContextScope }
+
+        { Connect-AzdGraphSession -TenantId $tenantId -ExpectedClientId $clientId -Scopes $scopes -ExpectedAccount 'admin@example.com' -ProbeUri '/v1.0/me' -ContextScope Process -AllowInteractive -AllowContextReplacement } |
+            Should -Throw '*cannot replace an inherited non-Process context*fresh pwsh -NoProfile*'
+        Should -Invoke Connect-MgGraph -ModuleName Azd.GraphAuthentication -Times 0 -Exactly
+        Should -Invoke Invoke-MgGraphRequest -ModuleName Azd.GraphAuthentication -Times 0 -Exactly
+    }
+
+    It 'rejects a newly connected CurrentUser context when Process was requested without probing or retrying' {
+        $script:contextCalls = 0
+        Mock Get-MgContext -ModuleName Azd.GraphAuthentication {
+            $script:contextCalls++
+            if ($script:contextCalls -eq 1) { return $null }
+            return New-TestGraphContext
+        }
+
+        { Connect-AzdGraphSession -TenantId $tenantId -ExpectedClientId $clientId -Scopes $scopes -ExpectedAccount 'admin@example.com' -ProbeUri '/v1.0/me' -ContextScope Process -AllowInteractive } |
+            Should -Throw '*completed without the required session properties*context scope*Process*'
+        Should -Invoke Connect-MgGraph -ModuleName Azd.GraphAuthentication -Times 1 -Exactly -ParameterFilter { $ContextScope -ceq 'Process' }
+        Should -Invoke Invoke-MgGraphRequest -ModuleName Azd.GraphAuthentication -Times 0 -Exactly
     }
 
     It 'does not connect when a matching context fails its probe noninteractively' {

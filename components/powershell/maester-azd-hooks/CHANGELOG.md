@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.1.0 - 2026-10-19
+
+- Pin Maester setup to process-scoped token caching through coordinator 1.1.0. Refuse inherited non-Process contexts rather than risk SDK failure cleanup against a persistent context; document SDK shared-record/internal-fallback limitations.
+
+- Add an explicit federated-application runtime target contract while retaining managed identity as the default. Bind tenant-local application/service-principal IDs and an exact issuer, subject and token-exchange audience before planning grants.
+- Include all preserved federated trusts and nonsecret application/service-principal credential metadata in the reviewed plan hash. Never grant assessment roles to the captured setup client.
+- Require the host to validate its deployment endpoint independently; application registration, service-connection creation and federated trust establishment require separate approved bootstrap plans.
+- Keep the same Maester 2.3.0 permission manifest and optional-capability boundaries. No runtime self-grant permissions or automatic bootstrap are added to the canonical helper.
+
 ## 2.0.0 - 2026-10-19
 
 - Breaking: use the tenant-owned delegated setup client with explicit tenant/account/client binding and the canonical Graph coordinator; remove Azure CLI Graph tokens and the global SDK command shadow.

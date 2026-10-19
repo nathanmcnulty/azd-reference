@@ -28,7 +28,7 @@ Describe 'Canonical Maester setup Graph session boundary' {
       Environment = 'Global'
       Account = $state.Account
       AuthType = 'Delegated'
-      ContextScope = 'CurrentUser'
+      ContextScope = 'Process'
       Scopes = @(Get-MaesterSetupScopes -IncludeTeams -IncludeWebApp)
     }
     $state.Context = $state.ExpectedContext.PSObject.Copy()
@@ -103,7 +103,7 @@ Describe 'Canonical Maester setup Graph session boundary' {
     @(Get-MaesterSetupScopes -IncludeTeams:$teams -IncludeWebApp:$web) | Should -Be $expected
   }
 
-  It 'reuses the exact delegated SDK session and verifies the tenant-owned public setup app' {
+  It 'reuses the exact Process delegated SDK session and verifies the tenant-owned public setup app' {
     Assert-GraphAccess @connectionParameters
 
     Test-MaesterGraphSession -TenantId $global:MaesterSetupSessionTestState.Tenant | Should -BeTrue
@@ -114,6 +114,18 @@ Describe 'Canonical Maester setup Graph session boundary' {
     }
     @($global:MaesterSetupSessionTestState.Requests | Where-Object Source -eq 'Helper').Count | Should -Be 2
     @($global:MaesterSetupSessionTestState.Requests | Where-Object Method -ne 'GET').Count | Should -Be 0
+  }
+
+  It 'returns only the captured setup client for the matching verified tenant' {
+    { Get-MaesterGraphSetupClientId -TenantId $connectionParameters.TenantId } | Should -Throw '*verified setup session*'
+    Assert-GraphAccess @connectionParameters
+    $originalClient = $env:MAESTER_SETUP_CLIENT_ID
+    try {
+      $env:MAESTER_SETUP_CLIENT_ID = '99999999-9999-4999-8999-999999999999'
+      Get-MaesterGraphSetupClientId -TenantId $connectionParameters.TenantId | Should -BeExactly $connectionParameters.ClientId
+      { Get-MaesterGraphSetupClientId -TenantId '55555555-5555-4555-8555-555555555555' } | Should -Throw '*verified setup session*'
+    } finally { $env:MAESTER_SETUP_CLIENT_ID = $originalClient }
+    Should -Invoke Connect-MgGraph -ModuleName Azd.GraphAuthentication -Times 0 -Exactly
   }
 
   It 'retains the global SDK command without installing an impersonating global helper' {
@@ -134,11 +146,41 @@ Describe 'Canonical Maester setup Graph session boundary' {
     $connection.TenantId | Should -BeExactly $connectionParameters.TenantId
     $connection.ClientId | Should -BeExactly $connectionParameters.ClientId
     $connection.Environment | Should -BeExactly 'Global'
-    $connection.ContextScope | Should -BeExactly 'CurrentUser'
+    $connection.ContextScope | Should -BeExactly 'Process'
     $connection.Scopes | Should -Be $connectionParameters.Scopes
     $connection.UseDeviceAuthentication | Should -BeNullOrEmpty
     $connection.AccessToken | Should -BeNullOrEmpty
     Test-MaesterGraphSession -TenantId $connectionParameters.TenantId | Should -BeTrue
+  }
+
+  It 'rejects an otherwise matching CurrentUser setup context with <authorization>' -ForEach @(
+    @{ authorization = 'neither authorization'; interactive = $false; replacement = $false }
+    @{ authorization = 'interactive authorization only'; interactive = $true; replacement = $false }
+    @{ authorization = 'replacement authorization only'; interactive = $false; replacement = $true }
+    @{ authorization = 'both authorizations'; interactive = $true; replacement = $true }
+  ) {
+    $global:MaesterSetupSessionTestState.Context.ContextScope = 'CurrentUser'
+    { Assert-GraphAccess @connectionParameters -AllowInteractive:$interactive -AllowContextReplacement:$replacement } |
+      Should -Throw '*cannot replace an inherited non-Process context*fresh pwsh -NoProfile*'
+    Should -Invoke Connect-MgGraph -ModuleName Azd.GraphAuthentication -Times 0 -Exactly
+    $global:MaesterSetupSessionTestState.Requests.Count | Should -Be 0
+    Test-MaesterGraphSession -TenantId $connectionParameters.TenantId | Should -BeFalse
+  }
+
+  It 'replaces a mismatched Process context only when explicitly authorized and never carries replacement authority into later writes' {
+    $global:MaesterSetupSessionTestState.Context.ClientId = '55555555-5555-4555-8555-555555555555'
+    Assert-GraphAccess @connectionParameters -AllowInteractive -AllowContextReplacement
+
+    $global:MaesterSetupSessionTestState.Connections.Count | Should -Be 1
+    $global:MaesterSetupSessionTestState.Connections[0].ContextScope | Should -BeExactly 'Process'
+    Invoke-GraphRestRequest -Method GET -Uri 'https://graph.microsoft.com/v1.0/organization' | Out-Null
+    $global:MaesterSetupSessionTestState.Requests.Clear()
+    $global:MaesterSetupSessionTestState.Context.ContextScope = 'CurrentUser'
+
+    { Invoke-GraphRestRequest -Method POST -Uri 'https://graph.microsoft.com/v1.0/oauth2PermissionGrants' -Body @{} } |
+      Should -Throw '*cannot replace an inherited non-Process context*fresh pwsh -NoProfile*'
+    $global:MaesterSetupSessionTestState.Requests.Count | Should -Be 0
+    Should -Invoke Connect-MgGraph -ModuleName Azd.GraphAuthentication -Times 1 -Exactly -ParameterFilter { $ContextScope -ceq 'Process' }
   }
 
   It 'accepts a localhost public-client redirect without enabling fallback public-client flows' {
@@ -172,7 +214,6 @@ Describe 'Canonical Maester setup Graph session boundary' {
     @{ field = 'TenantId'; value = '55555555-5555-4555-8555-555555555555' }
     @{ field = 'Account'; value = 'other@example.com' }
     @{ field = 'Environment'; value = 'USGov' }
-    @{ field = 'ContextScope'; value = 'Process' }
     @{ field = 'Scopes'; value = @('Directory.Read.All') }
     @{ field = 'AuthType'; value = 'AppOnly' }
   ) {
@@ -197,10 +238,10 @@ Describe 'Canonical Maester setup Graph session boundary' {
     $global:MaesterSetupSessionTestState.Requests.Count | Should -Be 0
   }
 
-  It 'does not start an alternate authentication flow when the authorized SDK connection fails' {
+  It 'does not request another authentication flow when the authorized SDK connection fails' {
     $global:MaesterSetupSessionTestState.Context = $null
     Mock Connect-MgGraph -ModuleName Azd.GraphAuthentication { throw 'Synthetic broker cancellation.' }
-    { Assert-GraphAccess @connectionParameters -AllowInteractive } | Should -Throw '*No alternate authentication flow was started*'
+    { Assert-GraphAccess @connectionParameters -AllowInteractive } | Should -Throw '*The coordinator did not request an alternate authentication flow*'
     Should -Invoke Connect-MgGraph -ModuleName Azd.GraphAuthentication -Times 1 -Exactly
     $global:MaesterSetupSessionTestState.Requests.Count | Should -Be 0
     Test-MaesterGraphSession -TenantId $connectionParameters.TenantId | Should -BeFalse
@@ -307,13 +348,15 @@ Describe 'Canonical Maester setup Graph session boundary' {
     @{ field = 'TenantId'; value = '55555555-5555-4555-8555-555555555555' }
     @{ field = 'Account'; value = 'other@example.com' }
     @{ field = 'Environment'; value = 'USGov' }
+    @{ field = 'ContextScope'; value = 'CurrentUser' }
     @{ field = 'Scopes'; value = @('Directory.Read.All') }
     @{ field = 'AuthType'; value = 'AppOnly' }
   ) {
     Assert-GraphAccess @connectionParameters
     $global:MaesterSetupSessionTestState.Requests.Clear()
     $global:MaesterSetupSessionTestState.Context.$field = $value
-    { Invoke-GraphRestRequest -Method POST -Uri 'https://graph.microsoft.com/v1.0/oauth2PermissionGrants' -Body @{} } | Should -Throw '*cannot be replaced without explicit authorization*'
+    $expectedError = if ($field -eq 'ContextScope') { '*cannot replace an inherited non-Process context*fresh pwsh -NoProfile*' } else { '*cannot be replaced without explicit authorization*' }
+    { Invoke-GraphRestRequest -Method POST -Uri 'https://graph.microsoft.com/v1.0/oauth2PermissionGrants' -Body @{} } | Should -Throw $expectedError
     $global:MaesterSetupSessionTestState.Requests.Count | Should -Be 0
     Should -Invoke Connect-MgGraph -ModuleName Azd.GraphAuthentication -Times 0 -Exactly
   }

@@ -99,6 +99,29 @@ Describe 'Tenant-bound Maester Graph permission grants: <targetName>' -ForEach $
     }
   }
 
+  It 'preserves the original positional profile argument and managed-identity default' {
+    InModuleScope Maester-SetupHelpers {
+      $plan = & $global:MaesterGrantTestPath $global:MaesterGrantTestState.Tenant $global:MaesterGrantTestState.Principal 'Minimal'
+      $plan.details.profile | Should -BeExactly 'Minimal'
+      $plan.details.targetProvenance.targetType | Should -BeExactly 'ManagedIdentity'
+      $plan.desired.Count | Should -Be 8
+      @($global:MaesterGrantTestState.Requests | Where-Object Method -eq 'POST').Count | Should -Be 0
+    }
+  }
+
+  It 'preserves original positional role and optional capability arguments' {
+    InModuleScope Maester-SetupHelpers {
+      $roles = @('Directory.Read.All', 'Mail.Send', 'ReportSettings.ReadWrite.All')
+      $plan = & $global:MaesterGrantTestPath $global:MaesterGrantTestState.Tenant $global:MaesterGrantTestState.Principal 'Minimal' $roles $true $true
+      $plan.details.profile | Should -BeExactly 'Minimal'
+      $plan.details.includeMailSend | Should -BeTrue
+      $plan.details.includeReportSettingsWrite | Should -BeTrue
+      $plan.desired.Count | Should -Be 3
+      $plan.details.targetProvenance.targetType | Should -BeExactly 'ManagedIdentity'
+      @($global:MaesterGrantTestState.Requests | Where-Object Method -eq 'POST').Count | Should -Be 0
+    }
+  }
+
   It 'binds principal lookup, plan inventory, apply and readback to the selected tenant' {
     InModuleScope Maester-SetupHelpers {
       Invoke-TestMaesterGraphGrant -TenantId $global:MaesterGrantTestState.Tenant -PrincipalObjectId $global:MaesterGrantTestState.Principal -AppRoleValues 'Directory.Read.All'
