@@ -1,7 +1,7 @@
 # Maester 2.3.0 setup and permission reconciliation
 
-This source-only pilot changes `maester-azd-hooks` from 1.0.0 to **2.0.0** and
-requires `graph-delegated-authentication` **1.0.0** beside it. Synchronize both
+This source-only pilot changes `maester-azd-hooks` from 1.0.0 to **2.1.0** and
+requires `graph-delegated-authentication` **1.1.0** beside it. Synchronize both
 components from one reviewed immutable Reference revision. No release, tenant
 consent, deployment, or existing-consumer adoption is implied by these sources.
 
@@ -11,10 +11,13 @@ consent, deployment, or existing-consumer adoption is implied by these sources.
   application and an explicitly selected administrator account. The client has no
   secret. Its delegated permissions authorize setup only, subject to the signed-in
   administrator's roles.
-- Hosted assessments retain their managed identities. The grant command rejects
-  other principal types and permits only the reviewed assessment/capability
-  manifest. Runtime identities do not receive app-granting, directory-role-writing,
-  or delegated-consent-management permissions.
+- Hosted assessments retain their managed identities or, for Azure DevOps, their
+  explicitly selected tenant-owned federated application. Managed identity remains
+  the grant command's default. The additional federated contract below requires
+  exact identity and trust provenance; a generic application ID is insufficient.
+  Both modes permit only the reviewed assessment/capability manifest. Runtime
+  identities do not receive app-granting, directory-role-writing, or
+  delegated-consent-management permissions.
 - A human running an interactive assessment should use a separate assessment
   client with delegated assessment scopes, not the privileged setup client.
 
@@ -50,7 +53,9 @@ adds `Application.ReadWrite.All`, `DelegatedPermissionGrant.ReadWrite.All`, and
 
 Review this union before establishing the setup client's consent. Scope expansion
 on a later upgrade requires new explicit approval; there is no self-consent API
-call, `.default` fallback, device-code fallback, or automatic broad scope retry.
+call, `.default` request, coordinator-requested device-code fallback, or automatic
+broad scope retry. SDK-internal authentication behavior is qualified separately
+below.
 The operator also needs appropriate directory/workload roles. Granting Microsoft
 Graph application permissions requires Privileged Role Administrator or Global
 Administrator; consent scopes alone do not supply that role.
@@ -64,12 +69,22 @@ avoid a failed normal browser/broker login.
 
 Choose optional setup features first, then call `Get-MaesterSetupScopes` with
 those choices. Initialize `Assert-GraphAccess` with that complete union, tenant,
-client, and account. `-AllowInteractive` permits one normal login when necessary;
+client, and account. Maester explicitly requires `ContextScope Process`; an
+inherited CurrentUser context is refused, so use a fresh `pwsh -NoProfile` process.
+An exact Process context can be reused within that process. `-AllowInteractive`
+permits one SDK login request when necessary;
 `-AllowContextReplacement` is a separate explicit choice to replace an incompatible
 inherited session. An exact matching context is reused only after a read-only
 probe. A wrong tenant, cloud, client, account, authentication type or missing scope
 fails closed. Setup additionally verifies the client belongs to this tenant and
 has a single-tenant public-client registration.
+
+Process scope selects in-memory token caching, but Graph 2.41 still has shared
+on-disk authentication-record and internal fallback behavior. It is not a complete
+cache-isolation guarantee. No live login is qualified by the mocked setup tests;
+review the [SDK limitations](graph-authentication.md) before native sign-in and
+stop if an unexpected device-code flow appears. The coordinator never requests
+an alternate flow or performs a global disconnect/cache cleanup itself.
 
 Use `Invoke-GraphRestRequest` for subsequent Graph operations. It verifies the
 captured session again before each request and never reconnects at a write
@@ -94,11 +109,13 @@ preview workloads can still limit coverage; never suppress tests to hide gaps.
 ## Review a versioned delta before writes
 
 `Grant-MaesterGraphPermissions.ps1` is **plan-only by default**. It verifies the
-managed identity, completely enumerates existing assignments, resolves every
+selected runtime identity, completely enumerates existing assignments, resolves every
 requested role, and returns a versioned plan. The plan includes tenant, principal,
 resource/role tuples, Maester and manifest versions, manifest SHA-256, profile,
 optional capability flags, desired grants, missing grants, and a deterministic
-`planHash`. Tokens and credentials are never included.
+`planHash`. Tokens, secret values and certificate material are never included.
+For federated targets, the plan includes nonsecret credential identifiers and
+validity dates so existing alternative ways to authenticate are visible.
 
 Review the exact delta and then invoke the same command with `-Apply` and
 `-ApprovedPlanHash <reviewed-hash>`. The command rebuilds its plan from live state
@@ -118,9 +135,56 @@ delivery. A partial failure is not success:
 new assignments are read back as exact principal/resource/role tuples, and retry
 plans reflect what actually succeeded.
 
-Assignment readback does not prove a managed identity's cached token has refreshed
+Assignment readback does not prove a runtime identity's cached token has refreshed
 or that the assessment can execute every selected test. Run the pinned 2.3.0
 runtime and inspect its effective-access and assessment receipt separately.
+
+## Explicit federated-application runtime targets
+
+Hooks 2.1.0 adds `-TargetType FederatedApplication` for hosts such as Azure DevOps.
+The default `ManagedIdentity` mode still rejects application principals and rejects
+federation parameters, even if empty. The explicit application mode requires:
+
+- `ExpectedApplicationId`: runtime application/client GUID.
+- `ExpectedApplicationObjectId`: tenant-local application object GUID.
+- `ExpectedFederatedCredentialIssuer` and `ExpectedFederatedCredentialSubject`:
+  exact, case-sensitive values from the independently verified deployment endpoint.
+- The existing `TenantId` and `PrincipalObjectId`: exact deployment tenant and
+  runtime service-principal object GUID.
+
+The helper verifies the service principal is type `Application`, has the expected
+client ID and is owned by the selected tenant. It reads the exact application
+object and requires matching IDs and `AzureADMyOrg`. It completely enumerates
+federated identity credentials with bounded, same-collection HTTPS pagination,
+rejects malformed or duplicate entries, and requires exactly one match for the
+issuer, subject and single audience `api://AzureADTokenExchange`. The verified
+setup client's ID is read from the captured session, never from a later mutable
+environment variable. It cannot be used as the runtime target.
+
+The plan binds the matched credential ID, complete preserved federation inventory,
+and application/service-principal key/password credential metadata. Existing
+alternative trusts or credentials can exercise any newly granted application
+roles; approval therefore applies to the whole runtime identity, not just one
+pipeline. These existing authentication methods are displayed and preserved.
+Changing identity, trust, credential metadata or assignment state invalidates the
+old plan hash. The helper does not create, modify or delete applications,
+credentials, service connections or federation.
+
+The host remains responsible for independently checking its endpoint's exact ID,
+type, authentication scheme, tenant, subscription/resource scope and client ID.
+A display name, an arbitrary caller-supplied issuer, or a Graph application lookup
+alone does not establish deployment provenance. New identity or endpoint creation
+must be covered by a separate, read-only-by-default bootstrap plan and explicit
+approval. If trust identifiers become known only after creating an endpoint,
+stop and request approval for the fresh exact trust plan before creating the FIC.
+After bootstrap, build and approve a fresh access plan using resolved exact IDs;
+never continue to runtime grants under a placeholder plan.
+
+The read-only Graph validation uses the existing `Application.Read.All` delegated
+scope; application or FIC bootstrap needs the separately declared
+`Application.ReadWrite.All` scope before establishing the one setup session.
+See Microsoft's [federated-credential list permissions](https://learn.microsoft.com/en-us/graph/api/application-list-federatedidentitycredentials?view=graph-rest-1.0)
+and [service-principal ownership and type fields](https://learn.microsoft.com/en-us/graph/api/resources/serviceprincipal?view=graph-rest-1.0).
 
 ## Caller migration and rollout boundaries
 
@@ -136,7 +200,7 @@ runtime and inspect its effective-access and assessment receipt separately.
   consumer preserve-access controls, and existing owned-resource receipts.
 
 The initial adoption packet targets Automation and Container Apps. Function and
-Azure DevOps require their own dependent adoption and regression review. The Azure
-DevOps federated application identity is not covered by this managed-identity-only
-grant contract. Retained `azd-maester` migration copies are a separate rollout;
+Azure DevOps require their own dependent adoption and regression review. Azure
+DevOps adoption must opt into the 2.1.0 federated-application contract above and
+retain its independent endpoint provenance checks. Retained `azd-maester` migration copies are a separate rollout;
 the Maester source fork's newer development branch must not be downgraded.

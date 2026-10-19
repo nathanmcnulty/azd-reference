@@ -1,5 +1,20 @@
 # Delegated Graph authentication changelog
 
+## 1.1.0
+
+- Add an explicit `ContextScope` option accepting `CurrentUser` or `Process`;
+  preserve `CurrentUser` as the default for existing callers.
+- Require inherited and newly connected contexts to match the selected scope,
+  and pass it explicitly to the single authorized SDK connection.
+- Refuse inherited non-Process contexts when `Process` is selected, even with
+  replacement authorization; require a fresh PowerShell process instead of
+  risking SDK failure cleanup against a persisted user context. Mismatched
+  Process contexts still require both interactive and replacement authorization.
+- Support callers that pin process-scoped token caching without adding
+  disconnect, cache deletion, settings changes, or alternate authentication
+  flows. Scope selection does not override SDK-internal authentication-record
+  persistence, cleanup, or fallback behavior.
+
 ## 1.0.0
 
 - Breaking: require an explicit `ExpectedClientId` GUID for a solution-owned
