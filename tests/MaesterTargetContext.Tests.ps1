@@ -2,6 +2,8 @@ Describe 'Maester explicit target boundaries (offline)' {
   BeforeAll {
     $hooksRoot = Join-Path (Split-Path $PSScriptRoot -Parent) 'components/powershell/maester-azd-hooks'
     Import-Module (Join-Path $hooksRoot 'Maester-PreUp.psm1') -Force
+    Import-Module (Join-Path $hooksRoot 'Maester-PreProvision.psm1') -Force
+    Import-Module (Join-Path $hooksRoot 'Maester-InfrastructureOwnership.psm1') -Force
     Import-Module (Join-Path $hooksRoot 'Maester-SetupHelpers.psm1') -Force
     # No Azure executable or authentication is used. These command doubles fail
     # on every unexpected command, including account set and unscoped requests.
@@ -36,7 +38,10 @@ Describe 'Maester explicit target boundaries (offline)' {
       throw "Unexpected az command: $($arguments -join ' ')"
     }
     function global:azd {
-      if (($args -join ' ') -eq 'env get-values --output json') { $global:LASTEXITCODE = 0; return ($global:MaesterTargetTest.AzdValues | ConvertTo-Json -Compress) }
+      $global:LASTEXITCODE = 0
+      if ($args[0] -eq 'version') { return 'azd version 1.23.5 (offline)' }
+      if ($args[0] -eq 'env' -and $args[1] -eq 'get-values') { return ($global:MaesterTargetTest.AzdValues | ConvertTo-Json -Compress) }
+      if ($args[0] -eq 'env' -and $args[1] -eq 'set') { $global:MaesterTargetTest.AzdValues[[string]$args[2]] = [string]$args[3]; return }
       throw "Unexpected azd command: $($args -join ' ')"
     }
     function global:Connect-ExchangeOnline {
@@ -45,13 +50,13 @@ Describe 'Maester explicit target boundaries (offline)' {
       $AccessToken | Should -Be 'offline-token'
     }
     $savedEnvironment = @{}
-    foreach ($name in 'AZURE_RESOURCE_GROUP', 'AZURE_SUBSCRIPTION_ID', 'AZURE_TENANT_ID', 'AZURE_LOCATION') {
+    foreach ($name in 'AZURE_RESOURCE_GROUP', 'AZURE_SUBSCRIPTION_ID', 'AZURE_TENANT_ID', 'AZURE_LOCATION', 'AZURE_ENV_NAME', 'AZD_NON_INTERACTIVE') {
       $savedEnvironment[$name] = [Environment]::GetEnvironmentVariable($name)
     }
   }
   AfterAll {
     foreach ($name in $savedEnvironment.Keys) { [Environment]::SetEnvironmentVariable($name, $savedEnvironment[$name]) }
-    Remove-Module Maester-PreUp, Maester-SetupHelpers -Force -ErrorAction SilentlyContinue
+    Remove-Module Maester-PreUp, Maester-PreProvision, Maester-InfrastructureOwnership, Maester-UpWizard, Maester-SetupHelpers -Force -ErrorAction SilentlyContinue
     Remove-Item function:az, function:azd, function:Connect-ExchangeOnline
     Remove-Variable MaesterTargetTest -Scope Global
   }
@@ -68,23 +73,83 @@ Describe 'Maester explicit target boundaries (offline)' {
     }
   }
 
-  It 'creates a missing group only after fresh validation despite a different cached/default account' {
+  It 'defers a missing group to receipt-aware preprovision after fresh subscription validation' {
     Invoke-MaesterPreUp
-    $global:MaesterTargetTest.Creates | Should -Be 1
-    $global:MaesterTargetTest.Calls.Count | Should -Be 3
+    $global:MaesterTargetTest.Creates | Should -Be 0
+    $global:MaesterTargetTest.Calls.Count | Should -Be 2
     $global:MaesterTargetTest.Calls[0] | Should -BeLike 'rest *'
     $global:MaesterTargetTest.Calls[1] | Should -BeLike 'group exists *'
-    $global:MaesterTargetTest.Calls[2] | Should -BeLike 'group create *'
   }
 
-  It 'respects an environment tenant override and refuses the actual preup write in another tenant' {
+  It 'defers location selection to the preprovision wizard for an absent explicit group' {
+    $global:MaesterTargetTest.AzdValues.AZURE_LOCATION = ''
+    Invoke-MaesterPreUp
+    $global:MaesterTargetTest.Creates | Should -Be 0
+  }
+
+  It 'runs real preup and preprovision helpers before exactly one receipt-backed HTTP 201 creation' {
+    $env:AZD_NON_INTERACTIVE = 'true'
+    $env:AZURE_ENV_NAME = 'target'
+    $root = Join-Path $TestDrive 'actual-hook-sequence'
+    New-Item (Join-Path $root 'infra') -ItemType Directory -Force | Out-Null
+    Set-Content (Join-Path $root 'infra/main.bicep') "targetScope = 'resourceGroup'"
+    $global:MaesterTargetTest.ReceiptPath = Join-Path $root '.azure/target/maester-infrastructure-ownership.json'
+    $global:MaesterTargetTest.AzdValues.AZURE_ENV_NAME = 'target'
+    $global:MaesterTargetTest.AzdValues.MAESTER_SETUP_CLIENT_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+    $global:MaesterTargetTest.AzdValues.MAESTER_SETUP_ACCOUNT = 'operator@example.com'
+    foreach ($flag in @('INCLUDE_WEB_APP', 'INCLUDE_EXCHANGE', 'INCLUDE_TEAMS', 'INCLUDE_AZURE', 'INCLUDE_ACR')) {
+      $global:MaesterTargetTest.AzdValues[$flag] = 'false'
+    }
+    $global:MaesterTargetTest.HttpCalls = [Collections.Generic.List[string]]::new()
+    Mock Invoke-WebRequest -ModuleName Maester-InfrastructureOwnership {
+      param($Method, $Uri, $Body)
+      $state = $global:MaesterTargetTest
+      $state.HttpCalls.Add("$Method $Uri")
+      $expected = "https://management.azure.com/subscriptions/$($state.Subscription)/resourceGroups/selected-group?api-version=2021-04-01"
+      $Uri | Should -BeExactly $expected
+      if ($Method -eq 'GET' -and $state.Exists -eq 'false') { return @{ StatusCode = 404; Content = '{"error":{"code":"ResourceGroupNotFound"}}' } }
+      if ($Method -eq 'PUT') {
+        $pending = Get-Content -LiteralPath $state.ReceiptPath -Raw | ConvertFrom-Json -AsHashtable -DateKind String
+        $pending.state | Should -BeExactly 'Pending'
+        $pending.createStatus | Should -Be 0
+        $payload = $Body | ConvertFrom-Json -AsHashtable
+        $state.Group = @{ id = "/subscriptions/$($state.Subscription)/resourceGroups/selected-group"; tags = $payload.tags; properties = @{ provisioningState = 'Succeeded' } }
+        $state.Exists = 'true'
+        return @{ StatusCode = 201; Content = ($state.Group | ConvertTo-Json -Depth 8) }
+      }
+      if ($Method -eq 'GET' -and $state.Exists -eq 'true') { return @{ StatusCode = 200; Content = ($state.Group | ConvertTo-Json -Depth 8) } }
+      throw 'Unexpected HTTP mutation in offline lifecycle fixture.'
+    }
+    Push-Location $root
+    try {
+      # These are the real canonical entrypoints invoked by consumer preup and
+      # preprovision wrappers. Only az/azd/HTTP transports are replaced.
+      Invoke-MaesterPreUp
+      Test-Path -LiteralPath $global:MaesterTargetTest.ReceiptPath | Should -BeFalse
+      $global:MaesterTargetTest.Creates | Should -Be 0
+      Invoke-MaesterPreProvision -SolutionName function-app -SubscriptionId $global:MaesterTargetTest.Subscription -TenantId $global:MaesterTargetTest.Tenant -Location westus
+      $arguments = @{ ProjectRoot = $root; EnvironmentName = 'target'; SolutionName = 'function-app'; SubscriptionId = $global:MaesterTargetTest.Subscription; TenantId = $global:MaesterTargetTest.Tenant }
+      (Initialize-MaesterInfrastructureOwnership @arguments).Owned | Should -BeTrue
+      (Get-Content -LiteralPath $global:MaesterTargetTest.ReceiptPath -Raw | ConvertFrom-Json).createStatus | Should -Be 201
+      # A repeated preup/preprovision pass sees the same receipt and never adopts
+      # through the GET alone or creates a second RG.
+      Invoke-MaesterPreUp
+      Invoke-MaesterPreProvision -SolutionName function-app -SubscriptionId $global:MaesterTargetTest.Subscription -TenantId $global:MaesterTargetTest.Tenant -Location westus
+      (Initialize-MaesterInfrastructureOwnership @arguments).Owned | Should -BeTrue
+      $global:MaesterTargetTest.Creates | Should -Be 0
+      @($global:MaesterTargetTest.HttpCalls | Where-Object { $_ -like 'PUT *' }).Count | Should -Be 1
+      @($global:MaesterTargetTest.Calls | Where-Object { $_ -like 'group create *' }).Count | Should -Be 0
+    } finally { Pop-Location }
+  }
+
+  It 'respects an environment tenant override and refuses the preup existence check in another tenant' {
     $env:AZURE_TENANT_ID = '33333333-3333-4333-8333-333333333333'
     { Invoke-MaesterPreUp } | Should -Throw '*not selected tenant*'
     $global:MaesterTargetTest.Creates | Should -Be 0
     @($global:MaesterTargetTest.Calls | Where-Object { $_ -like 'group *' }).Count | Should -Be 0
   }
 
-  It 'rejects <case> before the actual preup creation path' -ForEach @(
+  It 'rejects <case> before the preup existence check' -ForEach @(
     @{ case = 'Disabled despite cached Enabled'; field = 'state'; value = 'Disabled' }
     @{ case = 'unknown state'; field = 'state'; value = 'FutureState' }
     @{ case = 'missing state'; field = 'state'; value = $null }

@@ -80,7 +80,7 @@ jobs:
               }
               elseif ($manifest.Directory.Name -eq 'maester-azd-hooks') {
                 # These shared compatibility hooks intentionally preserve their
-                # public command names and best-effort cleanup behavior.
+                # public command names; ownership cleanup is now fail-closed.
                 $analyzerArguments.ExcludeRule = @(
                   'PSAvoidGlobalFunctions',
                   'PSAvoidUsingEmptyCatchBlock',

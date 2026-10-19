@@ -5,11 +5,13 @@ Describe 'Maester Azure DevOps cleanup' {
     $cleanup = Get-Content -LiteralPath $cleanupPath -Raw
   }
 
-  It 'reissues service-connection deletion while Azure DevOps state converges' {
-    $cleanup | Should -Match '\$maxDeleteAttempts\s*=\s*6'
-    $cleanup | Should -Match '\$retryDelaySeconds\s*=\s*5'
-    $cleanup | Should -Match '(?s)for \(\$attempt = 1; \$attempt -le \$maxDeleteAttempts; \$attempt\+\+\).*?Invoke-AdoRest.*?-Method DELETE.*?Invoke-AdoRest.*?-Method GET'
-    $cleanup | Should -Match 'Reissue DELETE'
+  It 'uses explicit ownership-aware postdown instead of name-discovered predown deletion' {
+    $cleanup | Should -Match 'function Test-MaesterOwnedCleanupPreDown'
+    $cleanup | Should -Match 'function Invoke-MaesterOwnedCleanupPostDown'
+    $cleanup | Should -Match 'ApprovedPlanHash'
+    $cleanup | Should -Not -Match 'function Remove-ResourceGroupLocks'
+    $cleanup | Should -Not -Match 'Remove-WebAppEasyAuthEntraApplications'
+    $cleanup | Should -Not -Match 'get-access-token.*https://graph.microsoft.com'
   }
 
   It 'supports subscription-scoped Azure CLI access tokens' {

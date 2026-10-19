@@ -9,6 +9,7 @@ Describe 'Tenant-bound Maester Graph permission grants: <targetName>' -ForEach $
   BeforeAll {
     Import-Module (Join-Path $hooksRoot 'Maester-SetupHelpers.psm1') -Force
     Import-Module (Join-Path $hooksRoot 'Maester-ConsentPlan.psm1') -Force
+    Import-Module (Join-Path $hooksRoot 'Maester-OwnershipJournal.psm1')
     InModuleScope Maester-SetupHelpers {
     function script:Invoke-TestMaesterGraphGrant {
       param($TenantId, $PrincipalObjectId, $AppRoleValues, $PermissionProfile, $IncludeMailSend, $IncludeReportSettingsWrite)
@@ -37,6 +38,10 @@ Describe 'Tenant-bound Maester Graph permission grants: <targetName>' -ForEach $
       $global:MaesterGrantTestState.NextLink = $null
       $global:MaesterGrantTestState.ListReads = 0
       $global:MaesterGrantTestState.ReadbackVisible = $true
+      $global:MaesterGrantTestState.NoReceipt = $false
+      $global:MaesterGrantTestState.WrongResponseTuple = $false
+      $global:MaesterGrantTestState.PostCount = 0
+      $global:MaesterGrantTestState.FailPostNumber = 0
       $global:MaesterGrantTestState.PrincipalType = 'ManagedIdentity'
       $global:MaesterGrantTestState.GraphCount = 1
       $global:MaesterGrantTestState.GraphAppId = '00000003-0000-0000-c000-000000000000'
@@ -61,7 +66,7 @@ Describe 'Tenant-bound Maester Graph permission grants: <targetName>' -ForEach $
         [pscustomobject]@{ id = $global:MaesterGrantTestState.RoleIds[$_]; value = $_; isEnabled = $true; allowedMemberTypes = @('Application') }
       })
       # Keep the real helper and REST/token forwarding path loaded while the script imports it.
-      Mock Import-Module {} -ParameterFilter { $Name -like '*Maester-SetupHelpers.psm1' -or $Name -like '*Maester-ConsentPlan.psm1' }
+      Mock Import-Module {} -ParameterFilter { $Name -like '*Maester-SetupHelpers.psm1' -or $Name -like '*Maester-ConsentPlan.psm1' -or $Name -like '*Maester-OwnershipJournal.psm1' }
       Mock Assert-GraphAccess {}
       Mock Test-MaesterGraphSession { $true }
       Mock Start-Sleep {}
@@ -79,7 +84,11 @@ Describe 'Tenant-bound Maester Graph permission grants: <targetName>' -ForEach $
           }) }
         }
         if ($Method -eq 'POST') {
+          $global:MaesterGrantTestState.PostCount++
+          if ($global:MaesterGrantTestState.FailPostNumber -eq $global:MaesterGrantTestState.PostCount) { throw 'Synthetic grant transport failure.' }
           $assignment = $Body | ConvertFrom-Json
+          if (-not $global:MaesterGrantTestState.NoReceipt) { $assignment | Add-Member -NotePropertyName id -NotePropertyValue "assignment-$($global:MaesterGrantTestState.PostCount)" }
+          if ($global:MaesterGrantTestState.WrongResponseTuple) { $assignment.principalId = '77777777-7777-4777-8777-777777777777' }
           if ($global:MaesterGrantTestState.ReadbackVisible) { $global:MaesterGrantTestState.Assignments.Add($assignment) }
           return $assignment
         }
@@ -358,6 +367,127 @@ Describe 'Tenant-bound Maester Graph permission grants: <targetName>' -ForEach $
       $plan.details.existingAccessNotice | Should -Match 'does not configure or trigger report delivery'
       $plan.desired -join ',' | Should -Not -Match 'Mail.Send|ReportSettings.ReadWrite.All|Sites.Read.All'
       @($global:MaesterGrantTestState.Requests | Where-Object Method -eq 'POST').Count | Should -Be 0
+    }
+  }
+
+  Context 'durable azd grant ownership' {
+    BeforeEach {
+      $journalRoot = Join-Path $TestDrive ([guid]::NewGuid().ToString())
+      $null = New-Item -ItemType Directory -Path $journalRoot
+      $binding = @{
+        environmentName = 'test'; solutionName = 'container-app-job'
+        tenantId = '11111111-1111-4111-8111-111111111111'
+        subscriptionId = '55555555-5555-4555-8555-555555555555'
+        setupClientId = '66666666-6666-4666-8666-666666666666'
+        resourceGroupId = '/subscriptions/55555555-5555-4555-8555-555555555555/resourceGroups/rg-test'
+        runtimePrincipalId = '22222222-2222-4222-8222-222222222222'
+      }
+      $global:MaesterGrantJournalSession = Open-MaesterOwnershipJournal -ProjectRoot $journalRoot -Binding $binding
+    }
+    AfterEach {
+      $global:MaesterGrantJournalSession.Dispose()
+      Remove-Variable MaesterGrantJournalSession -Scope Global
+    }
+
+    It 'persists exact assignment identity immediately and keeps it after a no-op rerun' {
+      InModuleScope Maester-SetupHelpers {
+        $params = @{ TenantId = $global:MaesterGrantTestState.Tenant; PrincipalObjectId = $global:MaesterGrantTestState.Principal; AppRoleValues = @('Directory.Read.All'); OwnershipSession = $global:MaesterGrantJournalSession }
+        $plan = & $global:MaesterGrantTestPath @params
+        $null = & $global:MaesterGrantTestPath @params -Apply -ApprovedPlanHash $plan.planHash
+        $first = Get-MaesterOwnershipJournal -Session $global:MaesterGrantJournalSession
+        $first.records.Count | Should -Be 1
+        $first.records[0].state | Should -BeExactly 'applied'
+        $first.records[0].exactIds.assignmentId | Should -BeExactly 'assignment-1'
+        $first.records[0].expected.principalId | Should -BeExactly $global:MaesterGrantTestState.Principal
+        $plan = & $global:MaesterGrantTestPath @params
+        $null = & $global:MaesterGrantTestPath @params -Apply -ApprovedPlanHash $plan.planHash
+        $later = Get-MaesterOwnershipJournal -Session $global:MaesterGrantJournalSession
+        $later.records.Count | Should -Be 1
+        $later.records[0].operationId | Should -BeExactly $first.records[0].operationId
+        $global:MaesterGrantTestState.PostCount | Should -Be 1
+      }
+    }
+
+    It 'retains acknowledged writes and the next pending operation after partial failure' {
+      InModuleScope Maester-SetupHelpers {
+        $global:MaesterGrantTestState.FailPostNumber = 2
+        $params = @{ TenantId = $global:MaesterGrantTestState.Tenant; PrincipalObjectId = $global:MaesterGrantTestState.Principal; AppRoleValues = @('Directory.Read.All', 'Reports.Read.All'); OwnershipSession = $global:MaesterGrantJournalSession }
+        $plan = & $global:MaesterGrantTestPath @params
+        { & $global:MaesterGrantTestPath @params -Apply -ApprovedPlanHash $plan.planHash } | Should -Throw '*Synthetic grant transport failure*'
+        $journal = Get-MaesterOwnershipJournal -Session $global:MaesterGrantJournalSession
+        $journal.records.Count | Should -Be 2
+        $journal.records[0].state | Should -BeExactly 'applied'
+        $journal.records[0].exactIds.assignmentId | Should -BeExactly 'assignment-1'
+        $journal.records[1].state | Should -BeExactly 'pending'
+        $fresh = & $global:MaesterGrantTestPath @params
+        { & $global:MaesterGrantTestPath @params -Apply -ApprovedPlanHash $fresh.planHash } | Should -Throw '*unresolved operations*'
+        $global:MaesterGrantTestState.PostCount | Should -Be 2
+      }
+    }
+
+    It 'does not infer an acknowledged receipt from later discovery when the response has no ID' {
+      InModuleScope Maester-SetupHelpers {
+        $global:MaesterGrantTestState.NoReceipt = $true
+        $params = @{ TenantId = $global:MaesterGrantTestState.Tenant; PrincipalObjectId = $global:MaesterGrantTestState.Principal; AppRoleValues = @('Directory.Read.All'); OwnershipSession = $global:MaesterGrantJournalSession }
+        $plan = & $global:MaesterGrantTestPath @params
+        { & $global:MaesterGrantTestPath @params -Apply -ApprovedPlanHash $plan.planHash } | Should -Throw '*no exact assignment ID*'
+        $journal = Get-MaesterOwnershipJournal -Session $global:MaesterGrantJournalSession
+        $journal.records[0].state | Should -BeExactly 'pending'
+        $journal.records[0].exactIds.Count | Should -Be 0
+        $fresh = & $global:MaesterGrantTestPath @params
+        { & $global:MaesterGrantTestPath @params -Apply -ApprovedPlanHash $fresh.planHash } | Should -Throw '*unresolved operations*'
+        $global:MaesterGrantTestState.PostCount | Should -Be 1
+      }
+    }
+
+    It 'captures a mismatched response before quarantining the write and stopping later grants' {
+      InModuleScope Maester-SetupHelpers {
+        $global:MaesterGrantTestState.WrongResponseTuple = $true
+        $params = @{ TenantId = $global:MaesterGrantTestState.Tenant; PrincipalObjectId = $global:MaesterGrantTestState.Principal; AppRoleValues = @('Directory.Read.All', 'Reports.Read.All'); OwnershipSession = $global:MaesterGrantJournalSession }
+        $plan = & $global:MaesterGrantTestPath @params
+        { & $global:MaesterGrantTestPath @params -Apply -ApprovedPlanHash $plan.planHash } | Should -Throw '*response identity differs*'
+        $journal = Get-MaesterOwnershipJournal -Session $global:MaesterGrantJournalSession
+        $journal.records.Count | Should -Be 1
+        $journal.records[0].state | Should -BeExactly 'conflict'
+        $journal.records[0].exactIds.assignmentId | Should -BeExactly 'assignment-1'
+        $global:MaesterGrantTestState.PostCount | Should -Be 1
+      }
+    }
+
+    It 'makes no remote write if durable intent cannot be saved' {
+      InModuleScope Maester-SetupHelpers {
+        Mock Start-MaesterOwnedOperation { throw 'Synthetic intent persistence failure.' }
+        $params = @{ TenantId = $global:MaesterGrantTestState.Tenant; PrincipalObjectId = $global:MaesterGrantTestState.Principal; AppRoleValues = @('Directory.Read.All'); OwnershipSession = $global:MaesterGrantJournalSession }
+        $plan = & $global:MaesterGrantTestPath @params
+        { & $global:MaesterGrantTestPath @params -Apply -ApprovedPlanHash $plan.planHash } | Should -Throw '*intent persistence failure*'
+        $global:MaesterGrantTestState.PostCount | Should -Be 0
+        (Get-MaesterOwnershipJournal -Session $global:MaesterGrantJournalSession).records.Count | Should -Be 0
+      }
+    }
+
+    It 'retains pending and stops immediately if response checkpointing fails' {
+      InModuleScope Maester-SetupHelpers {
+        Mock Complete-MaesterOwnedOperation { throw 'Synthetic response persistence failure.' }
+        $params = @{ TenantId = $global:MaesterGrantTestState.Tenant; PrincipalObjectId = $global:MaesterGrantTestState.Principal; AppRoleValues = @('Directory.Read.All', 'Reports.Read.All'); OwnershipSession = $global:MaesterGrantJournalSession }
+        $plan = & $global:MaesterGrantTestPath @params
+        { & $global:MaesterGrantTestPath @params -Apply -ApprovedPlanHash $plan.planHash } | Should -Throw '*response persistence failure*'
+        $journal = Get-MaesterOwnershipJournal -Session $global:MaesterGrantJournalSession
+        $journal.records.Count | Should -Be 1
+        $journal.records[0].state | Should -BeExactly 'pending'
+        $global:MaesterGrantTestState.PostCount | Should -Be 1
+      }
+    }
+
+    It 'keeps acknowledged identities when final visibility fails' {
+      InModuleScope Maester-SetupHelpers {
+        $global:MaesterGrantTestState.ReadbackVisible = $false
+        $params = @{ TenantId = $global:MaesterGrantTestState.Tenant; PrincipalObjectId = $global:MaesterGrantTestState.Principal; AppRoleValues = @('Directory.Read.All'); OwnershipSession = $global:MaesterGrantJournalSession }
+        $plan = & $global:MaesterGrantTestPath @params
+        { & $global:MaesterGrantTestPath @params -Apply -ApprovedPlanHash $plan.planHash } | Should -Throw '*could not be verified*'
+        $journal = Get-MaesterOwnershipJournal -Session $global:MaesterGrantJournalSession
+        $journal.records[0].state | Should -BeExactly 'applied'
+        $journal.records[0].exactIds.assignmentId | Should -BeExactly 'assignment-1'
+      }
     }
   }
 

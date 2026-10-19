@@ -1,5 +1,14 @@
 # Changelog
 
+## 3.0.0 - 2026-10-19
+
+- Breaking: replace configuration/name-based best-effort cleanup with ownership-receipted lifecycle hooks. Legacy or ambiguous ownership blocks automatic down instead of guessing what to delete.
+- Persist each approved external write intent and exact response identity under a selected-environment lifetime lock; preserve earlier records on failures and no-op reruns.
+- Capture fresh dedicated resource-group creation only from an exact ARM 201 response and bind declared infrastructure IDs. Reused groups, foreign listed resources/locks, changed source and uncertain outcomes fail closed.
+- Separate explicit owned-lock approval in predown from fresh-approved external cleanup in postdown after exact ARM absence. Canceling azd leaves external authorization unchanged; separately approved unlocks remain removed.
+- Preserve external administrator setup clients and adopted/shared objects. Unsupported shared restoration remains a visible blocker; no implicit extra Graph consent or runtime self-grant authority.
+- See [ownership lifecycle and recovery boundaries](../../../docs/maester-owned-lifecycle.md). Source qualification does not establish live provider cleanup or actual azd cancellation behavior.
+
 ## 2.1.0 - 2026-10-19
 
 - Pin Maester setup to process-scoped token caching through coordinator 1.1.0. Refuse inherited non-Process contexts rather than risk SDK failure cleanup against a persistent context; document SDK shared-record/internal-fallback limitations.
