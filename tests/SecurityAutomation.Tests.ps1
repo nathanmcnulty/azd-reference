@@ -74,14 +74,14 @@ Describe 'Security evidence runtime boundaries' {
     It 'fails when configured evidence is absent' {
         $config = Join-Path $TestDrive 'config.json'
         @{schemaVersion='1.0';solutions=@(@{id='azd-test';runner='runner.ps1';input='absent.json'})} | ConvertTo-Json -Depth 5 | Set-Content $config
-        { Invoke-SecurityBundle -BundleRoot $TestDrive -ConfigurationPath $config -InputDirectory $TestDrive -OutputDirectory $TestDrive } | Should -Throw '*Missing evidence*'
+        { Invoke-SecurityBundle -BundleRoot $TestDrive -ConfigurationPath $config -InputDirectory $TestDrive -OutputDirectory $TestDrive -Offline } | Should -Throw '*Missing evidence*'
     }
     It 'runs the configured engine with absolute paths' {
         $config = Join-Path $TestDrive 'valid.json'
         Set-Content (Join-Path $TestDrive 'evidence.json') '{}'
-        Set-Content (Join-Path $TestDrive 'runner.ps1') 'param($InputPath,$OutputDirectory) if (-not [IO.Path]::IsPathRooted($InputPath)) { throw "relative" }; Set-Content (Join-Path $OutputDirectory "review.json") (Get-Content $InputPath -Raw)'
-        @{schemaVersion='1.0';solutions=@(@{id='azd-test';runner='runner.ps1';input='evidence.json'})} | ConvertTo-Json -Depth 5 | Set-Content $config
-        Invoke-SecurityBundle -BundleRoot $TestDrive -ConfigurationPath $config -InputDirectory $TestDrive -OutputDirectory $TestDrive
+        Set-Content (Join-Path $TestDrive 'runner.ps1') 'param($InputPath,$OutputDirectory,$InvocationContext) if (-not [IO.Path]::IsPathRooted($InputPath)) { throw "relative" }; Set-Content (Join-Path $OutputDirectory "review.json") (Get-Content $InputPath -Raw)'
+        @{schemaVersion='2.0';solutions=@(@{id='azd-test';runner='runner.ps1';runnerContractVersion='2.0';input='evidence.json'})} | ConvertTo-Json -Depth 5 | Set-Content $config
+        Invoke-SecurityBundle -BundleRoot $TestDrive -ConfigurationPath $config -InputDirectory $TestDrive -OutputDirectory $TestDrive -Offline
         Test-Path (Join-Path $TestDrive 'azd-test/review.json') | Should -BeTrue
     }
     It 'rejects external pagination links' {
@@ -102,8 +102,8 @@ Describe 'Security evidence runtime boundaries' {
     It 'does not publish a completion marker after a partial upload failure' {
         $root=Join-Path $TestDrive 'partial'
         New-Item -ItemType Directory $root | Out-Null
-        Set-Content "$root/runner.ps1" 'param($InputPath,$OutputDirectory) Set-Content (Join-Path $OutputDirectory "one.json") "{}"; Set-Content (Join-Path $OutputDirectory "two.json") "{}"'
-        @{schemaVersion='1.0';solutions=@(@{id='azd-partial';runner='runner.ps1';input='input.json'})} | ConvertTo-Json -Depth 10 | Set-Content "$root/config.json"
+        Set-Content "$root/runner.ps1" 'param($InputPath,$OutputDirectory,$InvocationContext) Set-Content (Join-Path $OutputDirectory "one.json") "{}"; Set-Content (Join-Path $OutputDirectory "two.json") "{}"'
+        @{schemaVersion='2.0';solutions=@(@{id='azd-partial';runner='runner.ps1';runnerContractVersion='2.0';input='input.json'})} | ConvertTo-Json -Depth 10 | Set-Content "$root/config.json"
         Write-TestBundleManifest $root
         InModuleScope Azd.SecurityAutomation -Parameters @{Root=$root} {
             param($Root)
@@ -120,8 +120,8 @@ Describe 'Security evidence runtime boundaries' {
     It 'rejects changed declared artifact content before running an engine' {
         $root=Join-Path $TestDrive 'artifact-change'
         New-Item -ItemType Directory $root | Out-Null
-        Set-Content "$root/runner.ps1" 'param($InputPath,$OutputDirectory) throw "Engine must not run"'
-        @{schemaVersion='1.0';solutions=@(@{id='azd-artifacts';runner='runner.ps1';input='input.json';artifactFiles=@(@{blob='policy.xml';path='policy.xml';sha256=('0'*64)})})} | ConvertTo-Json -Depth 10 | Set-Content "$root/config.json"
+        Set-Content "$root/runner.ps1" 'param($InputPath,$OutputDirectory,$InvocationContext) throw "Engine must not run"'
+        @{schemaVersion='2.0';solutions=@(@{id='azd-artifacts';runner='runner.ps1';runnerContractVersion='2.0';input='input.json';artifactFiles=@(@{blob='policy.xml';path='policy.xml';sha256=('0'*64)})})} | ConvertTo-Json -Depth 10 | Set-Content "$root/config.json"
         Write-TestBundleManifest $root
         InModuleScope Azd.SecurityAutomation -Parameters @{Root=$root} {
             param($Root)
@@ -136,8 +136,8 @@ Describe 'Hosted provenance and completion' {
     BeforeEach {
         $root=Join-Path $TestDrive ([guid]::NewGuid().Guid)
         New-Item -ItemType Directory $root|Out-Null
-        Set-Content "$root/runner.ps1" 'param($InputPath,$OutputDirectory) Set-Content (Join-Path $OutputDirectory "review.json") (Get-Content $InputPath -Raw)'
-        @{schemaVersion='1.0';solutions=@(@{id='azd-provenance';runner='runner.ps1';input='input.json'})}|ConvertTo-Json -Depth 10|Set-Content "$root/config.json"
+        Set-Content "$root/runner.ps1" 'param($InputPath,$OutputDirectory,$InvocationContext) Set-Content (Join-Path $OutputDirectory "review.json") (Get-Content $InputPath -Raw)'
+        @{schemaVersion='2.0';solutions=@(@{id='azd-provenance';runner='runner.ps1';runnerContractVersion='2.0';input='input.json'})}|ConvertTo-Json -Depth 10|Set-Content "$root/config.json"
         Write-TestBundleManifest $root
     }
     It 'rejects package file tampering before downloading or running evidence' {
@@ -178,7 +178,7 @@ Describe 'Hosted provenance and completion' {
         }
     }
     It 'withholds every upload when an engine changes downloaded evidence: <Kind>' -ForEach @(@{Kind='overwrite'},@{Kind='delete'}) {
-        $runner=if($Kind -eq 'overwrite'){'param($InputPath,$OutputDirectory) Set-Content $InputPath "changed"'}else{'param($InputPath,$OutputDirectory) Remove-Item -LiteralPath $InputPath'}
+        $runner=if($Kind -eq 'overwrite'){'param($InputPath,$OutputDirectory,$InvocationContext) Set-Content $InputPath "changed"'}else{'param($InputPath,$OutputDirectory,$InvocationContext) Remove-Item -LiteralPath $InputPath'}
         Set-Content "$root/runner.ps1" $runner
         Write-TestBundleManifest $root
         InModuleScope Azd.SecurityAutomation -Parameters @{Root=$root} {

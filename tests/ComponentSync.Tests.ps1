@@ -51,7 +51,7 @@ Describe 'Component synchronization' {
         & $sync -Component security-automation-runtime -TargetPath $consumer | Out-Null
         $lock = Get-Content -LiteralPath (Join-Path $consumer 'azd-components.lock.json') -Raw | ConvertFrom-Json
         $lock.components[0].id | Should -BeExactly 'security-automation-runtime'
-        $lock.components[0].version | Should -BeExactly '1.0.0'
+        $lock.components[0].version | Should -BeExactly '2.0.0'
         $lock.components[0].sourceRevision | Should -BeExactly $initialRevision
         foreach ($file in $lock.components[0].files) {
             (Get-FileHash -LiteralPath (Join-Path $consumer $file.target)).Hash.ToLowerInvariant() | Should -BeExactly $file.sha256

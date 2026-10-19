@@ -11,7 +11,8 @@ BeforeAll {
             New-Item -ItemType Directory -Path (Split-Path $target) -Force | Out-Null
             Copy-Item (Join-Path $referenceRoot $file.source) $target
         }
-        Set-Content "$Path/scripts/Invoke-Solution.ps1" 'param($InputPath,$OutputDirectory) Set-Content (Join-Path $OutputDirectory "review.json") "{}"'
+        Set-Content "$Path/scripts/Invoke-Solution.ps1" 'param($InputPath,$OutputDirectory,$InvocationContext) Set-Content (Join-Path $OutputDirectory "review.json") "{}"'
+        @{schemaVersion='2.0';solutions=@(@{id=$Id;runnerContractVersion='2.0';input="$Id.json"})} | ConvertTo-Json -Depth 5 | Set-Content "$Path/security-bundle.json"
         @{solutionId=$Id} | ConvertTo-Json | Set-Content "$Path/azd-permissions.json"
         $files=$runtimeManifest.files | ForEach-Object {
             @{source=$_.source;target=$_.target;sha256=(Get-FileHash (Join-Path $Path $_.target)).Hash.ToLowerInvariant()}
@@ -32,7 +33,7 @@ Describe 'Immutable security packages' {
     It 'packages two clean engines with exact source commits and excludes untracked files' {
         $one=Join-Path $TestDrive 'one'; $two=Join-Path $TestDrive 'two'
         New-PackageTestSource $one 'azd-one'; New-PackageTestSource $two 'azd-two'
-        @{schemaVersion='1.0';solutions=@(@{id='azd-one';input='evidence/one.json';artifactFiles=@(@{path='policies/one.xml';blob='approved/one.xml';sha256=('a'*64)})})} | ConvertTo-Json -Depth 10 | Set-Content "$one/security-bundle.json"
+        @{schemaVersion='2.0';solutions=@(@{id='azd-one';runnerContractVersion='2.0';input='evidence/one.json';artifactFiles=@(@{path='policies/one.xml';blob='approved/one.xml';sha256=('a'*64)})})} | ConvertTo-Json -Depth 10 | Set-Content "$one/security-bundle.json"
         & git -C $one add security-bundle.json
         & git -C $one -c user.name='Package Test' -c user.email='test@example.invalid' commit --quiet -m 'Reviewed bundle configuration'
         Set-Content "$one/scripts/local-secret.ps1" 'untracked-local-content'
@@ -54,7 +55,9 @@ Describe 'Immutable security packages' {
     }
     It 'rejects an untracked source bundle configuration' {
         $root=Join-Path $TestDrive 'untracked-config'; New-PackageTestSource $root 'azd-untracked-config'
-        @{schemaVersion='1.0';solutions=@(@{id='azd-untracked-config';input='custom/input.json'})} | ConvertTo-Json -Depth 5 | Set-Content "$root/security-bundle.json"
+        & git -C $root rm --cached --quiet security-bundle.json
+        & git -C $root -c user.name='Package Test' -c user.email='test@example.invalid' commit --quiet -m 'Untrack config fixture'
+        @{schemaVersion='2.0';solutions=@(@{id='azd-untracked-config';input='custom/input.json'})} | ConvertTo-Json -Depth 5 | Set-Content "$root/security-bundle.json"
         { & $builder -SolutionRoot $root -OutputPath "$TestDrive/untracked-config.zip" } | Should -Throw '*configuration must be tracked*'
     }
     It 'rejects mixed runtime revisions' {
@@ -119,5 +122,38 @@ Describe 'Reviewed package runner' {
         & git -C $root rm --cached --quiet scripts/Invoke-Solution.ps1
         & git -C $root -c user.name='Package Test' -c user.email='test@example.invalid' commit --quiet -m 'Remove tracked runner fixture'
         { & $builder -SolutionRoot $root -OutputPath "$TestDrive/untracked-runner.zip" } | Should -Throw '*runner must be tracked*'
+    }
+}
+
+Describe 'Invocation-aware package capability' {
+    It 'emits the reviewed 2.0 bundle and runner contract' {
+        $root=Join-Path $TestDrive 'context-package'; New-PackageTestSource $root 'azd-context'
+        $result=& $builder -SolutionRoot $root -OutputPath "$TestDrive/context.zip"
+        Expand-Archive $result.path "$TestDrive/context-expanded"
+        $configuration=Get-Content "$TestDrive/context-expanded/security-bundle.json" -Raw | ConvertFrom-Json
+        $configuration.schemaVersion | Should -BeExactly '2.0'
+        $configuration.solutions[0].runnerContractVersion | Should -BeExactly '2.0'
+    }
+    It 'rejects committed <Kind> before producing a package' -ForEach @(
+        @{Kind='old bundle';Fault='version'}
+        @{Kind='missing contract declaration';Fault='declaration'}
+        @{Kind='old advanced runner';Fault='runner'}
+        @{Kind='missing source configuration';Fault='configuration'}
+    ) {
+        $root=Join-Path $TestDrive ('context-'+$Fault); New-PackageTestSource $root 'azd-context'
+        switch($Fault) {
+            version { (Get-Content "$root/security-bundle.json" -Raw).Replace('2.0','1.0') | Set-Content "$root/security-bundle.json" }
+            declaration {
+                $configuration=Get-Content "$root/security-bundle.json" -Raw | ConvertFrom-Json
+                $configuration.solutions[0].PSObject.Properties.Remove('runnerContractVersion')
+                $configuration | ConvertTo-Json -Depth 5 | Set-Content "$root/security-bundle.json"
+            }
+            runner { Set-Content "$root/scripts/Invoke-Solution.ps1" '[CmdletBinding()]param($InputPath,$OutputDirectory) throw "must not run"' }
+            configuration { Remove-Item "$root/security-bundle.json" }
+        }
+        & git -C $root add --all
+        & git -C $root -c user.name='Package Test' -c user.email='test@example.invalid' commit --quiet -m 'Incompatible contract fixture'
+        { & $builder -SolutionRoot $root -OutputPath "$TestDrive/rejected-$Fault.zip" } | Should -Throw
+        Test-Path "$TestDrive/rejected-$Fault.zip" | Should -BeFalse
     }
 }

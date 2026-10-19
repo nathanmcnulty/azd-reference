@@ -96,17 +96,19 @@ try {
                 Copy-Item -LiteralPath $file.FullName -Destination $target
             }
         }
-        $entry=@{ id=$id; runner="$id/scripts/Invoke-Solution.ps1"; input="$id.json" }
+        $entry=@{ id=$id; runnerContractVersion='2.0'; runner="$id/scripts/Invoke-Solution.ps1"; input="$id.json" }
         $configurationPath=Join-Path $root 'security-bundle.json'
         if (Test-Path -LiteralPath $configurationPath) {
             & git -C $root ls-files --error-unmatch -- security-bundle.json 2>$null | Out-Null
             if ($LASTEXITCODE -ne 0) { throw 'Source bundle configuration must be tracked in Git.' }
             $sourceConfiguration=Get-Content -LiteralPath $configurationPath -Raw | ConvertFrom-Json
             $sourceEntries=@($sourceConfiguration.solutions | Where-Object id -eq $id)
-            if ($sourceConfiguration.schemaVersion -ne '1.0' -or $sourceEntries.Count -ne 1) { throw 'Invalid source bundle configuration.' }
+            if ($sourceConfiguration.schemaVersion -cne '2.0' -or $sourceEntries.Count -ne 1) { throw 'Invalid source bundle configuration.' }
+            if ($sourceEntries[0].PSObject.Properties.Name -notcontains 'runnerContractVersion' -or $sourceEntries[0].runnerContractVersion -cne '2.0') { throw 'Source runner requires invocation contract 2.0.' }
             $entry.input=$sourceEntries[0].input
             if ($sourceEntries[0].PSObject.Properties.Name -contains 'artifactFiles') { $entry.artifactFiles=@($sourceEntries[0].artifactFiles) }
         }
+        else { throw 'Source bundle configuration with invocation contract 2.0 is required.' }
         $solutions += $entry
     }
     $runtime = Join-Path $PSScriptRoot 'Azd.SecurityAutomation.psm1'
@@ -119,7 +121,9 @@ try {
         New-Item -ItemType Directory -Path (Split-Path $target) -Force | Out-Null
         Copy-Item -LiteralPath $source -Destination $target
     }
-    @{schemaVersion='1.0';solutions=$solutions} | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath (Join-Path $temporary 'security-bundle.json') -Encoding utf8NoBOM
+    $contractModule=Import-Module (Join-Path $PSScriptRoot 'Azd.SecurityAutomation.psm1') -PassThru
+    & $contractModule { param($configuration,$root) Assert-SecurityRunnerContract -Configuration $configuration -BundleRoot $root } (@{schemaVersion='2.0';solutions=$solutions} | ConvertTo-Json -Depth 10 | ConvertFrom-Json) $temporary
+    @{schemaVersion='2.0';solutions=$solutions} | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath (Join-Path $temporary 'security-bundle.json') -Encoding utf8NoBOM
     $files = @(Get-ChildItem -LiteralPath $temporary -Recurse -File | Sort-Object FullName | ForEach-Object {
         @{path=[IO.Path]::GetRelativePath($temporary,$_.FullName).Replace('\','/');sha256=(Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()}
     })

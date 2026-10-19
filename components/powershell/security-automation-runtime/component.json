@@ -1,7 +1,7 @@
 {
   "manifestVersion": "1.1",
   "id": "security-automation-runtime",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "status": "pilot",
   "description": "PowerShell security evidence review runtime for local, Function, Automation and Logic App orchestration.",
   "changelog": "components/powershell/security-automation-runtime/CHANGELOG.md",

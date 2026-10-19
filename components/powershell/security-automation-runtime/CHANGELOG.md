@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.0.0
+
+- Breaking runner contract: hosted bundles require schema 2.0 and runnerContractVersion 2.0, with an explicit InvocationContext parameter on every runner. All runners are preflighted before any executes; old bundles are rejected without fallback.
+- Pass a fresh immutable, invocation-local evidence boundary through the wrapper and bundle dispatcher. Remove all runtime reads/writes of SECURITY_EVIDENCE_ROOT.
+- Add New-SecurityInvocationContext and Resolve-SecurityEvidencePath for explicit hosted confinement and intentional offline reads, including filesystem-aware comparison and ancestor-link rejection. Local legacy dispatch now requires explicit -Offline.
+- Require reviewed source capability declarations during packaging. Preserve operator target guards, owned cleanup, package provenance, input hashes, and completion publication.
+- Add bounded actual canonical two-runspace overlap/failure/cleanup tests. Consumer runner and nested artifact-helper migration requires separate reviewed immutable adoption; existing consumers are not changed here.
+
 ## 1.0.0
 
 - Breaking operator contract: require explicit expected tenant and subscription for publisher, schedule helper, and Azure CLI Blob transfer; bind resources to exact ARM identity and public-cloud endpoints.
