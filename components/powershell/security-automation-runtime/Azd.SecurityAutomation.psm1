@@ -152,12 +152,104 @@ function Resolve-SecurityBundlePath {
     return $path
 }
 
-function Invoke-SecurityBundle {
+function Get-SecurityFileSystemPath {
+    param([Parameter(Mandatory)][string]$Path)
+    # GetFullPath alone accepts provider-like strings on Unix. Accept filesystem paths only.
+    if ($Path -match '^[a-zA-Z][a-zA-Z0-9+.-]*:' -and (-not $IsWindows -or $Path -notmatch '^[a-zA-Z]:[\\/]')) { throw 'A filesystem path is required.' }
+    return [IO.Path]::GetFullPath($Path)
+}
+
+function Assert-SecurityPathHasNoLink {
+    param([Parameter(Mandatory)][string]$Path)
+    $cursor = $Path
+    while ($cursor) {
+        if (Test-Path -LiteralPath $cursor) {
+            if ((Get-Item -LiteralPath $cursor -Force).Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'Evidence path traverses a link.' }
+        }
+        $cursor = [IO.Path]::GetDirectoryName($cursor)
+    }
+}
+
+function New-SecurityInvocationContext {
     [CmdletBinding()]
+    param([Parameter(Mandatory)][ValidateSet('Hosted','Offline')][string]$Mode,
+        [Parameter(Mandatory)][string]$EvidenceRoot)
+    $Mode = if ($Mode -eq 'Hosted') { 'Hosted' } else { 'Offline' }
+    $root = Get-SecurityFileSystemPath -Path $EvidenceRoot
+    if (-not (Test-Path -LiteralPath $root -PathType Container)) { throw 'Evidence root must be an existing directory.' }
+    if ($Mode -eq 'Hosted') { Assert-SecurityPathHasNoLink -Path $root }
+    # ImmutableDictionary is sealed; updates return a new value. No caller-owned backing map.
+    return [Collections.Immutable.ImmutableDictionary[string,string]]::Empty.Add('contractVersion','2.0').Add('mode',$Mode).Add('evidenceRoot',$root).Add('invocationId',[guid]::NewGuid().ToString('D'))
+}
+
+function Assert-SecurityInvocationContext {
+    param([Parameter(Mandatory)][object]$InvocationContext)
+    # Do not coerce a mutable/deserialized map into an apparently valid context.
+    if ($InvocationContext -isnot [Collections.Immutable.ImmutableDictionary[string,string]] -or
+        $InvocationContext.Count -ne 4 -or -not $InvocationContext.ContainsKey('contractVersion') -or
+        -not $InvocationContext.ContainsKey('mode') -or -not $InvocationContext.ContainsKey('evidenceRoot') -or
+        -not $InvocationContext.ContainsKey('invocationId')) { throw 'An immutable invocation context is required.' }
+    $id=[guid]::Empty
+    if ($InvocationContext['contractVersion'] -cne '2.0' -or $InvocationContext['mode'] -cnotin @('Hosted','Offline') -or
+        -not [guid]::TryParseExact($InvocationContext['invocationId'],'D',[ref]$id) -or $id -eq [guid]::Empty) { throw 'Invalid invocation context contract.' }
+    $root=Get-SecurityFileSystemPath -Path $InvocationContext['evidenceRoot']
+    if ($root -cne $InvocationContext['evidenceRoot'] -or -not (Test-Path -LiteralPath $root -PathType Container)) { throw 'Invocation evidence root must be canonical and present.' }
+    if ($InvocationContext['mode'] -ceq 'Hosted') { Assert-SecurityPathHasNoLink -Path $root }
+}
+
+function Resolve-SecurityEvidencePath {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)][string]$Path,[Parameter(Mandatory)][string]$InputDirectory,
+        [Parameter(Mandatory)][object]$InvocationContext)
+    Assert-SecurityInvocationContext -InvocationContext $InvocationContext
+    $directory=Get-SecurityFileSystemPath -Path $InputDirectory
+    $candidate=if ([IO.Path]::IsPathRooted($Path)) { $Path } else { Join-Path $directory $Path }
+    # Validate the original string too, before Join-Path can disguise a provider prefix.
+    $null=Get-SecurityFileSystemPath -Path $Path
+    $resolved=Get-SecurityFileSystemPath -Path $candidate
+    if ($InvocationContext['mode'] -ceq 'Hosted') {
+        $comparison=if ($IsWindows) { [StringComparison]::OrdinalIgnoreCase } else { [StringComparison]::Ordinal }
+        $boundary=$InvocationContext['evidenceRoot'].TrimEnd('\','/')+[IO.Path]::DirectorySeparatorChar
+        if (-not $resolved.StartsWith($boundary,$comparison)) { throw 'Hosted evidence path escapes the downloaded evidence directory.' }
+        Assert-SecurityPathHasNoLink -Path $resolved
+    }
+    if (-not (Test-Path -LiteralPath $resolved -PathType Leaf)) { throw 'Evidence file was not found.' }
+    return $resolved
+}
+
+function Assert-SecurityRunnerContract {
+    param([Parameter(Mandatory)][object]$Configuration,[Parameter(Mandatory)][string]$BundleRoot)
+    if ($Configuration.schemaVersion -cne '2.0') { throw 'Hosted bundle requires invocation contract 2.0.' }
+    foreach ($solution in $Configuration.solutions) {
+        if ($solution.PSObject.Properties.Name -notcontains 'runnerContractVersion' -or $solution.runnerContractVersion -cne '2.0') { throw 'Runner requires invocation contract 2.0.' }
+        $runner=Resolve-SecurityBundlePath -Root $BundleRoot -RelativePath $solution.runner
+        $tokens=$null; $parseErrors=$null
+        $ast=[Management.Automation.Language.Parser]::ParseFile($runner,[ref]$tokens,[ref]$parseErrors)
+        if ($parseErrors.Count -gt 0 -or $null -eq $ast.ParamBlock -or
+            @($ast.ParamBlock.Parameters | Where-Object { $_.Name.VariablePath.UserPath -ieq 'InvocationContext' }).Count -ne 1) { throw 'Runner must explicitly accept InvocationContext.' }
+    }
+}
+
+function Invoke-SecurityBundle {
+    [CmdletBinding(DefaultParameterSetName='Context')]
     param([Parameter(Mandatory)][string]$BundleRoot,[Parameter(Mandatory)][string]$ConfigurationPath,
-        [Parameter(Mandatory)][string]$InputDirectory,[Parameter(Mandatory)][string]$OutputDirectory)
+        [Parameter(Mandatory)][string]$InputDirectory,[Parameter(Mandatory)][string]$OutputDirectory,
+        [Parameter(Mandatory,ParameterSetName='Context')][object]$InvocationContext,
+        [Parameter(Mandatory,ParameterSetName='Offline')][switch]$Offline)
+    if ($PSCmdlet.ParameterSetName -eq 'Offline') {
+        if (-not $Offline) { throw 'Explicit offline mode is required.' }
+        $InvocationContext=New-SecurityInvocationContext -Mode Offline -EvidenceRoot $InputDirectory
+    }
+    Assert-SecurityInvocationContext -InvocationContext $InvocationContext
+    $comparison=if ($IsWindows) { [StringComparison]::OrdinalIgnoreCase } else { [StringComparison]::Ordinal }
+    if (-not [string]::Equals((Get-SecurityFileSystemPath $InputDirectory),$InvocationContext['evidenceRoot'],$comparison)) { throw 'Input directory does not match invocation context.' }
     $config = Get-Content -LiteralPath $ConfigurationPath -Raw | ConvertFrom-Json
-    if ($config.schemaVersion -ne '1.0' -or @($config.solutions).Count -eq 0) { throw 'Invalid security bundle configuration.' }
+    if ($config.schemaVersion -cnotin @('1.0','2.0') -or @($config.solutions).Count -eq 0) { throw 'Invalid security bundle configuration.' }
+    $withContext = $config.schemaVersion -ceq '2.0'
+    if ($InvocationContext['mode'] -ceq 'Hosted' -or $withContext) {
+        # Preflight ALL capabilities before any engine executes. Never retry without context.
+        Assert-SecurityRunnerContract -Configuration $config -BundleRoot $BundleRoot
+    }
     $ids = @{}
     foreach ($solution in $config.solutions) {
         if ($solution.id -notmatch '^azd-[a-z0-9-]+$' -or $ids.ContainsKey($solution.id)) { throw 'Invalid or duplicate solution id.' }
@@ -167,7 +259,8 @@ function Invoke-SecurityBundle {
         $output = Resolve-SecurityBundlePath -Root $OutputDirectory -RelativePath $solution.id
         if (-not (Test-Path -LiteralPath $evidencePath -PathType Leaf)) { throw "Missing evidence for $($solution.id)." }
         New-Item -ItemType Directory -Path $output -Force | Out-Null
-        & $runner -InputPath $evidencePath -OutputDirectory $output
+        if ($withContext) { & $runner -InputPath $evidencePath -OutputDirectory $output -InvocationContext $InvocationContext }
+        else { & $runner -InputPath $evidencePath -OutputDirectory $output }
     }
 }
 
@@ -263,6 +356,7 @@ function Invoke-HostedSecurityBundle {
     try {
         $provenance = Get-SecurityBundleProvenance -BundleRoot $BundleRoot -ConfigurationPath $ConfigurationPath
         $config = Get-Content -LiteralPath $ConfigurationPath -Raw | ConvertFrom-Json
+        Assert-SecurityRunnerContract -Configuration $config -BundleRoot $BundleRoot
         $downloadedPaths=[Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
         foreach ($solution in $config.solutions) {
             $path = Resolve-SecurityBundlePath -Root $inputs -RelativePath $solution.input
@@ -283,11 +377,8 @@ function Invoke-HostedSecurityBundle {
         $inputBindings=@($downloadedPaths | Sort-Object | ForEach-Object {
             @{path=[IO.Path]::GetRelativePath($inputs,$_).Replace('\','/');sha256=(Get-FileHash -LiteralPath $_ -Algorithm SHA256).Hash.ToLowerInvariant()}
         })
-        $previousEvidenceRoot=$env:SECURITY_EVIDENCE_ROOT
-        try {
-            $env:SECURITY_EVIDENCE_ROOT=$inputs
-            Invoke-SecurityBundle -BundleRoot $BundleRoot -ConfigurationPath $ConfigurationPath -InputDirectory $inputs -OutputDirectory $outputs
-        } finally { $env:SECURITY_EVIDENCE_ROOT=$previousEvidenceRoot }
+        $invocationContext=New-SecurityInvocationContext -Mode Hosted -EvidenceRoot $inputs
+        Invoke-SecurityBundle -BundleRoot $BundleRoot -ConfigurationPath $ConfigurationPath -InputDirectory $inputs -OutputDirectory $outputs -InvocationContext $invocationContext
         $remainingInputs=@(Get-ChildItem -LiteralPath $inputs -File -Recurse)
         if ($remainingInputs.Count -ne $inputBindings.Count) { throw 'Engine changed the downloaded evidence file set.' }
         foreach ($binding in $inputBindings) {
@@ -326,4 +417,4 @@ function Invoke-HostedSecurityBundle {
 }
 }
 
-Export-ModuleMember -Function Assert-SecurityAzureTarget,Assert-SecurityAzureResource,Get-SecurityAccessToken,Invoke-SecurityGraphRead,Resolve-SecurityBundlePath,Invoke-SecurityBundle,Invoke-SecurityBlobTransfer,Invoke-HostedSecurityBundle
+Export-ModuleMember -Function New-SecurityInvocationContext,Resolve-SecurityEvidencePath,Assert-SecurityAzureTarget,Assert-SecurityAzureResource,Get-SecurityAccessToken,Invoke-SecurityGraphRead,Resolve-SecurityBundlePath,Invoke-SecurityBundle,Invoke-SecurityBlobTransfer,Invoke-HostedSecurityBundle

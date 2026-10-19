@@ -131,8 +131,8 @@ its committed `security-bundle.json` solution entry as `artifactFiles`:
 ```
 
 Upload the file to that private evidence blob. The host downloads it under the
-input root, verifies its exact hash, and sets `SECURITY_EVIDENCE_ROOT` while the
-engine runs. Input JSON references must resolve beneath that root. Duplicate or
+input root, verifies its exact hash, and passes an immutable `InvocationContext`
+to the engine. The runtime neither reads nor writes `SECURITY_EVIDENCE_ROOT`. Input JSON references must resolve beneath that root. Duplicate or
 escaping paths, missing files, and hash mismatches stop processing before report
 publication. The package builder preserves the reviewed artifact declarations.
 Changing an artifact requires a new reviewed configuration and package.
@@ -153,3 +153,75 @@ then invoke its vendored `Deploy-SecuritySource.ps1 -SolutionRoot <roots>`.
 It packages every selected engine, publishes once, and refreshes Automation job
 parameters. Shared permission requirements are the union of selected manifest
 features, not a prerequisite to running credential-free snapshot engines.
+
+
+## Invocation contract 2.0 migration
+
+This is a required consumer change and a major runtime version bump from 1.0.0
+to 2.0.0. The component remains pilot. Existing locks and vendor copies are not
+updated automatically. Synchronize an independently reviewed immutable revision,
+then review each consumer's propagation before building or deploying a package.
+The security host component is unchanged.
+
+Hosted `security-bundle.json` now has `schemaVersion: "2.0"`; every solution entry
+also declares `runnerContractVersion: "2.0"`. The committed source configuration
+must include both. Its runner must explicitly declare `InvocationContext` in its
+top-level parameter block. The builder and runtime check every runner before
+execution; there is no retry that omits the context and no old hosted-bundle
+fallback. `bundle-manifest.json` and `completed.json` retain their existing 1.0
+content-binding formats.
+
+The wrapper creates a new sealed
+`System.Collections.Immutable.ImmutableDictionary[string,string]` for each call:
+`contractVersion=2.0`, `mode=Hosted`, canonical absolute `evidenceRoot`, and fresh
+`invocationId`. Values are strings. Dictionary updates return a different value;
+there is no mutable caller-owned backing collection. No context is stored in
+process environment, module state, a global registry, or a current-context stack.
+Malformed, mutable, deserialized, missing, and unknown-version contexts fail
+closed. Runspaces pass the original concrete immutable object directly; this
+contract does not define serialization or remote-process transport.
+
+Runners propagate the exact `InvocationContext` to every evidence-reading helper.
+`Resolve-SecurityEvidencePath -Path ... -InputDirectory ... -InvocationContext ...`
+accepts an existing file beneath the hosted evidence root, using platform-correct
+case comparison, and rejects sibling-prefix escapes, cross-invocation paths,
+provider paths and linked/reparse ancestors both above and below the root. A
+nested helper that deliberately creates its own verified snapshot constructs a
+fresh context with `New-SecurityInvocationContext -Mode Hosted -EvidenceRoot ...`;
+it keeps the caller's value unchanged and owns cleanup of its own snapshot only.
+Do not infer hosted/offline mode from an environment variable or absent context.
+
+Local legacy schema-1.0 dispatch remains available only with explicit
+`Invoke-SecurityBundle ... -Offline`. For helper calls, construct an explicit
+`New-SecurityInvocationContext -Mode Offline -EvidenceRoot ...` value. Offline
+resolution deliberately retains absolute and parent-relative local file reads.
+Schema-2.0 local runners receive an explicit Offline context. Passing an invalid
+context never selects Offline mode.
+
+These helpers isolate accidental overlapping trusted invocations; they are not a
+sandbox against a malicious runner with ordinary PowerShell filesystem access.
+The existing single timer is serialized. A deterministic synthetic local fixture
+proved overlap in exported helper calls, not a deployed exploit, disclosure,
+default-timer overlap or other host reachability.
+
+### Evidence and remaining consumer gate
+
+The retained original actual-wrapper/AppControl-resolver harness is preserved
+privately with SHA-256
+`8e5143a49547d313de9c7ef4cdb7873da763c619ef7f639c731137886d481f67`.
+It reproduces the old behavior on public source:
+
+- Reference `f5f3e578b929966500a21ad811d11ddacef271f5`, runtime SHA-256
+  `9e6a828e1ddd0f1d0990bbb4807fdba804a27bf9446959be2aff13bab106ecdc`
+- WIP `5a876bb01e25c2611a5693f93b16d4186abe4618`, AppControl.Core.psm1 SHA-256
+  `5be8dfb7a85077fa3df15764eb8a5d4161e49db7664b401bec98e14b51143cd2`
+
+`tests/SecurityInvocationContext.Tests.ps1` and its bounded two-runspace fixture
+exercise the actual canonical wrapper, dispatcher and shared resolver with
+synthetic runners and strict offline transport/token guards. The nested snapshot
+case demonstrates the proposed contract; it is not an actual consumer adoption
+claim. App Control's actual runner, policy/candidate/supplemental paths and both
+nested artifact helpers still require separately reviewed propagation and actual
+consumer red-to-green overlap tests at the adopted canonical revision. Other
+security runners also require their own capability and propagation review.
+Issue #121 is not fully closed by canonical source evidence alone.
