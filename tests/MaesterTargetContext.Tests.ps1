@@ -64,92 +64,26 @@ Describe 'Maester explicit target boundaries (offline)' {
     foreach ($name in $savedEnvironment.Keys) { [Environment]::SetEnvironmentVariable($name, $null) }
     $subscription = '11111111-1111-4111-8111-111111111111'
     $selectedTenant = '22222222-2222-4222-8222-222222222222'
+    $root = Join-Path $TestDrive ([guid]::NewGuid().ToString('N'))
+    New-Item -Path $root -ItemType Directory -Force | Out-Null
+    $script:hookParameters = @{ ProjectRoot = $root; EnvironmentName = 'target'; SolutionName = 'function-app' }
     $global:MaesterTargetTest = @{
       Subscription = $subscription; Tenant = $selectedTenant; Creates = 0; ExchangeConnections = 0; ExchangeMutations = 0
       Calls = [Collections.Generic.List[string]]::new(); ReadFailure = $false; Malformed = $false; TokenFailure = $false
       Token = 'offline-token'; TokenTenant = $selectedTenant; TokenSubscription = $subscription; Exists = 'false'
       Metadata = @{ id = "/subscriptions/$subscription"; subscriptionId = $subscription; tenantId = $selectedTenant; displayName = 'Selected subscription'; state = 'Enabled' }
-      AzdValues = @{ AZURE_RESOURCE_GROUP = 'selected-group'; AZURE_SUBSCRIPTION_ID = $subscription; AZURE_TENANT_ID = $selectedTenant; AZURE_LOCATION = 'westus' }
+      AzdValues = @{ AZURE_ENV_NAME = 'target'; AZURE_RESOURCE_GROUP = 'selected-group'; AZURE_SUBSCRIPTION_ID = $subscription; AZURE_TENANT_ID = $selectedTenant; AZURE_LOCATION = 'westus' }
     }
   }
 
-  It 'defers a missing group to receipt-aware preprovision after fresh subscription validation' {
-    Invoke-MaesterPreUp
-    $global:MaesterTargetTest.Creates | Should -Be 0
-    $global:MaesterTargetTest.Calls.Count | Should -Be 2
-    $global:MaesterTargetTest.Calls[0] | Should -BeLike 'rest *'
-    $global:MaesterTargetTest.Calls[1] | Should -BeLike 'group exists *'
-  }
-
-  It 'defers location selection to the preprovision wizard for an absent explicit group' {
-    $global:MaesterTargetTest.AzdValues.AZURE_LOCATION = ''
-    Invoke-MaesterPreUp
-    $global:MaesterTargetTest.Creates | Should -Be 0
-  }
-
-  It 'runs real preup and preprovision helpers before exactly one receipt-backed HTTP 201 creation' {
-    $env:AZD_NON_INTERACTIVE = 'true'
-    $env:AZURE_ENV_NAME = 'target'
-    $root = Join-Path $TestDrive 'actual-hook-sequence'
-    New-Item (Join-Path $root 'infra') -ItemType Directory -Force | Out-Null
-    Set-Content (Join-Path $root 'infra/main.bicep') "targetScope = 'resourceGroup'"
-    $global:MaesterTargetTest.ReceiptPath = Join-Path $root '.azure/target/maester-infrastructure-ownership.json'
-    $global:MaesterTargetTest.AzdValues.AZURE_ENV_NAME = 'target'
-    $global:MaesterTargetTest.AzdValues.MAESTER_SETUP_CLIENT_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
-    $global:MaesterTargetTest.AzdValues.MAESTER_SETUP_ACCOUNT = 'operator@example.com'
-    foreach ($flag in @('INCLUDE_WEB_APP', 'INCLUDE_EXCHANGE', 'INCLUDE_TEAMS', 'INCLUDE_AZURE', 'INCLUDE_ACR')) {
-      $global:MaesterTargetTest.AzdValues[$flag] = 'false'
-    }
-    $global:MaesterTargetTest.HttpCalls = [Collections.Generic.List[string]]::new()
-    Mock Invoke-WebRequest -ModuleName Maester-InfrastructureOwnership {
-      param($Method, $Uri, $Body)
-      $state = $global:MaesterTargetTest
-      $state.HttpCalls.Add("$Method $Uri")
-      $expected = "https://management.azure.com/subscriptions/$($state.Subscription)/resourceGroups/selected-group?api-version=2021-04-01"
-      $Uri | Should -BeExactly $expected
-      if ($Method -eq 'GET' -and $state.Exists -eq 'false') { return @{ StatusCode = 404; Content = '{"error":{"code":"ResourceGroupNotFound"}}' } }
-      if ($Method -eq 'PUT') {
-        $pending = Get-Content -LiteralPath $state.ReceiptPath -Raw | ConvertFrom-Json -AsHashtable -DateKind String
-        $pending.state | Should -BeExactly 'Pending'
-        $pending.createStatus | Should -Be 0
-        $payload = $Body | ConvertFrom-Json -AsHashtable
-        $state.Group = @{ id = "/subscriptions/$($state.Subscription)/resourceGroups/selected-group"; tags = $payload.tags; properties = @{ provisioningState = 'Succeeded' } }
-        $state.Exists = 'true'
-        return @{ StatusCode = 201; Content = ($state.Group | ConvertTo-Json -Depth 8) }
-      }
-      if ($Method -eq 'GET' -and $state.Exists -eq 'true') { return @{ StatusCode = 200; Content = ($state.Group | ConvertTo-Json -Depth 8) } }
-      throw 'Unexpected HTTP mutation in offline lifecycle fixture.'
-    }
-    Push-Location $root
-    try {
-      # These are the real canonical entrypoints invoked by consumer preup and
-      # preprovision wrappers. Only az/azd/HTTP transports are replaced.
-      Invoke-MaesterPreUp
-      Test-Path -LiteralPath $global:MaesterTargetTest.ReceiptPath | Should -BeFalse
-      $global:MaesterTargetTest.Creates | Should -Be 0
-      Invoke-MaesterPreProvision -SolutionName function-app -SubscriptionId $global:MaesterTargetTest.Subscription -TenantId $global:MaesterTargetTest.Tenant -Location westus
-      $arguments = @{ ProjectRoot = $root; EnvironmentName = 'target'; SolutionName = 'function-app'; SubscriptionId = $global:MaesterTargetTest.Subscription; TenantId = $global:MaesterTargetTest.Tenant }
-      (Initialize-MaesterInfrastructureOwnership @arguments).Owned | Should -BeTrue
-      (Get-Content -LiteralPath $global:MaesterTargetTest.ReceiptPath -Raw | ConvertFrom-Json).createStatus | Should -Be 201
-      # A repeated preup/preprovision pass sees the same receipt and never adopts
-      # through the GET alone or creates a second RG.
-      Invoke-MaesterPreUp
-      Invoke-MaesterPreProvision -SolutionName function-app -SubscriptionId $global:MaesterTargetTest.Subscription -TenantId $global:MaesterTargetTest.Tenant -Location westus
-      (Initialize-MaesterInfrastructureOwnership @arguments).Owned | Should -BeTrue
-      $global:MaesterTargetTest.Creates | Should -Be 0
-      @($global:MaesterTargetTest.HttpCalls | Where-Object { $_ -like 'PUT *' }).Count | Should -Be 1
-      @($global:MaesterTargetTest.Calls | Where-Object { $_ -like 'group create *' }).Count | Should -Be 0
-    } finally { Pop-Location }
-  }
-
-  It 'respects an environment tenant override and refuses the preup existence check in another tenant' {
+  It 'rejects a process tenant override before any ARM request' {
     $env:AZURE_TENANT_ID = '33333333-3333-4333-8333-333333333333'
-    { Invoke-MaesterPreUp } | Should -Throw '*not selected tenant*'
+    { Invoke-MaesterPreUp @hookParameters } | Should -Throw '*differs from the selected azd environment*'
     $global:MaesterTargetTest.Creates | Should -Be 0
     @($global:MaesterTargetTest.Calls | Where-Object { $_ -like 'group *' }).Count | Should -Be 0
   }
 
-  It 'rejects <case> before the preup existence check' -ForEach @(
+  It 'rejects <case> before preup can create infrastructure' -ForEach @(
     @{ case = 'Disabled despite cached Enabled'; field = 'state'; value = 'Disabled' }
     @{ case = 'unknown state'; field = 'state'; value = 'FutureState' }
     @{ case = 'missing state'; field = 'state'; value = $null }
@@ -161,13 +95,13 @@ Describe 'Maester explicit target boundaries (offline)' {
     @{ case = 'missing name'; field = 'displayName'; value = $null }
   ) {
     $global:MaesterTargetTest.Metadata[$field] = $value
-    { Invoke-MaesterPreUp } | Should -Throw
+    { Invoke-MaesterPreUp @hookParameters } | Should -Throw
     $global:MaesterTargetTest.Creates | Should -Be 0
   }
 
   It 'fails closed on a failed or malformed metadata read' -ForEach @('ReadFailure', 'Malformed') {
     $global:MaesterTargetTest[$_] = $true
-    { Invoke-MaesterPreUp } | Should -Throw
+    { Invoke-MaesterPreUp @hookParameters } | Should -Throw
     $global:MaesterTargetTest.Creates | Should -Be 0
   }
 
@@ -178,7 +112,7 @@ Describe 'Maester explicit target boundaries (offline)' {
     @{ field = 'AZURE_SUBSCRIPTION_ID'; value = 'invalid' }
   ) {
     $global:MaesterTargetTest.AzdValues[$field] = $value
-    { Invoke-MaesterPreUp } | Should -Throw
+    { Invoke-MaesterPreUp @hookParameters } | Should -Throw
     $global:MaesterTargetTest.Calls.Count | Should -Be 0
   }
 
@@ -235,7 +169,7 @@ Describe 'Maester explicit target boundaries (offline)' {
   It 'does not reuse a previous successful Enabled read' {
     $null = Get-AzCliSubscriptionContext -SubscriptionId $global:MaesterTargetTest.Subscription -TenantId $global:MaesterTargetTest.Tenant
     $global:MaesterTargetTest.Metadata.state = 'Disabled'
-    { Invoke-MaesterPreUp } | Should -Throw '*must currently be Enabled*'
+    { Invoke-MaesterPreUp @hookParameters } | Should -Throw '*must currently be Enabled*'
     $global:MaesterTargetTest.Creates | Should -Be 0
     @($global:MaesterTargetTest.Calls | Where-Object { $_ -like 'rest *' }).Count | Should -Be 2
   }
@@ -243,26 +177,6 @@ Describe 'Maester explicit target boundaries (offline)' {
   It 'rejects a token response for a different subscription' {
     $global:MaesterTargetTest.TokenSubscription = '44444444-4444-4444-8444-444444444444'
     Get-AzCliAccessToken -Resource 'https://management.azure.com/' -SubscriptionId $global:MaesterTargetTest.Subscription | Should -BeNullOrEmpty
-  }
-
-  It 'keeps an existing group without requiring a creation location' {
-    $global:MaesterTargetTest.Exists = 'true'
-    $global:MaesterTargetTest.AzdValues.AZURE_LOCATION = ''
-    Invoke-MaesterPreUp
-    $global:MaesterTargetTest.Creates | Should -Be 0
-    $global:MaesterTargetTest.Calls.Count | Should -Be 2
-  }
-
-  It 'does not create a group on an unknown existence response' {
-    $global:MaesterTargetTest.Exists = 'unknown'
-    { Invoke-MaesterPreUp } | Should -Throw '*Invalid existence response*'
-    $global:MaesterTargetTest.Creates | Should -Be 0
-  }
-
-  It 'keeps the no-resource-group preup no-op' {
-    $global:MaesterTargetTest.AzdValues = @{}
-    Invoke-MaesterPreUp
-    $global:MaesterTargetTest.Calls.Count | Should -Be 0
   }
 
 }

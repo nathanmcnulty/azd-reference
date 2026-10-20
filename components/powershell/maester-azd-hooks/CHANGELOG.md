@@ -1,5 +1,12 @@
 # Changelog
 
+## 4.0.0 - 2026-10-20
+
+- Breaking: preup and preprovision require explicit project root, environment and solution. Run shared prerequisite and owned resource-group creation preflight in preup before native azd up provider initialization, and in the project preprovision hook for direct provision.
+- Bind wizard reads/writes to the selected environment, use one default resource-group name (`rg-<environment>`), and revalidate the target after configuration. Preprovision validates saved options without repeating interactive prompts.
+- Fail unavailable required postprovision interactivity before ARM creation; do not treat a preflight Graph session as authentication for another process. Preserve the existing Automation access-preserving path. No grants or context replacement occur during preflight.
+- Keep the exact live 404, durable Pending and matching PUT 201 ownership proof. Existing or ambiguous groups are never adopted. See the migration section in `docs/maester-owned-lifecycle.md`.
+
 ## 3.1.1 - 2026-10-20
 
 - Stop the interactive down-hook path before owned-lock removal when remaining cleanup records require postdown prompts that this process cannot collect. Preserve read-only plans, terminal journals and explicit noninteractive cleanup calls.

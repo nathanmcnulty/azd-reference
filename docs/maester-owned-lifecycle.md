@@ -70,3 +70,37 @@ Legacy/reused groups, old configuration-only grant lists, uncertain or malformed
 Offline tests must exercise real setup and actual predown/postdown entrypoints with provider-boundary fixtures, covering cancellation, no-op repeats, partial writes, missing receipts, stale approval, wrong bindings, protected identities, foreign dependencies, typed absence and safe retries. Static source assertions alone are insufficient.
 
 Native acceptance remains separately approved: capture before inventories, run actual `azd up` and `azd down`, test cancellation/unlock semantics, then verify owned Azure/Graph/Exchange/ADO objects absent and preserved prerequisites present. No manual deletion may mask a lifecycle failure. Source tests, review and hosted CI do not establish that live result.
+
+
+## Hooks 4.0 preflight migration
+
+Update preup wrappers to pass `-ProjectRoot (Split-Path $PSScriptRoot -Parent)`,
+`-EnvironmentName $env:AZURE_ENV_NAME`, and the exact `-SolutionName` to
+`Invoke-MaesterPreUp`. Pass the same three selectors to
+`Invoke-MaesterPreProvision`; keep any host Git/ADOPS prerequisite switches on
+both wrappers. Remove the consumer's later duplicate infrastructure initializer.
+Synchronize canonical files and the component lock together; never patch vendors.
+
+The native azd up lifecycle initializes Bicep before its provision workflow, and
+resource-group-scoped initialization can create the group. Preup must therefore
+complete prerequisite checks and receipt-backed creation first. Direct azd provision
+runs the project preprovision hook before its provider initialization (layer hooks
+are not equivalent). Preprovision validates saved configuration without prompting
+again. To collect new choices, run the preup wrapper interactively first or use
+azd up; direct provision requires configured setup identity and saved options.
+
+The selected environment must explicitly contain its tenant and subscription.
+All wizard reads/writes use that environment selector, and process or explicit
+selectors that disagree fail closed. An explicit resource-group name is preserved;
+otherwise every stage now uses `rg-<environment>` (case preserved). Existing
+`rg-<lower-environment>-<location>` groups are unchanged when their name is saved.
+Postprovision still asks separately for login and exact-plan approval. Its process
+cannot inherit a preup Graph session. Full setup therefore fails preflight when
+interactive approval is unavailable. The existing Automation access-preservation
+path skips that interactivity requirement, not the existing identity/configuration
+validation or the consumer's exact live-resource checks. No new no-setup mode is
+introduced.
+
+This repair does not recover older unreceipted groups. A later GET, tags, deployment
+success or Activity Log cannot establish the required original 201 create response.
+A creation race returning 200 or uncertain Pending receipt remains blocked.
