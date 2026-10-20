@@ -1,5 +1,11 @@
 # Changelog
 
+## 3.1.1 - 2026-10-20
+
+- Stop the interactive down-hook path before owned-lock removal when remaining cleanup records require postdown prompts that this process cannot collect. Preserve read-only plans, terminal journals and explicit noninteractive cleanup calls.
+- Explain the separate postdown Process session before Azure deletion and direct recovery through the canonical entrypoint, where fresh normal-browser sign-in can be selected separately from cleanup approval. No token/session transfer or new scopes are introduced.
+- Exercise the actual entrypoint in fresh PowerShell subprocesses with provider-boundary fixtures. Actual azd and live provider acceptance remain separately required.
+
 ## 3.1.0 - 2026-10-20
 
 - Support an explicitly linked successor receipt only for publication into an already receipted, deployment-owned Azure DevOps repository. Bind each update to the preceding applied commit and preserve every immutable receipt and pending outcome.
