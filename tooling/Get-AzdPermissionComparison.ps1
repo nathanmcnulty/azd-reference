@@ -17,7 +17,9 @@ $ErrorActionPreference = 'Stop'
 $schemaPath = Join-Path $PSScriptRoot '../schemas/permission-requirements.schema.json'
 $root = (Resolve-Path -LiteralPath $PortfolioRoot).Path
 $registryRaw = Get-Content -LiteralPath $RegistryPath -Raw
-$null = $registryRaw | Test-Json -SchemaFile (Join-Path $PSScriptRoot '../schemas/permission-solutions.schema.json') -ErrorAction Stop
+if (-not ($registryRaw | Test-Json -SchemaFile (Join-Path $PSScriptRoot '../schemas/permission-solutions.schema.json') -ErrorAction Stop)) {
+    throw 'Permission solution registry failed schema validation.'
+}
 $registry = $registryRaw | ConvertFrom-Json
 
 function Get-ContainedPath {
@@ -53,7 +55,9 @@ foreach ($solution in $registry.solutions) {
         continue
     }
     $raw = Get-Content -LiteralPath $path -Raw
-    $null = $raw | Test-Json -SchemaFile $schemaPath -ErrorAction Stop
+    if (-not ($raw | Test-Json -SchemaFile $schemaPath -ErrorAction Stop)) {
+        throw "Permission manifest failed schema validation: $path"
+    }
     $manifest = $raw | ConvertFrom-Json
     if ($manifest.solutionId -cne $solution.id) { throw "Solution ID mismatch in $path" }
     if ($manifest.coverage -eq 'complete' -and $manifest.gaps.Count) { throw "Complete inventory cannot contain gaps: $path" }
