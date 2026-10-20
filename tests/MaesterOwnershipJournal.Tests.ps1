@@ -380,3 +380,176 @@ catch { if ($_.Exception.Message -notlike '*lifecycle lock*') { exit 11 }; exit 
     } finally { if (-not $process.HasExited) { $process.Kill() }; $process.Dispose() }
   }
 }
+
+
+Describe 'Bounded owned repository publication successors' {
+  BeforeEach {
+    $root = Join-Path $TestDrive ([guid]::NewGuid().ToString('N'))
+    [IO.Directory]::CreateDirectory($root) | Out-Null
+    $binding = @{environmentName='publication-test';solutionName='maester';tenantId='11111111-1111-4111-8111-111111111111';subscriptionId='22222222-2222-4222-8222-222222222222';setupClientId='33333333-3333-4333-8333-333333333333';resourceGroupId='/subscriptions/22222222-2222-4222-8222-222222222222/resourceGroups/publication-test'}
+    $session = Open-MaesterOwnershipJournal -ProjectRoot $root -Binding $binding
+    $path = Join-Path $root '.azure/publication-test/maester-setup-ownership.json'
+    $repositoryId = '66666666-6666-4666-8666-666666666666'
+    $target = @{organizationId='44444444-4444-4444-8444-444444444444';projectId='55555555-5555-4555-8555-555555555555';repositoryId=$repositoryId;branch='refs/heads/main'}
+    $parent = Start-MaesterOwnedOperation -Session $session -Key 'repo' -Kind AdoRepository -Ownership Created -PlanHash ('a'*64) -Expected @{organizationId=$target.organizationId;projectId=$target.projectId}
+    Complete-MaesterOwnedOperation -Session $session -OperationId $parent.operationId -ExactIds @{repositoryId=$repositoryId} | Out-Null
+    $publicationParameters = @{Session=$session;Key='publication:initial';Kind='AdoRepositoryPublication';Ownership='Mutation';PlanHash=('b'*64);Expected=$target;Before=@{commitId=('0'*40)};After=@{commitId=('a'*40);files=@(@{path='azure-pipelines.yml';blobId=('d'*40)})};CoveredByOperationId=$parent.operationId}
+    $first = Start-MaesterOwnedOperation @publicationParameters
+    Complete-MaesterOwnedOperation -Session $session -OperationId $first.operationId -ExactIds @{repositoryId=$repositoryId;commitId=('a'*40)} | Out-Null
+    $firstSnapshot = (Get-MaesterOwnershipJournal $session).records[1] | ConvertTo-Json -Depth 16 -Compress
+    $successor = @{Session=$session;Key='publication:next';Kind='AdoRepositoryPublication';Ownership='Mutation';PlanHash=('c'*64);Expected=$target;Before=@{commitId=('a'*40)};After=@{commitId=('b'*40);files=@(@{path='azure-pipelines.yml';blobId=('e'*40)})};CoveredByOperationId=$parent.operationId;SupersedesOperationId=$first.operationId}
+  }
+  AfterEach { if ($null -ne $session) { $session.Dispose() } }
+
+  It 'durably appends pending intent and completes a linear update without changing its predecessor' {
+    $next = Start-MaesterOwnedOperation @successor
+    $journal = Get-MaesterOwnershipJournal $session
+    $journal.records.Count | Should -Be 3
+    $journal.records[2].state | Should -BeExactly pending
+    $journal.records[2].exactIds.Count | Should -Be 0
+    $journal.records[2].supersedesOperationId | Should -BeExactly $first.operationId
+    ($journal.records[1] | ConvertTo-Json -Depth 16 -Compress) | Should -BeExactly $firstSnapshot
+    Complete-MaesterOwnedOperation -Session $session -OperationId $next.operationId -ExactIds @{repositoryId=$repositoryId;commitId=('b'*40)} | Out-Null
+    $session.Dispose()
+    $session = Open-MaesterOwnershipJournal -ProjectRoot $root -Binding $binding -RequireExisting
+    $journal = Get-MaesterOwnershipJournal $session
+    $journal.records[2].after.commitId | Should -BeExactly ('b'*40)
+    ($journal.records[1] | ConvertTo-Json -Depth 16 -Compress) | Should -BeExactly $firstSnapshot
+    $unchanged = [IO.File]::ReadAllText($path)
+    Complete-MaesterOwnedOperation -Session $session -OperationId $next.operationId -ExactIds @{repositoryId=$repositoryId;commitId=('b'*40)} | Out-Null
+    [IO.File]::ReadAllText($path) | Should -BeExactly $unchanged
+  }
+
+  It 'still rejects duplicate targets without an explicit successor and unchanged publications with one' {
+    $successor.Remove('SupersedesOperationId')
+    { Start-MaesterOwnedOperation @successor } | Should -Throw '*same active ownership target tuple*'
+    $successor.SupersedesOperationId = $first.operationId
+    $successor.After.commitId = 'a'*40
+    { Start-MaesterOwnedOperation @successor } | Should -Throw '*no-op*preserve*'
+    (Get-MaesterOwnershipJournal $session).records.Count | Should -Be 2
+  }
+
+  It 'requires the exact commit boundary and same <Field>' -ForEach @(
+    @{Field='organizationId';Value='77777777-7777-4777-8777-777777777777'},
+    @{Field='projectId';Value='77777777-7777-4777-8777-777777777777'},
+    @{Field='repositoryId';Value='77777777-7777-4777-8777-777777777777'},
+    @{Field='branch';Value='refs/heads/other'}
+  ) {
+    $successor.Expected[$Field] = $Value
+    { Start-MaesterOwnedOperation @successor } | Should -Throw '*same exact owned parent and target*'
+    (Get-MaesterOwnershipJournal $session).records.Count | Should -Be 2
+  }
+
+  It 'rejects a stale before commit and preserves original applied evidence' {
+    $successor.Before.commitId = 'f'*40
+    { Start-MaesterOwnedOperation @successor } | Should -Throw '*before commit*predecessor after commit*'
+    (Get-MaesterOwnershipJournal $session).records.Count | Should -Be 2
+    ((Get-MaesterOwnershipJournal $session).records[1] | ConvertTo-Json -Depth 16 -Compress) | Should -BeExactly $firstSnapshot
+  }
+
+  It 'forbids cross-parent and shared/adopted publication successors' {
+    $successor.Remove('CoveredByOperationId')
+    { Start-MaesterOwnedOperation @successor } | Should -Throw '*Only an owned-parent*'
+    $otherParent = Start-MaesterOwnedOperation -Session $session -Key 'other-repo' -Kind AdoRepository -Ownership Created -PlanHash ('a'*64) -Expected @{organizationId=$target.organizationId;projectId='88888888-8888-4888-8888-888888888888';repositoryName='other'}
+    Complete-MaesterOwnedOperation -Session $session -OperationId $otherParent.operationId -ExactIds @{repositoryId='77777777-7777-4777-8777-777777777777'} | Out-Null
+    $successor.CoveredByOperationId = $otherParent.operationId
+    { Start-MaesterOwnedOperation @successor } | Should -Throw '*same exact owned parent and target*'
+  }
+
+  It 'blocks retries and branching while a successor outcome is unknown or already applied' {
+    $next = Start-MaesterOwnedOperation @successor
+    { Start-MaesterOwnedOperation @successor } | Should -Throw '*do not repeat*'
+    $successor.Key = 'publication:fork'
+    { Start-MaesterOwnedOperation @successor } | Should -Throw '*branching chains*'
+    { Set-MaesterOwnedOperationState -Session $session -OperationId $parent.operationId -State deleting } | Should -Throw '*unresolved covered mutation*'
+    Complete-MaesterOwnedOperation -Session $session -OperationId $next.operationId -ExactIds @{repositoryId=$repositoryId;commitId=('b'*40)} | Out-Null
+    { Start-MaesterOwnedOperation @successor } | Should -Throw '*branching chains*'
+    $successor.SupersedesOperationId = $next.operationId
+    $successor.Before.commitId = 'b'*40
+    $successor.After.commitId = 'c'*40
+    $third = Start-MaesterOwnedOperation @successor
+    Set-MaesterOwnedOperationState -Session $session -OperationId $third.operationId -State conflict | Out-Null
+    { Set-MaesterOwnedOperationState -Session $session -OperationId $parent.operationId -State deleting } | Should -Throw '*unresolved covered mutation*'
+    $successor.Key = 'publication:conflict-retry'
+    $successor.SupersedesOperationId = $third.operationId
+    { Start-MaesterOwnedOperation @successor } | Should -Throw '*current applied receipt*'
+  }
+
+  It 'does not change the planned commit while acknowledging a response' {
+    $next = Start-MaesterOwnedOperation @successor
+    { Complete-MaesterOwnedOperation -Session $session -OperationId $next.operationId -ExactIds @{repositoryId=$repositoryId;commitId=('f'*40)} } | Should -Throw '*response commit differs*'
+    { Complete-MaesterOwnedOperation -Session $session -OperationId $next.operationId -ExactIds @{repositoryId=$repositoryId;commitId=('f'*40)} -After @{commitId=('f'*40)} } | Should -Throw '*cannot replace its planned after commit*'
+    { Complete-MaesterOwnedOperation -Session $session -OperationId $next.operationId -ExactIds @{repositoryId=$repositoryId} } | Should -Throw '*exact acknowledged commit*'
+    (Get-MaesterOwnershipJournal $session).records[2].state | Should -BeExactly pending
+  }
+
+  It 'does not permit the remote update when the pending successor checkpoint fails' {
+    $before = [IO.File]::ReadAllText($path)
+    Mock -ModuleName Maester-OwnershipJournal Move-MaesterJournalCheckpoint { throw 'injected pending successor failure' }
+    $remoteCalled = $false
+    { Start-MaesterOwnedOperation @successor; $remoteCalled = $true } | Should -Throw '*injected pending successor*'
+    $remoteCalled | Should -BeFalse
+    [IO.File]::ReadAllText($path) | Should -BeExactly $before
+  }
+
+  It 'never enriches an applied legacy publication receipt in place' {
+    $publicationParameters.Key = 'publication:legacy'
+    $publicationParameters.Expected.branch = 'refs/heads/legacy'
+    $legacy = Start-MaesterOwnedOperation @publicationParameters
+    Complete-MaesterOwnedOperation -Session $session -OperationId $legacy.operationId -ExactIds @{repositoryId=$repositoryId} | Out-Null
+    $before = [IO.File]::ReadAllText($path)
+    { Complete-MaesterOwnedOperation -Session $session -OperationId $legacy.operationId -ExactIds @{repositoryId=$repositoryId;commitId=('a'*40)} } | Should -Throw '*cannot be replaced or enriched*'
+    [IO.File]::ReadAllText($path) | Should -BeExactly $before
+  }
+
+  It 'does not turn an adopted publication receipt into an owned successor chain' {
+    $publicationParameters.Key = 'publication:adopted'
+    $publicationParameters.Expected.branch = 'refs/heads/adopted'
+    $publicationParameters.Remove('CoveredByOperationId')
+    $adopted = Start-MaesterOwnedOperation @publicationParameters
+    Complete-MaesterOwnedOperation -Session $session -OperationId $adopted.operationId -ExactIds @{repositoryId=$repositoryId;commitId=('a'*40)} | Out-Null
+    $successor.SupersedesOperationId = $adopted.operationId
+    { Start-MaesterOwnedOperation @successor } | Should -Throw '*same exact owned parent and target*'
+  }
+
+  It 'retains pending update intent if response checkpoint fails' {
+    $next = Start-MaesterOwnedOperation @successor
+    $before = [IO.File]::ReadAllText($path)
+    Mock -ModuleName Maester-OwnershipJournal Move-MaesterJournalCheckpoint { throw 'injected successor checkpoint failure' }
+    { Complete-MaesterOwnedOperation -Session $session -OperationId $next.operationId -ExactIds @{repositoryId=$repositoryId;commitId=('b'*40)} } | Should -Throw '*injected successor*'
+    [IO.File]::ReadAllText($path) | Should -BeExactly $before
+    (Get-MaesterOwnershipJournal $session).records[2].state | Should -BeExactly pending
+  }
+
+  It 'rejects forged <Tampering> chains when reopening' -ForEach @(@{Tampering='missing'},@{Tampering='cycle'},@{Tampering='branching'},@{Tampering='boundary'},@{Tampering='unlinked'}) {
+    $next = Start-MaesterOwnedOperation @successor
+    Complete-MaesterOwnedOperation -Session $session -OperationId $next.operationId -ExactIds @{repositoryId=$repositoryId;commitId=('b'*40)} | Out-Null
+    $journal = Get-MaesterOwnershipJournal $session
+    switch ($Tampering) {
+      missing { $journal.records[2].supersedesOperationId = '77777777-7777-4777-8777-777777777777' }
+      cycle { $journal.records[1].supersedesOperationId = $next.operationId }
+      branching {
+        $fork = $journal.records[2] | ConvertTo-Json -Depth 16 | ConvertFrom-Json -AsHashtable -DateKind String
+        $fork.operationId = '77777777-7777-4777-8777-777777777777'; $fork.key = 'publication:forged-fork'
+        $journal.records = @($journal.records) + @($fork)
+      }
+      boundary { $journal.records[2].before.commitId = 'f'*40 }
+      unlinked { $journal.records[2].Remove('supersedesOperationId') }
+    }
+    $journal | ConvertTo-Json -Depth 16 -Compress | Set-Content -LiteralPath $path
+    { Get-MaesterOwnershipJournal $session } | Should -Throw
+  }
+
+  It 'keeps retained chain links valid through normal owned-parent cleanup transitions' {
+    $next = Start-MaesterOwnedOperation @successor
+    Complete-MaesterOwnedOperation -Session $session -OperationId $next.operationId -ExactIds @{repositoryId=$repositoryId;commitId=('b'*40)} | Out-Null
+    foreach ($record in @($parent, $first, $next)) {
+      Set-MaesterOwnedOperationState -Session $session -OperationId $record.operationId -State deleting | Out-Null
+      Set-MaesterOwnedOperationState -Session $session -OperationId $record.operationId -State deleted | Out-Null
+    }
+    $journal = Get-MaesterOwnershipJournal $session
+    @($journal.records | Where-Object state -CEQ deleted).Count | Should -Be 3
+    $journal.records[2].supersedesOperationId | Should -BeExactly $first.operationId
+    $journal.records[1].after.commitId | Should -BeExactly ('a'*40)
+  }
+}

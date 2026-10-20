@@ -23,6 +23,24 @@ Setup holds one local lifecycle lock before fresh target revalidation and throug
 
 New grants and federated credentials on an adopted parent have their own ownership. Deployment-owned external identities and objects must stay dedicated for their entire lifetime; do not repurpose, share or concurrently edit them. Configuration/dependency checks cover the reviewed fields (including web redirects, identifier URIs and sign-in audience), not every possible application property or downstream reference. They are not a guarantee that arbitrary later reuse will be discovered. Reusing an application, service connection, pipeline or repository does not make that parent deployment-owned. Shared changes requiring concurrency-safe restoration remain explicit unresolved records until a supported recovery flow exists. A later material update to an already recorded shared mutation/publication can require reconciliation; the journal does not silently rewrite earlier before/after history.
 
+## Owned repository publication updates
+
+Hooks 3.1.0 supports one narrow successor contract for a branch in a receipted,
+deployment-owned Azure DevOps repository. Each new publication explicitly names
+its terminal applied predecessor, binds the previous commit to that receipt, and
+records the planned new commit before the remote push. Earlier receipts remain
+immutable. A no-op retains the existing receipt; an unknown push outcome remains
+pending and blocks further setup. Shared/adopted repositories and other mutation
+types do not receive this successor behavior.
+
+The chain must keep the same organization, project, repository, branch and owned
+parent, with no forks, cycles, missing predecessors or rewritten commits. Cleanup
+accepts only the terminal recorded commit for each live owned branch, so a rollback
+to an older recorded commit or unrelated source change still blocks deletion.
+This lets a host separately approve unrun pipeline preparation, exact-pipeline
+authorization and later chosen schedule/file updates without losing teardown
+evidence. It does not activate schedules or authorize runs by itself.
+
 ## Hook order and approval
 
 1. **Predown** checks receipts, fresh ARM context and the dedicated group inventory. It previews external effects but does not delete apps, grants or Azure DevOps objects.

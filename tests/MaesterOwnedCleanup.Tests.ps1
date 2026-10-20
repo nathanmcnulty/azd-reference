@@ -307,6 +307,24 @@ Describe 'Finite ADO exact identity and concurrency checks' {
       { Get-MaesterCleanupTarget $record $journal $protection } | Should -Throw '*unrecorded all-pipelines endpoint dependent*'
     }
   }
+  It 'accepts only the terminal owned publication commit and preserves rollback or unrecorded source drift' {
+    InModuleScope Maester-PreDownCleanup {
+      $record=@{operationId='repo';kind='AdoRepository';ownership='Created';state='applied';expected=@{organizationId='org';projectId='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'};exactIds=@{repositoryId='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'};after=@{}}
+      $prior=@{operationId='publication-1';kind='AdoRepositoryPublication';state='applied';ownership='Mutation';coveredByOperationId='repo';expected=@{repositoryId='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';branch='refs/heads/main'};after=@{commitId=('a'*40)}}
+      $current=@{operationId='publication-2';kind='AdoRepositoryPublication';state='applied';ownership='Mutation';coveredByOperationId='repo';supersedesOperationId='publication-1';expected=@{repositoryId='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';branch='refs/heads/main'};before=@{commitId=('a'*40)};after=@{commitId=('b'*40)}}
+      $permission=@{operationId='permission';kind='AdoPipelineAuthorization';ownership='Mutation';state='applied';coveredByOperationId='repo';expected=@{resourceType='repository';resourceId='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa.bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'};after=@{allPipelinesAuthorized=$true}}
+      $journal=@{binding=@{};records=@($record,$prior,$current,$permission)};$protection=@{clientIds=@();objectIds=@()}
+      # The fixture's live ref is 'a': accepting any historical receipt would be unsafe.
+      { Get-MaesterCleanupTarget $record $journal $protection } | Should -Throw '*unrecorded or changed branch/tag*'
+      $prior.after.commitId='b'*40;$current.before.commitId='b'*40;$current.after.commitId='a'*40
+      (Get-MaesterCleanupTarget $record $journal $protection).action | Should -BeExactly Delete
+      $global:CleanupFixtureState.RepoChanged=$true
+      { Get-MaesterCleanupTarget $record $journal $protection } | Should -Throw '*unrecorded or changed branch/tag*'
+      $global:CleanupFixtureState.RepoChanged=$false
+      $current.state='deleted'
+      { Get-MaesterCleanupTarget $record $journal $protection } | Should -Throw '*unrecorded or changed branch/tag*'
+    }
+  }
   It 'preserves a repository with changed publication refs or unrecorded pipeline sharing' {
     InModuleScope Maester-PreDownCleanup {
       $record=@{operationId='repo';kind='AdoRepository';ownership='Created';state='applied';expected=@{organizationId='org';projectId='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'};exactIds=@{repositoryId='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'};after=@{}}

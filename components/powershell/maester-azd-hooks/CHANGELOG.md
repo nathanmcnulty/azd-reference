@@ -1,5 +1,11 @@
 # Changelog
 
+## 3.1.0 - 2026-10-20
+
+- Support an explicitly linked successor receipt only for publication into an already receipted, deployment-owned Azure DevOps repository. Bind each update to the preceding applied commit and preserve every immutable receipt and pending outcome.
+- Validate the terminal publication in the owned branch during cleanup; reject branched, cross-target or unresolved publication histories. Shared/adopted repository restoration and other mutation generations remain unsupported.
+- This enables separate unrun-pipeline preparation and approved scheduled-file publication in the Azure DevOps host without broad pipeline authorization or a general ownership-reset mechanism.
+
 ## 3.0.1 - 2026-10-20
 
 - Reuse loaded consent-plan and setup-helper dependencies during nested permission planning and infrastructure ownership imports. Preserve the calling setup entrypoint's approval commands, helper exports and verified process-scoped session through plan and apply.
