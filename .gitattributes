@@ -9,3 +9,6 @@
 *.yaml text eol=lf
 .github/actions/catalog-validator/dist/index.js text eol=lf
 components/powershell/intune-remediations/reviewed-noops/Firewall.ps1 whitespace=-blank-at-eof
+
+# Keep reviewed JavaScript prototype source hashes stable across platforms.
+*.cjs text eol=lf
