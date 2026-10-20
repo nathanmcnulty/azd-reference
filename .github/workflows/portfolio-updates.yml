@@ -69,7 +69,9 @@ jobs:
           $registryPath = Join-Path $referenceRoot 'portfolio/consumers.json'
           $schemaPath = Join-Path $referenceRoot 'schemas/portfolio-consumers.schema.json'
           $registryRaw = Get-Content -LiteralPath $registryPath -Raw
-          $registryRaw | Test-Json -SchemaFile $schemaPath -ErrorAction Stop | Out-Null
+          if (-not ($registryRaw | Test-Json -SchemaFile $schemaPath -ErrorAction Stop)) {
+            throw 'Portfolio registry failed schema validation.'
+          }
           $registry = $registryRaw | ConvertFrom-Json
           $consumers = @($registry.consumers)
           if ($env:SELECTED_CONSUMER) {
