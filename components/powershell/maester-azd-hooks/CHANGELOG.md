@@ -1,5 +1,9 @@
 # Changelog
 
+## 4.0.1 - 2026-10-20
+
+- Resolve Unix process inspection explicitly as a native application, avoiding PowerShell alias ambiguity and Windows analyzer findings. Ownership and prompt-detection semantics are unchanged.
+
 ## 4.0.0 - 2026-10-20
 
 - Breaking: preup and preprovision require explicit project root, environment and solution. Run shared prerequisite and owned resource-group creation preflight in preup before native azd up provider initialization, and in the project preprovision hook for direct provision.

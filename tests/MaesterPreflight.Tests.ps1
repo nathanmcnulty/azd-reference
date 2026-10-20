@@ -479,7 +479,7 @@ Describe 'Maester native no-prompt invocation detection (offline)' {
   BeforeAll {
     $hooksRoot = Join-Path (Split-Path $PSScriptRoot -Parent) 'components/powershell/maester-azd-hooks'
     Import-Module (Join-Path $hooksRoot 'Maester-UpWizard.psm1') -Force
-    function global:ps {
+    function global:Invoke-MaesterTestProcessCommand {
       $arguments = @($args)
       $state = $global:MaesterInvocationTest
       $arguments[0] | Should -BeExactly '-p'
@@ -497,7 +497,7 @@ Describe 'Maester native no-prompt invocation detection (offline)' {
     }
   }
   AfterAll {
-    Remove-Item function:ps
+    Remove-Item function:Invoke-MaesterTestProcessCommand
     Remove-Module Maester-UpWizard, Maester-SetupHelpers, Maester-Helpers -Force -ErrorAction SilentlyContinue
     Remove-Variable MaesterInvocationTest -Scope Global -ErrorAction SilentlyContinue
   }
@@ -514,6 +514,12 @@ Describe 'Maester native no-prompt invocation detection (offline)' {
         return [pscustomobject]@{ Name = "$($state.ProcessName).exe"; CommandLine = $state.CommandLine; ParentProcessId = 0 }
       }
     } else {
+      Mock Get-Command -ModuleName Maester-UpWizard {
+        param($Name, $CommandType)
+        $Name | Should -BeExactly 'ps'
+        $CommandType | Should -BeExactly 'Application'
+        return [pscustomobject]@{ Source = 'Invoke-MaesterTestProcessCommand' }
+      } -ParameterFilter { $Name -eq 'ps' }
       Mock Get-Process -ModuleName Maester-UpWizard {
         param($Id)
         $state = $global:MaesterInvocationTest
