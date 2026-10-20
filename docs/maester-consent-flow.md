@@ -1,6 +1,6 @@
 # Maester 2.3.0 setup and permission reconciliation
 
-This source-only pilot changes `maester-azd-hooks` from 1.0.0 to **2.1.0** and
+This source-only pilot changes `maester-azd-hooks` from 1.0.0 to **3.0.0** and
 requires `graph-delegated-authentication` **1.1.0** beside it. Synchronize both
 components from one reviewed immutable Reference revision. No release, tenant
 consent, deployment, or existing-consumer adoption is implied by these sources.
@@ -204,3 +204,7 @@ Azure DevOps require their own dependent adoption and regression review. Azure
 DevOps adoption must opt into the 2.1.0 federated-application contract above and
 retain its independent endpoint provenance checks. Retained `azd-maester` migration copies are a separate rollout;
 the Maester source fork's newer development branch must not be downgraded.
+
+## Ownership-aware lifecycle
+
+Hooks 3.0.0 adds durable per-write ownership and safe down hooks. See [the lifecycle contract](maester-owned-lifecycle.md) for fresh resource-group proof, exact lock approval, postdown cleanup, shared-object boundaries and the separately managed setup client.

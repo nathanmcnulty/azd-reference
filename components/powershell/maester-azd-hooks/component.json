@@ -2,7 +2,7 @@
   "$schema": "../../../schemas/component-manifest.schema.json",
   "manifestVersion": "1.1",
   "id": "maester-azd-hooks",
-  "version": "2.1.0",
+  "version": "4.0.1",
   "description": "Shared azd hooks, target-context helpers, and optional Microsoft Graph permission setup for Maester templates.",
   "status": "pilot",
   "changelog": "components/powershell/maester-azd-hooks/CHANGELOG.md",
@@ -46,6 +46,18 @@
     {
       "source": "components/powershell/maester-azd-hooks/Maester-GraphPermissions.json",
       "target": "scripts/vendor/Azd.MaesterHooks/Maester-GraphPermissions.json"
+    },
+    {
+      "source": "components/powershell/maester-azd-hooks/Maester-OwnershipJournal.psm1",
+      "target": "scripts/vendor/Azd.MaesterHooks/Maester-OwnershipJournal.psm1"
+    },
+    {
+      "source": "components/powershell/maester-azd-hooks/Maester-InfrastructureOwnership.psm1",
+      "target": "scripts/vendor/Azd.MaesterHooks/Maester-InfrastructureOwnership.psm1"
+    },
+    {
+      "source": "components/powershell/maester-azd-hooks/Invoke-MaesterDown.ps1",
+      "target": "scripts/vendor/Azd.MaesterHooks/Invoke-MaesterDown.ps1"
     }
   ]
 }

@@ -2,6 +2,8 @@ Describe 'Maester explicit target boundaries (offline)' {
   BeforeAll {
     $hooksRoot = Join-Path (Split-Path $PSScriptRoot -Parent) 'components/powershell/maester-azd-hooks'
     Import-Module (Join-Path $hooksRoot 'Maester-PreUp.psm1') -Force
+    Import-Module (Join-Path $hooksRoot 'Maester-PreProvision.psm1') -Force
+    Import-Module (Join-Path $hooksRoot 'Maester-InfrastructureOwnership.psm1') -Force
     Import-Module (Join-Path $hooksRoot 'Maester-SetupHelpers.psm1') -Force
     # No Azure executable or authentication is used. These command doubles fail
     # on every unexpected command, including account set and unscoped requests.
@@ -36,7 +38,10 @@ Describe 'Maester explicit target boundaries (offline)' {
       throw "Unexpected az command: $($arguments -join ' ')"
     }
     function global:azd {
-      if (($args -join ' ') -eq 'env get-values --output json') { $global:LASTEXITCODE = 0; return ($global:MaesterTargetTest.AzdValues | ConvertTo-Json -Compress) }
+      $global:LASTEXITCODE = 0
+      if ($args[0] -eq 'version') { return 'azd version 1.23.5 (offline)' }
+      if ($args[0] -eq 'env' -and $args[1] -eq 'get-values') { return ($global:MaesterTargetTest.AzdValues | ConvertTo-Json -Compress) }
+      if ($args[0] -eq 'env' -and $args[1] -eq 'set') { $global:MaesterTargetTest.AzdValues[[string]$args[2]] = [string]$args[3]; return }
       throw "Unexpected azd command: $($args -join ' ')"
     }
     function global:Connect-ExchangeOnline {
@@ -45,13 +50,13 @@ Describe 'Maester explicit target boundaries (offline)' {
       $AccessToken | Should -Be 'offline-token'
     }
     $savedEnvironment = @{}
-    foreach ($name in 'AZURE_RESOURCE_GROUP', 'AZURE_SUBSCRIPTION_ID', 'AZURE_TENANT_ID', 'AZURE_LOCATION') {
+    foreach ($name in 'AZURE_RESOURCE_GROUP', 'AZURE_SUBSCRIPTION_ID', 'AZURE_TENANT_ID', 'AZURE_LOCATION', 'AZURE_ENV_NAME', 'AZD_NON_INTERACTIVE') {
       $savedEnvironment[$name] = [Environment]::GetEnvironmentVariable($name)
     }
   }
   AfterAll {
     foreach ($name in $savedEnvironment.Keys) { [Environment]::SetEnvironmentVariable($name, $savedEnvironment[$name]) }
-    Remove-Module Maester-PreUp, Maester-SetupHelpers -Force -ErrorAction SilentlyContinue
+    Remove-Module Maester-PreUp, Maester-PreProvision, Maester-InfrastructureOwnership, Maester-UpWizard, Maester-SetupHelpers -Force -ErrorAction SilentlyContinue
     Remove-Item function:az, function:azd, function:Connect-ExchangeOnline
     Remove-Variable MaesterTargetTest -Scope Global
   }
@@ -59,32 +64,26 @@ Describe 'Maester explicit target boundaries (offline)' {
     foreach ($name in $savedEnvironment.Keys) { [Environment]::SetEnvironmentVariable($name, $null) }
     $subscription = '11111111-1111-4111-8111-111111111111'
     $selectedTenant = '22222222-2222-4222-8222-222222222222'
+    $root = Join-Path $TestDrive ([guid]::NewGuid().ToString('N'))
+    New-Item -Path $root -ItemType Directory -Force | Out-Null
+    $script:hookParameters = @{ ProjectRoot = $root; EnvironmentName = 'target'; SolutionName = 'function-app' }
     $global:MaesterTargetTest = @{
       Subscription = $subscription; Tenant = $selectedTenant; Creates = 0; ExchangeConnections = 0; ExchangeMutations = 0
       Calls = [Collections.Generic.List[string]]::new(); ReadFailure = $false; Malformed = $false; TokenFailure = $false
       Token = 'offline-token'; TokenTenant = $selectedTenant; TokenSubscription = $subscription; Exists = 'false'
       Metadata = @{ id = "/subscriptions/$subscription"; subscriptionId = $subscription; tenantId = $selectedTenant; displayName = 'Selected subscription'; state = 'Enabled' }
-      AzdValues = @{ AZURE_RESOURCE_GROUP = 'selected-group'; AZURE_SUBSCRIPTION_ID = $subscription; AZURE_TENANT_ID = $selectedTenant; AZURE_LOCATION = 'westus' }
+      AzdValues = @{ AZURE_ENV_NAME = 'target'; AZURE_RESOURCE_GROUP = 'selected-group'; AZURE_SUBSCRIPTION_ID = $subscription; AZURE_TENANT_ID = $selectedTenant; AZURE_LOCATION = 'westus' }
     }
   }
 
-  It 'creates a missing group only after fresh validation despite a different cached/default account' {
-    Invoke-MaesterPreUp
-    $global:MaesterTargetTest.Creates | Should -Be 1
-    $global:MaesterTargetTest.Calls.Count | Should -Be 3
-    $global:MaesterTargetTest.Calls[0] | Should -BeLike 'rest *'
-    $global:MaesterTargetTest.Calls[1] | Should -BeLike 'group exists *'
-    $global:MaesterTargetTest.Calls[2] | Should -BeLike 'group create *'
-  }
-
-  It 'respects an environment tenant override and refuses the actual preup write in another tenant' {
+  It 'rejects a process tenant override before any ARM request' {
     $env:AZURE_TENANT_ID = '33333333-3333-4333-8333-333333333333'
-    { Invoke-MaesterPreUp } | Should -Throw '*not selected tenant*'
+    { Invoke-MaesterPreUp @hookParameters } | Should -Throw '*differs from the selected azd environment*'
     $global:MaesterTargetTest.Creates | Should -Be 0
     @($global:MaesterTargetTest.Calls | Where-Object { $_ -like 'group *' }).Count | Should -Be 0
   }
 
-  It 'rejects <case> before the actual preup creation path' -ForEach @(
+  It 'rejects <case> before preup can create infrastructure' -ForEach @(
     @{ case = 'Disabled despite cached Enabled'; field = 'state'; value = 'Disabled' }
     @{ case = 'unknown state'; field = 'state'; value = 'FutureState' }
     @{ case = 'missing state'; field = 'state'; value = $null }
@@ -96,13 +95,13 @@ Describe 'Maester explicit target boundaries (offline)' {
     @{ case = 'missing name'; field = 'displayName'; value = $null }
   ) {
     $global:MaesterTargetTest.Metadata[$field] = $value
-    { Invoke-MaesterPreUp } | Should -Throw
+    { Invoke-MaesterPreUp @hookParameters } | Should -Throw
     $global:MaesterTargetTest.Creates | Should -Be 0
   }
 
   It 'fails closed on a failed or malformed metadata read' -ForEach @('ReadFailure', 'Malformed') {
     $global:MaesterTargetTest[$_] = $true
-    { Invoke-MaesterPreUp } | Should -Throw
+    { Invoke-MaesterPreUp @hookParameters } | Should -Throw
     $global:MaesterTargetTest.Creates | Should -Be 0
   }
 
@@ -113,7 +112,7 @@ Describe 'Maester explicit target boundaries (offline)' {
     @{ field = 'AZURE_SUBSCRIPTION_ID'; value = 'invalid' }
   ) {
     $global:MaesterTargetTest.AzdValues[$field] = $value
-    { Invoke-MaesterPreUp } | Should -Throw
+    { Invoke-MaesterPreUp @hookParameters } | Should -Throw
     $global:MaesterTargetTest.Calls.Count | Should -Be 0
   }
 
@@ -170,7 +169,7 @@ Describe 'Maester explicit target boundaries (offline)' {
   It 'does not reuse a previous successful Enabled read' {
     $null = Get-AzCliSubscriptionContext -SubscriptionId $global:MaesterTargetTest.Subscription -TenantId $global:MaesterTargetTest.Tenant
     $global:MaesterTargetTest.Metadata.state = 'Disabled'
-    { Invoke-MaesterPreUp } | Should -Throw '*must currently be Enabled*'
+    { Invoke-MaesterPreUp @hookParameters } | Should -Throw '*must currently be Enabled*'
     $global:MaesterTargetTest.Creates | Should -Be 0
     @($global:MaesterTargetTest.Calls | Where-Object { $_ -like 'rest *' }).Count | Should -Be 2
   }
@@ -178,26 +177,6 @@ Describe 'Maester explicit target boundaries (offline)' {
   It 'rejects a token response for a different subscription' {
     $global:MaesterTargetTest.TokenSubscription = '44444444-4444-4444-8444-444444444444'
     Get-AzCliAccessToken -Resource 'https://management.azure.com/' -SubscriptionId $global:MaesterTargetTest.Subscription | Should -BeNullOrEmpty
-  }
-
-  It 'keeps an existing group without requiring a creation location' {
-    $global:MaesterTargetTest.Exists = 'true'
-    $global:MaesterTargetTest.AzdValues.AZURE_LOCATION = ''
-    Invoke-MaesterPreUp
-    $global:MaesterTargetTest.Creates | Should -Be 0
-    $global:MaesterTargetTest.Calls.Count | Should -Be 2
-  }
-
-  It 'does not create a group on an unknown existence response' {
-    $global:MaesterTargetTest.Exists = 'unknown'
-    { Invoke-MaesterPreUp } | Should -Throw '*Invalid existence response*'
-    $global:MaesterTargetTest.Creates | Should -Be 0
-  }
-
-  It 'keeps the no-resource-group preup no-op' {
-    $global:MaesterTargetTest.AzdValues = @{}
-    Invoke-MaesterPreUp
-    $global:MaesterTargetTest.Calls.Count | Should -Be 0
   }
 
 }

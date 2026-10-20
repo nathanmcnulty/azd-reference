@@ -1,5 +1,42 @@
 # Changelog
 
+## 4.0.1 - 2026-10-20
+
+- Resolve Unix process inspection explicitly as a native application, avoiding PowerShell alias ambiguity and Windows analyzer findings. Ownership and prompt-detection semantics are unchanged.
+
+## 4.0.0 - 2026-10-20
+
+- Breaking: preup and preprovision require explicit project root, environment and solution. Run shared prerequisite and owned resource-group creation preflight in preup before native azd up provider initialization, and in the project preprovision hook for direct provision.
+- Bind wizard reads/writes to the selected environment, use one default resource-group name (`rg-<environment>`), and revalidate the target after configuration. Preprovision validates saved options without repeating interactive prompts.
+- Fail unavailable required postprovision interactivity before ARM creation; do not treat a preflight Graph session as authentication for another process. Preserve the existing Automation access-preserving path. No grants or context replacement occur during preflight.
+- Keep the exact live 404, durable Pending and matching PUT 201 ownership proof. Existing or ambiguous groups are never adopted. See the migration section in `docs/maester-owned-lifecycle.md`.
+
+## 3.1.1 - 2026-10-20
+
+- Stop the interactive down-hook path before owned-lock removal when remaining cleanup records require postdown prompts that this process cannot collect. Preserve read-only plans, terminal journals and explicit noninteractive cleanup calls.
+- Explain the separate postdown Process session before Azure deletion and direct recovery through the canonical entrypoint, where fresh normal-browser sign-in can be selected separately from cleanup approval. No token/session transfer or new scopes are introduced.
+- Exercise the actual entrypoint in fresh PowerShell subprocesses with provider-boundary fixtures. Actual azd and live provider acceptance remain separately required.
+
+## 3.1.0 - 2026-10-20
+
+- Support an explicitly linked successor receipt only for publication into an already receipted, deployment-owned Azure DevOps repository. Bind each update to the preceding applied commit and preserve every immutable receipt and pending outcome.
+- Validate the terminal publication in the owned branch during cleanup; reject branched, cross-target or unresolved publication histories. Shared/adopted repository restoration and other mutation generations remain unsupported.
+- This enables separate unrun-pipeline preparation and approved scheduled-file publication in the Azure DevOps host without broad pipeline authorization or a general ownership-reset mechanism.
+
+## 3.0.1 - 2026-10-20
+
+- Reuse loaded consent-plan and setup-helper dependencies during nested permission planning and infrastructure ownership imports. Preserve the calling setup entrypoint's approval commands, helper exports and verified process-scoped session through plan and apply.
+- Add real nested-planner/import regressions for dry runs, approved application, rejected stale approval and subsequent helper operations. Provider requests are stubbed; this source qualification does not establish live setup or cleanup behavior.
+
+## 3.0.0 - 2026-10-19
+
+- Breaking: replace configuration/name-based best-effort cleanup with ownership-receipted lifecycle hooks. Legacy or ambiguous ownership blocks automatic down instead of guessing what to delete.
+- Persist each approved external write intent and exact response identity under a selected-environment lifetime lock; preserve earlier records on failures and no-op reruns.
+- Capture fresh dedicated resource-group creation only from an exact ARM 201 response and bind declared infrastructure IDs. Reused groups, foreign listed resources/locks, changed source and uncertain outcomes fail closed.
+- Separate explicit owned-lock approval in predown from fresh-approved external cleanup in postdown after exact ARM absence. Canceling azd leaves external authorization unchanged; separately approved unlocks remain removed.
+- Preserve external administrator setup clients and adopted/shared objects. Unsupported shared restoration remains a visible blocker; no implicit extra Graph consent or runtime self-grant authority.
+- See [ownership lifecycle and recovery boundaries](../../../docs/maester-owned-lifecycle.md). Source qualification does not establish live provider cleanup or actual azd cancellation behavior.
+
 ## 2.1.0 - 2026-10-19
 
 - Pin Maester setup to process-scoped token caching through coordinator 1.1.0. Refuse inherited non-Process contexts rather than risk SDK failure cleanup against a persistent context; document SDK shared-record/internal-fallback limitations.
