@@ -1,5 +1,10 @@
 # Changelog
 
+## 3.0.1 - 2026-10-20
+
+- Reuse loaded consent-plan and setup-helper dependencies during nested permission planning and infrastructure ownership imports. Preserve the calling setup entrypoint's approval commands, helper exports and verified process-scoped session through plan and apply.
+- Add real nested-planner/import regressions for dry runs, approved application, rejected stale approval and subsequent helper operations. Provider requests are stubbed; this source qualification does not establish live setup or cleanup behavior.
+
 ## 3.0.0 - 2026-10-19
 
 - Breaking: replace configuration/name-based best-effort cleanup with ownership-receipted lifecycle hooks. Legacy or ambiguous ownership blocks automatic down instead of guessing what to delete.
