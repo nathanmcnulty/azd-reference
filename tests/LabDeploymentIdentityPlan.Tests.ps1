@@ -63,9 +63,6 @@ function Invoke-TestPlan {
             -EnvironmentName $EnvironmentName `
             -GitHubEnvironment $GitHubEnvironment `
             -OutputPath $outputPath 2>&1
-        if ($LASTEXITCODE -ne 0) {
-            throw ($raw | Out-String)
-        }
         return [pscustomobject]@{
             Plan = (($raw | Out-String) | ConvertFrom-Json)
             OutputPath = $outputPath
@@ -127,7 +124,6 @@ Describe 'Get-AzdLabDeploymentIdentityPlan' {
             $outputPath = Join-Path $Directory 'deployment-identity-plan.json'
             try {
                 $raw = & $global:planTool -RegistryPath $registryPath -SolutionId 'sample-solution' -EnvironmentName $EnvironmentName -GitHubEnvironment $GitHubEnvironment -OutputPath $outputPath 2>&1
-                if ($LASTEXITCODE -ne 0) { throw ($raw | Out-String) }
                 return [pscustomobject]@{ Plan = (($raw | Out-String) | ConvertFrom-Json); OutputPath = $outputPath }
             }
             finally {
@@ -161,6 +157,21 @@ Describe 'Get-AzdLabDeploymentIdentityPlan' {
         $first.Plan.guards.defaultBranch.status | Should -Be 'pending'
         $first.Plan.guards.liveOidc.status | Should -Be 'pending'
         $first.Plan.boundaries.graphAndBootstrap | Should -Be 'outside-deploy-identity-plan'
+    }
+
+    It 'does not confuse an inherited native exit code with planner failure' {
+        $previousExitCode = Get-Variable -Name LASTEXITCODE -Scope Global -ErrorAction SilentlyContinue
+        $previousExitCodeValue = if ($null -ne $previousExitCode) { $previousExitCode.Value } else { $null }
+        try {
+            $global:LASTEXITCODE = 23
+            $result = Invoke-TestPlan -Registry (New-TestRegistry) -Directory $TestDrive
+            $result.Plan.solutionId | Should -Be 'sample-solution'
+            $global:LASTEXITCODE | Should -Be 23
+        }
+        finally {
+            if ($null -ne $previousExitCode) { $global:LASTEXITCODE = $previousExitCodeValue }
+            else { Remove-Variable -Name LASTEXITCODE -Scope Global -ErrorAction SilentlyContinue }
+        }
     }
 
     It 'rejects a duplicate solution target' {

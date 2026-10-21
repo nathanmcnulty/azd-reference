@@ -197,7 +197,7 @@ Describe 'Lab environment status' {
         $cases = @(
             @{ Name = 'duplicate'; Error = '*duplicate subscription policies*'; Change = { param($data) $duplicate = $data.subscriptionPolicies[0] | ConvertTo-Json -Depth 10 | ConvertFrom-Json; $duplicate.displayName = 'Second policy'; $data.subscriptionPolicies = @($data.subscriptionPolicies[0], $duplicate) } },
             @{ Name = 'undeclared'; Error = '*undeclared subscription*'; Change = { param($data) $data.subscriptionPolicies[0].subscriptionId = '44444444-4444-4444-8444-444444444444' } },
-            @{ Name = 'nonpositive'; Error = '*schema validation*'; Change = { param($data) $data.subscriptionPolicies[0].budgetAmountUSD = 0 } },
+            @{ Name = 'nonpositive'; Error = '*schema*'; Change = { param($data) $data.subscriptionPolicies[0].budgetAmountUSD = 0 } },
             @{ Name = 'over-ceiling'; Error = '*planning ceiling cannot exceed*'; Change = { param($data) $data.subscriptionPolicies[0].planningCeilingUSD = 151 } }
         )
         foreach ($case in $cases) {

@@ -78,7 +78,7 @@ Describe 'Portfolio JSON schemas' {
         $path = Join-Path $script:repoRoot 'portfolio/lab-environments.example.json'
         $registry = Get-Content -LiteralPath $path -Raw | ConvertFrom-Json
         $registry.subscriptionPolicies[0].monthlyCreditUSD = 0
-        { $registry | ConvertTo-Json -Depth 20 | Test-Json -SchemaFile (Join-Path $script:repoRoot 'schemas/lab-environments.schema.json') -ErrorAction Stop } | Should -Throw
+        ($registry | ConvertTo-Json -Depth 20 | Test-Json -SchemaFile (Join-Path $script:repoRoot 'schemas/lab-environments.schema.json') -ErrorAction SilentlyContinue) | Should -BeFalse
     }
 
     It 'accepts a component-free consumer without inventing a dependency' {
