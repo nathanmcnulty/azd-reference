@@ -11,7 +11,7 @@ function Get-SharedHash {
   param($Value)
   [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes((ConvertTo-SharedCanonicalJson $Value)))).ToLowerInvariant()
 }
-function Assert-SharedFields {
+function Assert-SharedFieldSet {
   param($Value, [string[]]$Fields)
   & $script:SharedJournalModule { param($v,$f) Assert-MaesterJournalFields $v $f $f 'shared restoration evidence' } $Value $Fields
 }
@@ -23,10 +23,10 @@ function Assert-SharedTime {
   }
   return $parsed
 }
-function Assert-SharedValues {
+function Assert-SharedValueSet {
   param($Values, $Binding, [string]$Kind)
   $fields = if ($Kind -ceq 'ApplicationConfiguration') { @('redirectUris', 'identifierUris', 'groupMembershipClaims', 'enableIdTokenIssuance', 'enableAccessTokenIssuance') } else { @('scopes') }
-  Assert-SharedFields $Values $fields
+  Assert-SharedFieldSet $Values $fields
   & $script:SharedJournalModule { param($v,$f,$b,$k) Assert-MaesterJournalMetadata $v $f $f $b 'before' $k } $Values $fields $Binding $Kind
   # Legacy journal validation allows absent values. Never equate absent, empty,
   # false or missing fields here; exact comparison is deliberately conservative.
@@ -57,12 +57,12 @@ function Get-MaesterSharedRestorationPlan {
   $ErrorActionPreference = 'Stop'
   # Validate without opening a journal session or creating lock/checkpoint files.
   & $script:SharedJournalModule { param($j,$b) Assert-MaesterJournalDocument $j $b } $Journal $Binding
-  Assert-SharedFields $Protection @('applicationObjectIds','appIds','servicePrincipalIds')
+  Assert-SharedFieldSet $Protection @('applicationObjectIds','appIds','servicePrincipalIds')
   foreach ($field in $Protection.Keys) {
     if ($Protection[$field] -isnot [Collections.IList] -or $Protection[$field].Count -gt 128) { throw 'Protected identities must be bounded explicit arrays.' }
     foreach ($id in $Protection[$field]) { & $script:SharedJournalModule { param($v) Assert-MaesterJournalGuid $v } $id }
   }
-  Assert-SharedFields $Evidence @('schemaVersion','binding','journalHash','observations')
+  Assert-SharedFieldSet $Evidence @('schemaVersion','binding','journalHash','observations')
   if ($Evidence.schemaVersion -cne '1.0' -or (ConvertTo-SharedCanonicalJson $Evidence.binding) -cne (ConvertTo-SharedCanonicalJson $Binding)) { throw 'Shared restoration evidence has a different schema or binding.' }
   if ($Evidence.journalHash -cne (Get-SharedHash $Journal)) { throw 'Shared restoration evidence does not bind the exact journal.' }
   if ($Evidence.observations -isnot [Collections.IList] -or $Evidence.observations.Count -gt 512) { throw 'Shared restoration observations must be a bounded array.' }
@@ -83,7 +83,7 @@ function Get-MaesterSharedRestorationPlan {
     if ($observation.state -cnotin @('present','absent','unknown')) { throw 'Unsupported shared restoration observation state.' }
     $observed = Assert-SharedTime $observation.observedUtc
     if ($observed -gt $Now) { throw 'Future shared restoration observations are invalid.' }
-    if ($observation.state -ceq 'present') { Assert-SharedValues $observation.values $Binding $record.kind }
+    if ($observation.state -ceq 'present') { Assert-SharedValueSet $observation.values $Binding $record.kind }
     elseif ($observation.values -isnot [Collections.IDictionary] -or $observation.values.Count -ne 0) { throw 'Unavailable observations cannot carry provider values.' }
     $observations[$observation.operationId] = $observation
   }
@@ -124,8 +124,8 @@ function Get-MaesterSharedRestorationPlan {
       elseif ($sameTarget.Count -ne 1) { $reason = 'repeatedTargetNeedsGenerationContract' }
       elseif (-not $observations.ContainsKey($record.operationId)) { $reason = 'observationMissing' }
       else {
-        Assert-SharedValues $record.before $Binding $record.kind
-        Assert-SharedValues $record.after $Binding $record.kind
+        Assert-SharedValueSet $record.before $Binding $record.kind
+        Assert-SharedValueSet $record.after $Binding $record.kind
         $observation = $observations[$record.operationId]
         $updated = Assert-SharedTime $record.updatedUtc
         $created = Assert-SharedTime $record.createdUtc
