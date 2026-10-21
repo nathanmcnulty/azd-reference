@@ -1,3 +1,4 @@
+# Assert schema invalidity directly; Test-Json need not emit an error for every failure.
 BeforeAll {
     $script:repositoryRoot = Split-Path -Parent $PSScriptRoot
     $script:envelopeSchema = Join-Path $script:repositoryRoot 'schemas/notification-envelope.schema.json'
@@ -67,15 +68,15 @@ Describe 'Notification contracts' {
         $result = Get-Content -LiteralPath $script:resultFixture -Raw | ConvertFrom-Json
         $result.route.transport = 'teams'
 
-        { $result | ConvertTo-Json -Depth 10 |
-            Test-Json -SchemaFile $script:resultSchema -ErrorAction Stop } | Should -Throw
+        ($result | ConvertTo-Json -Depth 10 |
+            Test-Json -SchemaFile $script:resultSchema -ErrorAction SilentlyContinue) | Should -BeFalse
     }
 
     It 'requires failure details only for failed results' {
         $result = Get-Content -LiteralPath $script:resultFixture -Raw | ConvertFrom-Json
         $result.status = 'failed'
-        { $result | ConvertTo-Json -Depth 10 |
-            Test-Json -SchemaFile $script:resultSchema -ErrorAction Stop } | Should -Throw
+        ($result | ConvertTo-Json -Depth 10 |
+            Test-Json -SchemaFile $script:resultSchema -ErrorAction SilentlyContinue) | Should -BeFalse
 
         $result | Add-Member -NotePropertyName failure -NotePropertyValue ([pscustomobject]@{
             category = 'throttled'; retryable = $true; code = 'TooManyRequests'
@@ -84,15 +85,15 @@ Describe 'Notification contracts' {
             Test-Json -SchemaFile $script:resultSchema -ErrorAction Stop) | Should -BeTrue
 
         $result.status = 'succeeded'
-        { $result | ConvertTo-Json -Depth 10 |
-            Test-Json -SchemaFile $script:resultSchema -ErrorAction Stop } | Should -Throw
+        ($result | ConvertTo-Json -Depth 10 |
+            Test-Json -SchemaFile $script:resultSchema -ErrorAction SilentlyContinue) | Should -BeFalse
     }
 
     It 'requires a registered reason only for skipped results' {
         $result = Get-Content -LiteralPath $script:resultFixture -Raw | ConvertFrom-Json
         $result.status = 'skipped'
-        { $result | ConvertTo-Json -Depth 10 |
-            Test-Json -SchemaFile $script:resultSchema -ErrorAction Stop } | Should -Throw
+        ($result | ConvertTo-Json -Depth 10 |
+            Test-Json -SchemaFile $script:resultSchema -ErrorAction SilentlyContinue) | Should -BeFalse
 
         $result | Add-Member -NotePropertyName skipReason -NotePropertyValue 'initialBaseline'
         ($result | ConvertTo-Json -Depth 10 |
@@ -129,16 +130,16 @@ Describe 'Notification contracts' {
         )) {
             $result = Get-Content -LiteralPath $script:resultFixture -Raw | ConvertFrom-Json
             $result.($case.Property) = $case.Value
-            { $result | ConvertTo-Json -Depth 10 |
-                Test-Json -SchemaFile $script:resultSchema -ErrorAction Stop } |
-                Should -Throw -Because "$($case.Property) must be opaque"
+            ($result | ConvertTo-Json -Depth 10 |
+                Test-Json -SchemaFile $script:resultSchema -ErrorAction SilentlyContinue) |
+                Should -BeFalse -Because "$($case.Property) must be opaque"
         }
 
         $result = Get-Content -LiteralPath $script:resultFixture -Raw | ConvertFrom-Json
         $result.evidence | Add-Member -NotePropertyName operationId -NotePropertyValue 'https:%2F%2Fexample.invalid%2Fcallback%3Fsig%3Dsecret'
-        { $result | ConvertTo-Json -Depth 10 |
-            Test-Json -SchemaFile $script:resultSchema -ErrorAction Stop } |
-            Should -Throw -Because 'evidence identifiers must be opaque'
+        ($result | ConvertTo-Json -Depth 10 |
+            Test-Json -SchemaFile $script:resultSchema -ErrorAction SilentlyContinue) |
+            Should -BeFalse -Because 'evidence identifiers must be opaque'
     }
 
     It 'rejects invalid audience, idempotency, and unexpected result properties independently' {
@@ -150,8 +151,8 @@ Describe 'Notification contracts' {
         foreach ($mutation in $mutations) {
             $result = Get-Content -LiteralPath $script:resultFixture -Raw | ConvertFrom-Json
             & $mutation $result
-            { $result | ConvertTo-Json -Depth 10 |
-                Test-Json -SchemaFile $script:resultSchema -ErrorAction Stop } | Should -Throw
+            ($result | ConvertTo-Json -Depth 10 |
+                Test-Json -SchemaFile $script:resultSchema -ErrorAction SilentlyContinue) | Should -BeFalse
         }
     }
 
