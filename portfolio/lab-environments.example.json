@@ -1,0 +1,51 @@
+{
+  "$schema": "../schemas/lab-environments.schema.json",
+  "schemaVersion": "1.0",
+  "tenantId": "11111111-1111-4111-8111-111111111111",
+  "targetSubscriptionId": "22222222-2222-4222-8222-222222222222",
+  "subscriptions": [
+    "22222222-2222-4222-8222-222222222222"
+  ],
+  "subscriptionPolicies": [
+    {
+      "subscriptionId": "22222222-2222-4222-8222-222222222222",
+      "displayName": "Example primary lab subscription",
+      "role": "primary",
+      "monthlyCreditUSD": 150,
+      "budgetName": "example-lab-budget",
+      "budgetAmountUSD": 150,
+      "planningCeilingUSD": 120,
+      "notes": "Planning values only; remaining credit is not measured here."
+    }
+  ],
+  "notes": "Example-only identifiers. Replace with reviewed lab values outside this repository.",
+  "solutions": [
+    {
+      "id": "example-solution",
+      "repository": "https://github.com/example/azd-example-solution",
+      "desiredEnvironment": "pilot",
+      "desiredResourceGroup": "rg-example-pilot",
+      "deployableKind": "azure",
+      "desiredTags": {
+        "solution": "example-solution",
+        "lab-environment": "pilot",
+        "owner": "example-owner",
+        "cost-center": "example-cost-center",
+        "portfolio": "example-portfolio",
+        "environment": "pilot",
+        "managed-by": "azd-reference"
+      },
+      "notes": "Template row with no private lab metadata. Optional compatibility markers can be retained when a lab already uses them.",
+      "environments": [
+        {
+          "name": "pilot",
+          "subscriptionId": "22222222-2222-4222-8222-222222222222",
+          "resourceGroup": "rg-example-pilot",
+          "sourceRevision": null,
+          "validationStatus": "unknown",
+          "tenantObjectsTracked": false
+        }
+      ]
+    }
+  ]
+}

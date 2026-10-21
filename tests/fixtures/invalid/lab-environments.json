@@ -1,0 +1,7 @@
+{
+  "schemaVersion": "1.0",
+  "tenantId": "not-a-tenant",
+  "targetSubscriptionId": "22222222-2222-4222-8222-222222222222",
+  "subscriptions": [],
+  "solutions": []
+}

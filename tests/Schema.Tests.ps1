@@ -16,7 +16,8 @@ Describe 'Portfolio JSON schemas' {
         @{ Name = 'deployment receipt'; Schema = 'deployment-receipt.schema.json'; Fixture = 'deployment-receipt.json' },
         @{ Name = 'bound deployment receipt'; Schema = 'deployment-receipt.schema.json'; Fixture = 'deployment-receipt-bound.json' },
         @{ Name = 'notification envelope'; Schema = 'notification-envelope.schema.json'; Fixture = 'notification-envelope.json' },
-        @{ Name = 'notification delivery result'; Schema = 'notification-delivery-result.schema.json'; Fixture = 'notification-delivery-result.json' }
+        @{ Name = 'notification delivery result'; Schema = 'notification-delivery-result.schema.json'; Fixture = 'notification-delivery-result.json' },
+        @{ Name = 'lab environments'; Schema = 'lab-environments.schema.json'; Fixture = 'lab-environments.json' }
     )
 
     It 'accepts the valid <Name> fixture' -ForEach $cases {
@@ -61,6 +62,23 @@ Describe 'Portfolio JSON schemas' {
             Test-Json -SchemaFile (Join-Path $script:repoRoot 'schemas/github-governance-repositories.schema.json') -ErrorAction Stop) | Should -BeTrue
         (Get-Content -LiteralPath (Join-Path $portfolioRoot 'release-integrity.json') -Raw |
             Test-Json -SchemaFile (Join-Path $script:repoRoot 'schemas/release-integrity.schema.json') -ErrorAction Stop) | Should -BeTrue
+    }
+
+    It 'accepts the example lab environment registry without private lab metadata' {
+        $path = Join-Path $script:repoRoot 'portfolio/lab-environments.example.json'
+        $example = Get-Content -LiteralPath $path -Raw
+        ($example | Test-Json -SchemaFile (Join-Path $script:repoRoot 'schemas/lab-environments.schema.json') -ErrorAction Stop) | Should -BeTrue
+        $example | Should -Not -Match '[A-Za-z0-9+/]{40,}={0,2}'
+        $uuidPattern = '[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}'
+        $exampleIds = @([regex]::Matches($example, $uuidPattern) | ForEach-Object Value | Sort-Object -Unique)
+        $exampleIds | Should -Be @('11111111-1111-4111-8111-111111111111', '22222222-2222-4222-8222-222222222222')
+    }
+
+    It 'requires positive subscription policy amounts' {
+        $path = Join-Path $script:repoRoot 'portfolio/lab-environments.example.json'
+        $registry = Get-Content -LiteralPath $path -Raw | ConvertFrom-Json
+        $registry.subscriptionPolicies[0].monthlyCreditUSD = 0
+        { $registry | ConvertTo-Json -Depth 20 | Test-Json -SchemaFile (Join-Path $script:repoRoot 'schemas/lab-environments.schema.json') -ErrorAction Stop } | Should -Throw
     }
 
     It 'accepts a component-free consumer without inventing a dependency' {
