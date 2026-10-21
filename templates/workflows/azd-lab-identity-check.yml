@@ -1,0 +1,51 @@
+# Copy into a reviewed standalone repository before enabling it.
+# This checks identity access only; it does not run azd or deploy resources.
+name: Lab deployment identity check
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  identity-check:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: lab
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Sign in with environment-scoped OIDC
+        uses: azure/login@7184910d9eb2b1c5e48f7073824a90609bb9b6d6 # reviewed v2 revision
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - name: Verify target and group access
+        shell: pwsh
+        env:
+          EXPECTED_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+          EXPECTED_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+          EXPECTED_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+          WORKLOAD_RESOURCE_GROUP: ${{ vars.AZURE_WORKLOAD_RESOURCE_GROUP }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $accountJson = az account show --output json
+          if ($LASTEXITCODE) { throw 'OIDC account read failed' }
+          $account = $accountJson | ConvertFrom-Json
+          if ($account.id -ne $env:EXPECTED_SUBSCRIPTION_ID -or
+              $account.tenantId -ne $env:EXPECTED_TENANT_ID -or
+              $account.user.name -ne $env:EXPECTED_CLIENT_ID -or
+              $account.user.type -ne 'servicePrincipal') {
+            throw 'OIDC identity or target mismatch'
+          }
+          $groupId = az group show --subscription $env:EXPECTED_SUBSCRIPTION_ID `
+            --name $env:WORKLOAD_RESOURCE_GROUP --query id --output tsv
+          if ($LASTEXITCODE) { throw 'Workload group access failed' }
+          $expected = '/subscriptions/' + $env:EXPECTED_SUBSCRIPTION_ID +
+            '/resourceGroups/' + $env:WORKLOAD_RESOURCE_GROUP
+          if ($groupId -ine $expected) { throw 'Workload scope mismatch' }
+          Write-Host 'OIDC identity, tenant, subscription and workload group access verified.'
