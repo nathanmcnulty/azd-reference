@@ -30,18 +30,32 @@ engines does not require this publisher's write permission, and manifests never
 authorize granting permissions.
 
 `Request-IntuneCollectorRun.ps1` is optional validation for one exact Windows MDM
-endpoint, bound by both managed-device and expected Entra-device IDs. It verifies
-the package content, remote script identity, execution flags and bytes, and
-unfiltered All devices detection-only scheduled assignment before requesting a
-run. On-demand execution can run the remediation companion when detection exits
-1; this helper therefore accepts only the exact hash-locked AV and Firewall no-op
+endpoint, bound by both managed-device and expected Entra-device IDs. All devices
+is the backwards-compatible default. Group scope requires an exact assignment
+group ID and an explicit, unique expected Entra device roster of 1 to 100 members.
+It verifies the package content, remote script identity, execution flags and
+bytes, one unfiltered detection-only daily assignment, and the selected endpoint
+identity. Group scope additionally reads the exact group metadata and the uncast
+direct-members collection. The group must be static, `securityEnabled` must be
+Boolean true, every direct member must be a device with a readable nonempty
+`deviceId`, no paging is accepted, and the observed roster must exactly match the
+reviewed roster. The members read uses the beta relationship because the v1.0
+relationship can omit service-principal members, which would make an all-device
+membership check incomplete.
+
+On-demand execution can run the remediation companion when detection exits 1;
+this helper therefore accepts only the exact hash-locked AV and Firewall no-op
 companions reviewed in this component. A manifest behavior label alone is
-insufficient. It
-requires an explicit execution switch and the additional delegated permission
-`DeviceManagementManagedDevices.PrivilegedOperations.All`. A new receipt path is
-required; the attempted request is saved before POST. An accepted request is
-not proof that the endpoint ran the script. Supply caller tenant assertions from
-the authenticated transport context; this component cannot inspect an arbitrary
+insufficient. It requires an explicit execution switch and the additional
+delegated permission `DeviceManagementManagedDevices.PrivilegedOperations.All`.
+Group verification also needs existing delegated `GroupMember.Read.All` and
+`Device.Read.All`, or broader already-consented read permissions, plus the
+required Entra role for delegated group membership reads. These requirements are
+metadata and do not authorize grants or consent. A new receipt path is required;
+the attempted request is saved before POST and records assignment scope, group,
+and expected and observed group rosters. An accepted request is not proof that
+the endpoint ran the script. Supply caller tenant assertions from the
+authenticated transport context; this component cannot inspect an arbitrary
 scriptblock's token.
 
 The package `version` is authoring metadata. Intune's observed custom-script service

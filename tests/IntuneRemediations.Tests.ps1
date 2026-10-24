@@ -39,6 +39,9 @@ BeforeAll {
             runSchedule=[pscustomobject]@{'@odata.type'='microsoft.graph.deviceHealthScriptDailySchedule';interval=$Interval;useUtc=$UseUtc;time=$Time}
         }
     }
+    function New-TestDirectoryDeviceMember([string]$Id,[string]$DeviceId) {
+        [pscustomobject]@{'@odata.type'='#microsoft.graph.device';id=$Id;deviceId=$DeviceId}
+    }
     function New-TestDeviceRunState([string]$Id,[string]$Time='2026-10-04T04:00:00Z',[string]$ManagedDeviceId='44444444-4444-4444-8444-444444444444') {
         [pscustomobject]@{
             id=$Id
@@ -56,7 +59,16 @@ Describe 'Optional on-demand collector validation' {
         $script:requestPath=Join-Path $script:componentRoot 'Request-IntuneCollectorRun.ps1'
         $script:requestArguments=@{TargetTenantId='11111111-1111-4111-8111-111111111111';CallerTenantId='11111111-1111-4111-8111-111111111111';DeviceHealthScriptId='33333333-3333-4333-8333-333333333333';ManagedDeviceId='44444444-4444-4444-8444-444444444444';ExpectedEntraDeviceId='55555555-5555-4555-8555-555555555555';PackageManifestPath=$script:packagePath;ReceiptPath="$TestDrive/request-$([guid]::NewGuid().ToString('N')).json"}
         $script:requestCalls=[Collections.Generic.List[object]]::new()
-        $script:requestTestState=@{signature=$false;race=$false;throwPost=$false;version='1';scheduleInterval=1;scheduleUseUtc=$true;scheduleTime='03:00:00';detectionContent=$null;remediationContent=$null}
+        $script:requestTestState=@{
+            signature=$false;race=$false;throwPost=$false;version='1';scheduleInterval=1;scheduleUseUtc=$true;scheduleTime='03:00:00';detectionContent=$null;remediationContent=$null
+            assignmentScope='AllDevices';assignmentGroupId='77777777-7777-4777-8777-777777777777';assignmentFilterId=$null;assignmentFilterType=$null
+            groupMetadataId='77777777-7777-4777-8777-777777777777';groupSecurityEnabled=$true;groupTypes=@();groupMembershipRule=$null;groupMemberNextLink=$false
+            groupMembers=@(
+                (New-TestDirectoryDeviceMember -Id 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' -DeviceId '55555555-5555-4555-8555-555555555555'),
+                (New-TestDirectoryDeviceMember -Id 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb' -DeviceId '66666666-6666-4666-8666-666666666666'),
+                (New-TestDirectoryDeviceMember -Id 'cccccccc-cccc-4ccc-8ccc-cccccccccccc' -DeviceId '88888888-8888-4888-8888-888888888888')
+            )
+        }
         $calls=$script:requestCalls;$state=$script:requestTestState;$receiptPath=$script:requestArguments.ReceiptPath
         $manifest=Get-Content $script:packagePath -Raw|ConvertFrom-Json
         $script:requestTestState.detectionContent=[Convert]::ToBase64String([IO.File]::ReadAllBytes((Join-Path (Split-Path $script:packagePath) 'detection.ps1')))
@@ -65,10 +77,24 @@ Describe 'Optional on-demand collector validation' {
             param($Method,$Uri,$Body)
             $calls.Add([pscustomobject]@{method=$Method;uri=$Uri;body=$Body})
             if($Method -eq 'POST'){if($state.throwPost){throw 'Simulated transport timeout'};return}
-            if($Uri.EndsWith('/assignments')){return [pscustomobject]@{value=@([pscustomobject]@{target=[pscustomobject]@{'@odata.type'='#microsoft.graph.allDevicesAssignmentTarget'};runRemediationScript=$false;runSchedule=[pscustomobject]@{'@odata.type'='microsoft.graph.deviceHealthScriptDailySchedule';interval=$state.scheduleInterval;useUtc=$state.scheduleUseUtc;time=$state.scheduleTime}})}}
+            if($Uri.EndsWith('/assignments')){
+                $assignmentTarget=[ordered]@{'@odata.type'=if($state.assignmentScope -eq 'Group'){'#microsoft.graph.groupAssignmentTarget'}else{'#microsoft.graph.allDevicesAssignmentTarget'}}
+                if($state.assignmentScope -eq 'Group'){$assignmentTarget.groupId=$state.assignmentGroupId}
+                if($null -ne $state.assignmentFilterId){$assignmentTarget.deviceAndAppManagementAssignmentFilterId=$state.assignmentFilterId}
+                if($null -ne $state.assignmentFilterType){$assignmentTarget.deviceAndAppManagementAssignmentFilterType=$state.assignmentFilterType}
+                return [pscustomobject]@{value=@([pscustomobject]@{target=[pscustomobject]$assignmentTarget;runRemediationScript=$false;runSchedule=[pscustomobject]@{'@odata.type'='microsoft.graph.deviceHealthScriptDailySchedule';interval=$state.scheduleInterval;useUtc=$state.scheduleUseUtc;time=$state.scheduleTime}})}
+            }
             if($Uri -match '/managedDevices/'){
                 if($state.race){Set-Content $receiptPath 'preserve-racing-receipt'}
                 return [pscustomobject]@{id='44444444-4444-4444-8444-444444444444';azureADDeviceId='55555555-5555-4555-8555-555555555555';operatingSystem='Windows';managementAgent='mdm'}
+            }
+            if($Uri -match '/groups/[^/]+/members\?'){
+                $response=[ordered]@{value=@($state.groupMembers)}
+                if($state.groupMemberNextLink){$response['@odata.nextLink']='https://graph.microsoft.com/v1.0/groups/77777777-7777-4777-8777-777777777777/members?`$skiptoken=next'}
+                return [pscustomobject]$response
+            }
+            if($Uri -match '/groups/[^/?]+\?'){
+                return [pscustomobject]@{id=$state.groupMetadataId;securityEnabled=$state.groupSecurityEnabled;groupTypes=@($state.groupTypes);membershipRule=$state.groupMembershipRule;membershipRuleProcessingState=$null}
             }
             [pscustomobject]@{id='33333333-3333-4333-8333-333333333333';displayName=$manifest.displayName;description=('{0} [azd-managed-id:{1}]' -f $manifest.description,$manifest.identityKey);publisher=$manifest.publisher;version=$state.version;isGlobalScript=$false;enforceSignatureCheck=$state.signature;deviceHealthScriptType='deviceHealthScript';roleScopeTagIds=@('0');runAsAccount='system';runAs32Bit=$false;detectionScriptContent=$state.detectionContent;remediationScriptContent=$state.remediationContent;detectionScriptParameters=@();remediationScriptParameters=@()}
         }.GetNewClosure()
@@ -102,6 +128,7 @@ Describe 'Optional on-demand collector validation' {
         $posts[0].uri|Should -Be 'https://graph.microsoft.com/beta/deviceManagement/managedDevices/44444444-4444-4444-8444-444444444444/initiateOnDemandProactiveRemediation'
         $posts[0].body.scriptPolicyId|Should -Be '33333333-3333-4333-8333-333333333333'
         @($posts[0].body.Keys)|Should -HaveCount 1
+        @($script:requestCalls|Where-Object uri -Match '/groups/').Count|Should -Be 0
     }
     It 'rejects an arbitrary remediation companion even when its manifest labels it noop' {
         $packageRoot=Split-Path $script:packagePath
@@ -140,6 +167,130 @@ Describe 'Optional on-demand collector validation' {
         $script:requestArguments.ExpectedEntraDeviceId='66666666-6666-4666-8666-666666666666'
         $script:requestArguments.GraphRequest=$script:requestTransport
         {& $script:requestPath @script:requestArguments -Execute}|Should -Throw '*reviewed Entra device identity*'
+        @($script:requestCalls|Where-Object method -eq 'POST').Count|Should -Be 0
+    }
+    It 'accepts one exact unfiltered static security group assignment and records its three-device roster' {
+        $script:requestArguments.AssignmentScope='Group'
+        $script:requestArguments.AssignmentGroupId='77777777-7777-4777-8777-777777777777'
+        $script:requestArguments.ExpectedGroupMemberEntraDeviceId=@('88888888-8888-4888-8888-888888888888','55555555-5555-4555-8555-555555555555','66666666-6666-4666-8666-666666666666')
+        $script:requestTestState.assignmentScope='Group'
+        $script:requestArguments.GraphRequest=$script:requestTransport
+        $receipt=& $script:requestPath @script:requestArguments -Execute -Confirm:$false
+        $receipt.status|Should -Be 'Accepted'
+        $receipt.assignmentScope|Should -Be 'Group'
+        $receipt.assignmentGroupId|Should -Be '77777777-7777-4777-8777-777777777777'
+        @($receipt.expectedGroupMemberEntraDeviceIds)|Should -Be @('55555555-5555-4555-8555-555555555555','66666666-6666-4666-8666-666666666666','88888888-8888-4888-8888-888888888888')
+        @($receipt.observedGroupMemberEntraDeviceIds)|Should -Be @('55555555-5555-4555-8555-555555555555','66666666-6666-4666-8666-666666666666','88888888-8888-4888-8888-888888888888')
+        @($receipt.groupReadPermissions)|Should -Be @('GroupMember.Read.All','Device.Read.All')
+        $groupCalls=@($script:requestCalls|Where-Object uri -Match '/groups/')
+        $groupCalls.Count|Should -Be 2
+        $groupCalls[0].uri|Should -Be 'https://graph.microsoft.com/v1.0/groups/77777777-7777-4777-8777-777777777777?$select=id,securityEnabled,groupTypes,membershipRule,membershipRuleProcessingState'
+        $groupCalls[1].uri|Should -Be 'https://graph.microsoft.com/beta/groups/77777777-7777-4777-8777-777777777777/members?$select=id,deviceId'
+        @($script:requestCalls|Where-Object method -eq 'POST').Count|Should -Be 1
+    }
+    It 'rejects group-only parameters in All devices mode before any request' {
+        $script:requestArguments.AssignmentGroupId='77777777-7777-4777-8777-777777777777'
+        $script:requestArguments.GraphRequest={throw 'Transport must not run'}
+        {& $script:requestPath @script:requestArguments -Execute}|Should -Throw '*must be omitted*'
+    }
+    It 'requires a bounded unique group roster containing the selected endpoint before any request' {
+        $script:requestArguments.AssignmentScope='Group'
+        $script:requestArguments.GraphRequest={throw 'Transport must not run'}
+        {& $script:requestPath @script:requestArguments -Execute}|Should -Throw '*AssignmentGroupId is required*'
+        $script:requestArguments.AssignmentGroupId='77777777-7777-4777-8777-777777777777'
+        $script:requestArguments.ExpectedGroupMemberEntraDeviceId=@('55555555-5555-4555-8555-555555555555','55555555-5555-4555-8555-555555555555')
+        {& $script:requestPath @script:requestArguments -Execute}|Should -Throw '*must be unique*'
+        $script:requestArguments.ExpectedGroupMemberEntraDeviceId=1..101|ForEach-Object {[guid]::NewGuid()}
+        {& $script:requestPath @script:requestArguments -Execute}|Should -Throw '*1 to 100*'
+        $script:requestArguments.ExpectedGroupMemberEntraDeviceId=@('66666666-6666-4666-8666-666666666666')
+        {& $script:requestPath @script:requestArguments -Execute}|Should -Throw '*selected Entra device*'
+    }
+    It 'rejects an incorrect observed group roster before requesting a run' {
+        $script:requestArguments.AssignmentScope='Group'
+        $script:requestArguments.AssignmentGroupId='77777777-7777-4777-8777-777777777777'
+        $script:requestArguments.ExpectedGroupMemberEntraDeviceId=@('55555555-5555-4555-8555-555555555555','66666666-6666-4666-8666-666666666666','99999999-9999-4999-8999-999999999999')
+        $script:requestTestState.assignmentScope='Group'
+        $script:requestArguments.GraphRequest=$script:requestTransport
+        {& $script:requestPath @script:requestArguments -Execute}|Should -Throw '*did not exactly match*'
+        @($script:requestCalls|Where-Object method -eq 'POST').Count|Should -Be 0
+    }
+    It 'rejects a non-device direct group member before requesting a run' {
+        $script:requestArguments.AssignmentScope='Group'
+        $script:requestArguments.AssignmentGroupId='77777777-7777-4777-8777-777777777777'
+        $script:requestArguments.ExpectedGroupMemberEntraDeviceId=@('55555555-5555-4555-8555-555555555555','66666666-6666-4666-8666-666666666666','88888888-8888-4888-8888-888888888888')
+        $script:requestTestState.assignmentScope='Group'
+        $script:requestTestState.groupMembers[1].'@odata.type'='#microsoft.graph.user'
+        $script:requestArguments.GraphRequest=$script:requestTransport
+        {& $script:requestPath @script:requestArguments -Execute}|Should -Throw '*only direct device members*'
+        @($script:requestCalls|Where-Object method -eq 'POST').Count|Should -Be 0
+    }
+    It 'rejects dynamic and non-security groups before requesting a run' {
+        $script:requestArguments.AssignmentScope='Group'
+        $script:requestArguments.AssignmentGroupId='77777777-7777-4777-8777-777777777777'
+        $script:requestArguments.ExpectedGroupMemberEntraDeviceId=@('55555555-5555-4555-8555-555555555555','66666666-6666-4666-8666-666666666666','88888888-8888-4888-8888-888888888888')
+        $script:requestTestState.assignmentScope='Group'
+        $script:requestTestState.groupTypes=@('DynamicMembership')
+        $script:requestArguments.GraphRequest=$script:requestTransport
+        {& $script:requestPath @script:requestArguments -Execute}|Should -Throw '*static group*'
+        $script:requestTestState.groupTypes=@()
+        $script:requestTestState.groupMembershipRule='device.deviceId -ne null'
+        {& $script:requestPath @script:requestArguments -Execute}|Should -Throw '*static group*'
+        $script:requestTestState.groupMembershipRule=$null
+        $script:requestTestState.groupSecurityEnabled=$false
+        {& $script:requestPath @script:requestArguments -Execute}|Should -Throw '*securityEnabled Boolean true*'
+        $script:requestTestState.groupSecurityEnabled='true'
+        {& $script:requestPath @script:requestArguments -Execute}|Should -Throw '*securityEnabled Boolean true*'
+        @($script:requestCalls|Where-Object method -eq 'POST').Count|Should -Be 0
+    }
+    It 'rejects a filtered group assignment before group lookup or execution' {
+        $script:requestArguments.AssignmentScope='Group'
+        $script:requestArguments.AssignmentGroupId='77777777-7777-4777-8777-777777777777'
+        $script:requestArguments.ExpectedGroupMemberEntraDeviceId=@('55555555-5555-4555-8555-555555555555','66666666-6666-4666-8666-666666666666','88888888-8888-4888-8888-888888888888')
+        $script:requestTestState.assignmentScope='Group'
+        $script:requestTestState.assignmentFilterId='99999999-9999-4999-8999-999999999999'
+        $script:requestTestState.assignmentFilterType='include'
+        $script:requestArguments.GraphRequest=$script:requestTransport
+        {& $script:requestPath @script:requestArguments -Execute}|Should -Throw '*unfiltered Group assignment*'
+        @($script:requestCalls|Where-Object uri -Match '/groups/').Count|Should -Be 0
+        @($script:requestCalls|Where-Object method -eq 'POST').Count|Should -Be 0
+    }
+    It 'rejects any group member paging before requesting a run' {
+        $script:requestArguments.AssignmentScope='Group'
+        $script:requestArguments.AssignmentGroupId='77777777-7777-4777-8777-777777777777'
+        $script:requestArguments.ExpectedGroupMemberEntraDeviceId=@('55555555-5555-4555-8555-555555555555','66666666-6666-4666-8666-666666666666','88888888-8888-4888-8888-888888888888')
+        $script:requestTestState.assignmentScope='Group'
+        $script:requestTestState.groupMemberNextLink=$true
+        $script:requestArguments.GraphRequest=$script:requestTransport
+        {& $script:requestPath @script:requestArguments -Execute}|Should -Throw '*paging is not accepted*'
+        @($script:requestCalls|Where-Object method -eq 'POST').Count|Should -Be 0
+    }
+    It 'rejects a group metadata identity mismatch before requesting a run' {
+        $script:requestArguments.AssignmentScope='Group'
+        $script:requestArguments.AssignmentGroupId='77777777-7777-4777-8777-777777777777'
+        $script:requestArguments.ExpectedGroupMemberEntraDeviceId=@('55555555-5555-4555-8555-555555555555','66666666-6666-4666-8666-666666666666','88888888-8888-4888-8888-888888888888')
+        $script:requestTestState.assignmentScope='Group'
+        $script:requestTestState.assignmentGroupId='99999999-9999-4999-8999-999999999999'
+        $script:requestArguments.GraphRequest=$script:requestTransport
+        {& $script:requestPath @script:requestArguments -Execute}|Should -Throw '*unfiltered Group assignment*'
+        $script:requestTestState.assignmentGroupId='77777777-7777-4777-8777-777777777777'
+        $script:requestTestState.groupMetadataId='99999999-9999-4999-8999-999999999999'
+        {& $script:requestPath @script:requestArguments -Execute}|Should -Throw '*metadata identity*'
+        @($script:requestCalls|Where-Object method -eq 'POST').Count|Should -Be 0
+    }
+    It 'rejects null, unsafe, or duplicate group device identities before requesting a run' {
+        $script:requestArguments.AssignmentScope='Group'
+        $script:requestArguments.AssignmentGroupId='77777777-7777-4777-8777-777777777777'
+        $script:requestArguments.ExpectedGroupMemberEntraDeviceId=@('55555555-5555-4555-8555-555555555555','66666666-6666-4666-8666-666666666666','88888888-8888-4888-8888-888888888888')
+        $script:requestTestState.assignmentScope='Group'
+        $script:requestArguments.GraphRequest=$script:requestTransport
+        $script:requestTestState.groupMembers[1]=$null
+        {& $script:requestPath @script:requestArguments -Execute}|Should -Throw '*cannot contain null*'
+        $script:requestTestState.groupMembers[1]=New-TestDirectoryDeviceMember -Id 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb' -DeviceId 'not-a-guid'
+        {& $script:requestPath @script:requestArguments -Execute}|Should -Throw '*nonempty Entra device ID*'
+        $script:requestTestState.groupMembers[1].deviceId=$null
+        {& $script:requestPath @script:requestArguments -Execute}|Should -Throw '*nonempty Entra device ID*'
+        $script:requestTestState.groupMembers[1].deviceId='55555555-5555-4555-8555-555555555555'
+        {& $script:requestPath @script:requestArguments -Execute}|Should -Throw '*duplicate directory object or Entra device identity*'
         @($script:requestCalls|Where-Object method -eq 'POST').Count|Should -Be 0
     }
     It 'preserves a receipt created during preflight and sends no request' {

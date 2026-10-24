@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.0
+
+Add optional fail-closed Group scope for targeted collector requests. Before the
+on-demand POST, the helper now verifies the exact unfiltered scheduled group
+assignment, selected managed/Entra device pair, static security group metadata,
+and an explicit roster of at most 100 unique direct device members. Receipts
+record the reviewed scope, group and observed Entra device roster. All devices
+remains the default and does not read group resources.
+
 ## 0.1.6
 
 Restrict custom-script PATCH bodies to the mutable fields accepted by the live
