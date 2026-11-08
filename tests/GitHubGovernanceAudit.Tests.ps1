@@ -7,7 +7,7 @@ Describe 'Scheduled GitHub governance audit credential' {
     }
 
     It 'uses the current SHA-pinned GitHub App token action instead of a PAT' {
-        $script:workflow | Should -Match '(?m)^\s+uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3\.2\.0$'
+        $script:workflow | Should -Match '(?m)^\s+uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3\.3\.0$'
         $script:workflow | Should -Match 'AZD_GOVERNANCE_APP_CLIENT_ID'
         $script:workflow | Should -Match 'AZD_GOVERNANCE_APP_PRIVATE_KEY'
         $script:workflow | Should -Not -Match 'AZD_GOVERNANCE_READ_TOKEN'
