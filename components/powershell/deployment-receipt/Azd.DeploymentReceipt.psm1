@@ -45,7 +45,7 @@ function Get-AzdReceiptProperty {
 
 function Assert-AzdReceiptSafeValue {
     param(
-        [Parameter(Mandatory)][object] $Value,
+        [Parameter(Mandatory)][AllowNull()][object] $Value,
         [int] $Depth = 0,
         [ref] $ItemCount
     )
@@ -187,7 +187,7 @@ function Assert-AzdReceiptShape {
     param([Parameter(Mandatory)][object] $Receipt)
 
     $schemaVersion = Get-AzdReceiptProperty -Object $Receipt -Name 'schemaVersion'
-    if ($schemaVersion -isnot [string] -or $schemaVersion -notin @('1.0', '1.1')) { throw 'Receipt schemaVersion is unsupported.' }
+    if ($schemaVersion -isnot [string] -or $schemaVersion -notin @('1.0', '1.1', '1.2')) { throw 'Receipt schemaVersion is unsupported.' }
     $template = Get-AzdReceiptProperty -Object $Receipt -Name 'template'
     if ($template -isnot [string]) { throw 'Template must be a string.' }
     Assert-AzdReceiptText -Value $template -Label 'Template' -MaximumLength 128
@@ -204,7 +204,44 @@ function Assert-AzdReceiptShape {
     }
     $details = Get-AzdReceiptProperty -Object $Receipt -Name 'details'
     $hasEvidence = if ($details -is [System.Collections.IDictionary]) { $details.Contains('azdManagementEvidence') } else { $null -ne $details.PSObject.Properties['azdManagementEvidence'] }
-    if (($schemaVersion -eq '1.1') -ne $hasEvidence) { throw 'Receipt schemaVersion 1.1 requires management evidence and 1.0 forbids it.' }
+    $hasDeploymentProvenance = if ($details -is [System.Collections.IDictionary]) { $details.Contains('azdDeploymentProvenance') } else { $null -ne $details.PSObject.Properties['azdDeploymentProvenance'] }
+    if ($schemaVersion -eq '1.0' -and ($hasEvidence -or $hasDeploymentProvenance)) { throw 'Receipt schemaVersion 1.0 forbids management evidence and deployment provenance.' }
+    if ($schemaVersion -eq '1.1' -and (-not $hasEvidence -or $hasDeploymentProvenance)) { throw 'Receipt schemaVersion 1.1 requires management evidence and forbids deployment provenance.' }
+    if ($schemaVersion -eq '1.2' -and (-not $hasEvidence -or -not $hasDeploymentProvenance)) { throw 'Receipt schemaVersion 1.2 requires management evidence and deployment provenance.' }
+    if ($schemaVersion -eq '1.2') {
+        if ($mode -ne 'enforce') { throw 'Deployment provenance requires enforce mode.' }
+        $failed = [int64] (Get-AzdReceiptProperty -Object $summary -Name 'failed')
+        $applied = [int64] (Get-AzdReceiptProperty -Object $summary -Name 'applied')
+        $unchanged = [int64] (Get-AzdReceiptProperty -Object $summary -Name 'unchanged')
+        if ($failed -ne 0 -or ($applied + $unchanged) -lt 1) { throw 'Deployment provenance requires a completed operation with no failures.' }
+        $evidence = Get-AzdReceiptProperty -Object $details -Name 'azdManagementEvidence'
+        if ([string] (Get-AzdReceiptProperty -Object $evidence -Name 'evidenceClass') -cne 'resourceMutation') { throw 'Deployment provenance requires resourceMutation evidence.' }
+        $binding = Get-AzdReceiptProperty -Object $evidence -Name 'binding'
+        $source = Get-AzdReceiptProperty -Object $binding -Name 'source'
+        $operation = Get-AzdReceiptProperty -Object $binding -Name 'operation'
+        $sourceRevision = [string] (Get-AzdReceiptProperty -Object $source -Name 'revision')
+        $operationId = [string] (Get-AzdReceiptProperty -Object $operation -Name 'id')
+        $operationKind = [string] (Get-AzdReceiptProperty -Object $operation -Name 'kind')
+        if ($operationKind -notin @('provision', 'deploy', 'up')) { throw 'Deployment provenance requires a deployment operation.' }
+        $deploymentProvenance = Get-AzdReceiptProperty -Object $details -Name 'azdDeploymentProvenance'
+        if ([string] (Get-AzdReceiptProperty -Object $deploymentProvenance -Name 'payloadReadbackStatus') -cne 'verified') { throw 'Deployment provenance requires payload readback verification.' }
+        if ([string] (Get-AzdReceiptProperty -Object $deploymentProvenance -Name 'sourceRevision') -cne $sourceRevision) { throw 'Deployment provenance source revision does not match the evidence binding.' }
+        if ([string] (Get-AzdReceiptProperty -Object $deploymentProvenance -Name 'deploymentId') -cne $operationId.ToLowerInvariant()) { throw 'Deployment provenance identifier does not match the operation.' }
+        try {
+            $receiptGeneratedAt = [DateTimeOffset]::Parse([string] (Get-AzdReceiptProperty -Object $Receipt -Name 'generatedAt'), [System.Globalization.CultureInfo]::InvariantCulture, [System.Globalization.DateTimeStyles]::RoundtripKind)
+            $lastSuccessfulAt = [DateTimeOffset]::Parse([string] (Get-AzdReceiptProperty -Object $deploymentProvenance -Name 'lastSuccessfulDeploymentAt'), [System.Globalization.CultureInfo]::InvariantCulture, [System.Globalization.DateTimeStyles]::RoundtripKind)
+        }
+        catch { throw 'Deployment provenance timestamps must be valid date-time values.' }
+        if ($lastSuccessfulAt -gt $receiptGeneratedAt) { throw 'Last successful deployment time cannot be later than receipt generation time.' }
+        $payloadArtifact = [string] (Get-AzdReceiptProperty -Object $deploymentProvenance -Name 'payloadReadbackArtifact')
+        Assert-AzdReceiptArtifactPath -Path $payloadArtifact
+        $payloadHash = [string] (Get-AzdReceiptProperty -Object $deploymentProvenance -Name 'payloadReadbackSha256')
+        if ($payloadHash -notmatch '^[0-9a-f]{64}$') { throw 'Payload readback must include a lowercase SHA-256 digest.' }
+        $artifacts = @(Get-AzdReceiptProperty -Object $Receipt -Name 'artifacts')
+        if (@($artifacts | Where-Object { [string]::Equals([string] $_, $payloadArtifact, [System.StringComparison]::Ordinal) }).Count -ne 1) {
+            throw 'Payload readback artifact must appear exactly once in the receipt artifacts.'
+        }
+    }
     $itemCount = 0
     Assert-AzdReceiptSafeValue -Value $details -ItemCount ([ref] $itemCount)
     $artifacts = @(Get-AzdReceiptProperty -Object $Receipt -Name 'artifacts')
@@ -260,6 +297,7 @@ function New-AzdDeploymentReceipt {
         [Parameter(Mandatory)][string] $TemplateVersion,
         [Parameter(Mandatory)][ValidateSet('plan', 'enforce')][string] $Mode,
         [datetimeoffset] $GeneratedAt = [datetimeoffset]::UtcNow,
+        [datetimeoffset] $LastSuccessfulDeploymentAt,
         [ValidateRange(0, [int]::MaxValue)][int] $Applied = 0,
         [ValidateRange(0, [int]::MaxValue)][int] $Unchanged = 0,
         [ValidateRange(0, [int]::MaxValue)][int] $Skipped = 0,
@@ -270,7 +308,12 @@ function New-AzdDeploymentReceipt {
         [hashtable] $Details = @{},
         [ValidateSet('resourceMutation', 'cleanup')][string] $EvidenceClass,
         [System.Collections.IDictionary] $EvidenceBinding,
-        [object[]] $ManagementNextActions = @()
+        [object[]] $ManagementNextActions = @(),
+        [switch] $PayloadReadbackVerified,
+        [ValidateSet('verified', 'notApplicable', 'unknown', 'unsupported')][string] $ComponentLockStatus,
+        [string] $ComponentLockSha256,
+        [string] $PayloadReadbackArtifact,
+        [string] $PayloadReadbackSha256
     )
 
     Assert-AzdReceiptText -Value $Template -Label 'Template' -MaximumLength 128
@@ -284,14 +327,63 @@ function New-AzdDeploymentReceipt {
     if ($evidenceRequested -and (-not $PSBoundParameters.ContainsKey('EvidenceClass') -or -not $PSBoundParameters.ContainsKey('EvidenceBinding'))) {
         throw 'EvidenceClass and EvidenceBinding are both required for bound receipts.'
     }
+    $provenanceRequested = $PayloadReadbackVerified.IsPresent -or $PSBoundParameters.ContainsKey('ComponentLockStatus') -or $PSBoundParameters.ContainsKey('ComponentLockSha256')
+    if ($provenanceRequested -and -not $PayloadReadbackVerified.IsPresent) { throw 'Component lock details require PayloadReadbackVerified.' }
+    if ($provenanceRequested -and (-not $evidenceRequested -or $EvidenceClass -cne 'resourceMutation')) { throw 'Deployment provenance requires resourceMutation evidence.' }
+    if ($provenanceRequested -and $Mode.ToLowerInvariant() -cne 'enforce') { throw 'Deployment provenance requires enforce mode.' }
+    if ($provenanceRequested -and $Failed -ne 0) { throw 'Deployment provenance cannot be emitted when the operation reports failures.' }
+    if ($provenanceRequested -and ($Applied + $Unchanged) -lt 1) { throw 'Deployment provenance requires at least one applied or unchanged action.' }
+    if ($provenanceRequested -and -not $PSBoundParameters.ContainsKey('ComponentLockStatus')) { throw 'ComponentLockStatus is required with PayloadReadbackVerified.' }
+    if ($provenanceRequested -and -not $PSBoundParameters.ContainsKey('LastSuccessfulDeploymentAt')) { throw 'LastSuccessfulDeploymentAt is required with PayloadReadbackVerified.' }
+    if ($provenanceRequested -and (-not $PSBoundParameters.ContainsKey('PayloadReadbackArtifact') -or -not $PSBoundParameters.ContainsKey('PayloadReadbackSha256'))) {
+        throw 'PayloadReadbackArtifact and PayloadReadbackSha256 are required with PayloadReadbackVerified.'
+    }
+    if ($provenanceRequested) {
+        if ($LastSuccessfulDeploymentAt -gt $GeneratedAt) { throw 'LastSuccessfulDeploymentAt cannot be later than GeneratedAt.' }
+        $source = Get-AzdReceiptEvidenceProperty -Object $EvidenceBinding -Name 'source'
+        $operation = Get-AzdReceiptEvidenceProperty -Object $EvidenceBinding -Name 'operation'
+        $sourceRevision = ([string] (Get-AzdReceiptEvidenceProperty -Object $source -Name 'revision')).ToLowerInvariant()
+        if ($sourceRevision -notmatch '^[0-9a-f]{40}$') { throw 'Payload readback provenance requires an immutable Git source revision.' }
+        $operationKind = [string] (Get-AzdReceiptEvidenceProperty -Object $operation -Name 'kind')
+        if ($operationKind -notin @('provision', 'deploy', 'up')) { throw 'Payload readback provenance requires a deployment operation.' }
+        if ($ComponentLockStatus -ceq 'verified') {
+            if ([string] $ComponentLockSha256 -notmatch '^[0-9a-fA-F]{64}$') { throw 'A verified component lock requires a SHA-256 digest.' }
+            $ComponentLockSha256 = ([string] $ComponentLockSha256).ToLowerInvariant()
+        }
+        elseif ($PSBoundParameters.ContainsKey('ComponentLockSha256')) {
+            throw 'A component lock digest is allowed only when ComponentLockStatus is verified.'
+        }
+        Assert-AzdReceiptArtifactPath -Path $PayloadReadbackArtifact
+        if (@($Artifacts | Where-Object { [string]::Equals([string] $_, $PayloadReadbackArtifact, [System.StringComparison]::Ordinal) }).Count -ne 1) {
+            throw 'PayloadReadbackArtifact must appear exactly once in Artifacts.'
+        }
+        if ([string] $PayloadReadbackSha256 -notmatch '^[0-9a-fA-F]{64}$') { throw 'PayloadReadbackSha256 must be a SHA-256 digest.' }
+        $PayloadReadbackSha256 = ([string] $PayloadReadbackSha256).ToLowerInvariant()
+    }
     $normalizedDetails = [ordered]@{}
     foreach ($key in $Details.Keys) { $normalizedDetails[[string] $key] = $Details[$key] }
     if ($normalizedDetails.Contains('azdManagementEvidence')) { throw 'Details cannot define reserved azdManagementEvidence.' }
+    if ($normalizedDetails.Contains('azdDeploymentProvenance')) { throw 'Details cannot define reserved azdDeploymentProvenance.' }
     if ($evidenceRequested) {
         $normalizedDetails.azdManagementEvidence = New-AzdReceiptManagementEvidence -EvidenceClass $EvidenceClass -Binding $EvidenceBinding -NextActions $ManagementNextActions
     }
+    if ($provenanceRequested) {
+        $source = Get-AzdReceiptEvidenceProperty -Object $EvidenceBinding -Name 'source'
+        $operation = Get-AzdReceiptEvidenceProperty -Object $EvidenceBinding -Name 'operation'
+        $normalizedDetails.azdDeploymentProvenance = [ordered]@{
+            version = '1'
+            payloadReadbackStatus = 'verified'
+            payloadReadbackArtifact = $PayloadReadbackArtifact
+            payloadReadbackSha256 = $PayloadReadbackSha256
+            sourceRevision = ([string] (Get-AzdReceiptEvidenceProperty -Object $source -Name 'revision')).ToLowerInvariant()
+            componentLockStatus = $ComponentLockStatus
+            componentLockSha256 = if ($ComponentLockStatus -ceq 'verified') { $ComponentLockSha256 } else { $null }
+            deploymentId = ([string] (Get-AzdReceiptEvidenceProperty -Object $operation -Name 'id')).ToLowerInvariant()
+            lastSuccessfulDeploymentAt = $LastSuccessfulDeploymentAt.UtcDateTime.ToString('o')
+        }
+    }
     $receipt = [pscustomobject] [ordered]@{
-        schemaVersion = if ($evidenceRequested) { '1.1' } else { '1.0' }
+        schemaVersion = if ($provenanceRequested) { '1.2' } elseif ($evidenceRequested) { '1.1' } else { '1.0' }
         generatedAt = $GeneratedAt.UtcDateTime.ToString('o')
         template = $Template
         templateVersion = $TemplateVersion

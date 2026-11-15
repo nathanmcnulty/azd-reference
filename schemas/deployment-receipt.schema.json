@@ -18,7 +18,8 @@
     "schemaVersion": {
       "enum": [
         "1.0",
-        "1.1"
+        "1.1",
+        "1.2"
       ]
     },
     "generatedAt": {
@@ -90,12 +91,108 @@
       "properties": {
         "azdManagementEvidence": {
           "$ref": "#/$defs/azdManagementEvidence"
+        },
+        "azdDeploymentProvenance": {
+          "$ref": "#/$defs/azdDeploymentProvenance"
         }
       },
       "additionalProperties": true
     }
   },
   "$defs": {
+    "azdDeploymentProvenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "payloadReadbackStatus",
+        "payloadReadbackArtifact",
+        "payloadReadbackSha256",
+        "sourceRevision",
+        "componentLockStatus",
+        "componentLockSha256",
+        "deploymentId",
+        "lastSuccessfulDeploymentAt"
+      ],
+      "properties": {
+        "version": {
+          "const": "1"
+        },
+        "payloadReadbackStatus": {
+          "const": "verified"
+        },
+        "payloadReadbackArtifact": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512,
+          "pattern": "^(?![A-Za-z]:)(?!/)(?!\\.{1,2}(?:/|$))(?!.*?/\\.{1,2}(?:/|$))[^\\\\\\u0000-\\u001F]+$"
+        },
+        "payloadReadbackSha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "sourceRevision": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "componentLockStatus": {
+          "enum": [
+            "verified",
+            "notApplicable",
+            "unknown",
+            "unsupported"
+          ]
+        },
+        "componentLockSha256": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "deploymentId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "lastSuccessfulDeploymentAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "componentLockStatus": {
+                "const": "verified"
+              }
+            },
+            "required": [
+              "componentLockStatus"
+            ]
+          },
+          "then": {
+            "properties": {
+              "componentLockSha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "componentLockSha256": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      ]
+    },
     "azdManagementEvidence": {
       "type": "object",
       "additionalProperties": false,
@@ -334,6 +431,25 @@
       "if": {
         "properties": {
           "schemaVersion": {
+            "const": "1.2"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "details": {
+            "required": [
+              "azdManagementEvidence",
+              "azdDeploymentProvenance"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "schemaVersion": {
             "const": "1.1"
           }
         }
@@ -343,16 +459,39 @@
           "details": {
             "required": [
               "azdManagementEvidence"
-            ]
+            ],
+            "not": {
+              "required": [
+                "azdDeploymentProvenance"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "schemaVersion": {
+            "const": "1.0"
           }
         }
       },
-      "else": {
+      "then": {
         "properties": {
           "details": {
             "not": {
-              "required": [
-                "azdManagementEvidence"
+              "anyOf": [
+                {
+                  "required": [
+                    "azdManagementEvidence"
+                  ]
+                },
+                {
+                  "required": [
+                    "azdDeploymentProvenance"
+                  ]
+                }
               ]
             }
           }

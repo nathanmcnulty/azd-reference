@@ -253,6 +253,71 @@ Describe 'Lab environment status' {
         $drift.compatibility.group.'managed-by'.state | Should -Be 'mismatch'
     }
 
+    It 'evaluates only verified provenance tags and exposes unclassified resources' {
+        $data = $script:registry | ConvertTo-Json -Depth 20 | ConvertFrom-Json
+        $data.schemaVersion = '1.1'
+        $data.solutions[0].environments[0].sourceRevision = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+        $data.solutions[0].environments[0] | Add-Member -NotePropertyName provenance -NotePropertyValue ([ordered]@{
+                status = 'verified'
+                componentLockStatus = 'verified'
+                componentLockSha256 = ('b' * 64)
+                deploymentId = '22222222-2222-4222-8222-222222222222'
+                lastSuccessfulDeploymentAt = '2026-11-14T23:59:00Z'
+                receiptSha256 = ('c' * 64)
+                reason = 'Exact deployed payload was read back and matched its bounded receipt.'
+            })
+        $data | ConvertTo-Json -Depth 30 | Set-Content -LiteralPath $script:registryPath -Encoding utf8NoBOM
+
+        $fullTags = Get-LabStandardTags
+        $fullTags['azd-source-revision'] = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+        $fullTags['azd-component-lock-sha256'] = ('b' * 64)
+        $fullTags['azd-deployment-id'] = '22222222-2222-4222-8222-222222222222'
+        $fullTags['azd-last-successful-deployment'] = '2026-11-14T23:59:00Z'
+        $partialTags = Get-LabStandardTags
+        Write-LabInventoryFixture `
+            -Groups @([ordered]@{ name = 'rg-example-pilot'; tags = $fullTags }) `
+            -Resources @(
+                [ordered]@{ name = 'resource-matched'; resourceGroup = 'rg-example-pilot'; tags = $fullTags },
+                [ordered]@{ name = 'resource-provenance-drift'; resourceGroup = 'rg-example-pilot'; tags = $partialTags },
+                [ordered]@{ name = 'resource-tag-capability-unknown'; resourceGroup = 'rg-example-pilot' }
+            )
+
+        $report = & $script:statusTool -RegistryPath $script:registryPath -InventoryDirectory $script:inventory
+        $environment = $report.solutions[0].environments[0]
+        $environment.provenance.status | Should -Be 'verified'
+        $drift = $environment.tagDrift
+        $drift.provenance.provenanceStatus | Should -Be 'verified'
+        $drift.provenance.evaluation | Should -Be 'partial'
+        $drift.provenance.group.'azd-source-revision'.state | Should -Be 'match'
+        $drift.provenance.group.'azd-component-lock-sha256'.state | Should -Be 'match'
+        $drift.provenance.resourceDriftCount | Should -Be 1
+        $drift.provenance.unclassifiedResourceCount | Should -Be 1
+        $drift.hasDrift | Should -BeTrue
+    }
+
+    It 'keeps unknown provenance visible without treating it as tag drift' {
+        $data = $script:registry | ConvertTo-Json -Depth 20 | ConvertFrom-Json
+        $data.schemaVersion = '1.1'
+        $data.solutions[0].environments[0] | Add-Member -NotePropertyName provenance -NotePropertyValue ([ordered]@{
+                status = 'unknown'
+                componentLockStatus = 'unknown'
+                componentLockSha256 = $null
+                deploymentId = $null
+                lastSuccessfulDeploymentAt = $null
+                receiptSha256 = $null
+                reason = 'No payload-bound deployment receipt is retained.'
+            })
+        $data | ConvertTo-Json -Depth 30 | Set-Content -LiteralPath $script:registryPath -Encoding utf8NoBOM
+        Write-LabInventoryFixture -Groups @([ordered]@{ name = 'rg-example-pilot'; tags = (Get-LabStandardTags) }) -Resources @()
+
+        $report = & $script:statusTool -RegistryPath $script:registryPath -InventoryDirectory $script:inventory
+        $environment = $report.solutions[0].environments[0]
+        $environment.provenance.status | Should -Be 'unknown'
+        $environment.tagDrift.provenance.evaluation | Should -Be 'notEvaluated'
+        $environment.tagDrift.provenance.reason | Should -Be 'No payload-bound deployment receipt is retained.'
+        $environment.tagDrift.hasDrift | Should -BeFalse
+    }
+
     It 'does not treat missing inventory data as zero resources' {
         $groups = @([ordered]@{ name = 'rg-example-pilot'; tags = (Get-LabStandardTags) })
         $groups | ConvertTo-Json -Depth 20 -AsArray | Set-Content -LiteralPath (Join-Path $script:inventory "groups-$($script:subscriptionA).json") -Encoding utf8NoBOM

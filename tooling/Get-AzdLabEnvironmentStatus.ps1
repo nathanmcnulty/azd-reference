@@ -309,6 +309,88 @@ function Get-TagDrift {
     }
 }
 
+function Get-ProvenanceTagDrift {
+    param(
+        [Parameter(Mandatory)] $Environment,
+        [Parameter(Mandatory)] $Group,
+        [Parameter(Mandatory)][AllowEmptyCollection()][array] $Resources,
+        [Parameter(Mandatory)][string] $ResourceGroup
+    )
+
+    $provenance = Get-PropertyValue -InputObject $Environment -Names @('provenance')
+    if ($null -eq $provenance) {
+        return [pscustomobject] [ordered]@{
+            provenanceStatus = 'notVersioned'
+            evaluation = 'notEvaluated'
+            reason = 'Schema 1.0 registries have no provenance extension.'
+            group = $null
+            resourceDriftCount = $null
+            unclassifiedResourceCount = $null
+            hasDrift = $false
+        }
+    }
+
+    $status = [string] $provenance.status
+    if ($status -ne 'verified') {
+        return [pscustomobject] [ordered]@{
+            provenanceStatus = $status
+            evaluation = 'notEvaluated'
+            reason = [string] $provenance.reason
+            group = $null
+            resourceDriftCount = $null
+            unclassifiedResourceCount = $null
+            hasDrift = $false
+        }
+    }
+
+    $expected = [ordered]@{
+        'azd-source-revision' = ([string] $Environment.sourceRevision).ToLowerInvariant()
+        'azd-deployment-id' = ([string] $provenance.deploymentId).ToLowerInvariant()
+        'azd-last-successful-deployment' = [string] $provenance.lastSuccessfulDeploymentAt
+    }
+    if ([string] $provenance.componentLockStatus -eq 'verified') {
+        $expected['azd-component-lock-sha256'] = ([string] $provenance.componentLockSha256).ToLowerInvariant()
+    }
+
+    $groupTags = Get-TagMap -InputObject $Group
+    $groupDrift = [ordered]@{}
+    $hasGroupDrift = $false
+    foreach ($key in $expected.Keys) {
+        $comparison = Compare-Tag -Tags $groupTags -Key ([string] $key) -Expected ([string] $expected[$key])
+        $groupDrift[$key] = $comparison
+        if ($comparison.state -ne 'match') { $hasGroupDrift = $true }
+    }
+
+    $resourceDriftCount = 0
+    $unclassifiedResourceCount = 0
+    foreach ($resource in $Resources) {
+        if ((Get-ResourceGroupName -InputObject $resource) -ine $ResourceGroup) { continue }
+        $tagProperty = Get-PropertyValue -InputObject $resource -Names @('tags')
+        if ($null -eq $tagProperty) {
+            $unclassifiedResourceCount++
+            continue
+        }
+        $tags = Get-TagMap -InputObject $resource
+        foreach ($key in $expected.Keys) {
+            $comparison = Compare-Tag -Tags $tags -Key ([string] $key) -Expected ([string] $expected[$key])
+            if ($comparison.state -ne 'match') {
+                $resourceDriftCount++
+                break
+            }
+        }
+    }
+
+    return [pscustomobject] [ordered]@{
+        provenanceStatus = $status
+        evaluation = if ($unclassifiedResourceCount -gt 0) { 'partial' } else { 'complete' }
+        reason = [string] $provenance.reason
+        group = [pscustomobject] $groupDrift
+        resourceDriftCount = $resourceDriftCount
+        unclassifiedResourceCount = $unclassifiedResourceCount
+        hasDrift = ($hasGroupDrift -or $resourceDriftCount -gt 0)
+    }
+}
+
 if (-not (Test-Path -LiteralPath $schemaPath -PathType Leaf)) {
     throw 'The lab environment schema is unavailable.'
 }
@@ -515,6 +597,11 @@ foreach ($solution in @($registry.solutions)) {
         $presence = if (-not $subscriptionKnown) { 'unmapped' } elseif ([string]::IsNullOrWhiteSpace($expectedResourceGroup)) { if ($deployableKind -eq 'tenant') { 'tenant-only' } else { 'unmapped' } } elseif ($coverageStatus -ne 'complete') { 'unknown' } elseif ($null -ne $group) { 'present' } else { 'missing' }
         $resourceCount = if ($coverageStatus -eq 'complete' -and -not [string]::IsNullOrWhiteSpace($expectedResourceGroup)) { $resources.Count } else { $null }
         $tagDrift = if ($null -ne $group -and $resourceResult.status -eq 'complete') { Get-TagDrift -ExpectedTags $expectedTags -Group $group -Resources $resourceResult.data -ResourceGroup $expectedResourceGroup } else { $null }
+        if ($null -ne $tagDrift) {
+            $provenanceTagDrift = Get-ProvenanceTagDrift -Environment $environment -Group $group -Resources $resourceResult.data -ResourceGroup $expectedResourceGroup
+            $tagDrift | Add-Member -NotePropertyName provenance -NotePropertyValue $provenanceTagDrift
+            $tagDrift.hasDrift = [bool] ($tagDrift.hasDrift -or $provenanceTagDrift.hasDrift)
+        }
         $rowTracked = if ($null -ne $resourceCount) { $resourceCount } else { $null }
         $rowUntracked = if ($null -ne $rowTracked) { 0 } else { $null }
         if ($null -ne $rowTracked) { $trackedResourceCount += $rowTracked }
@@ -530,6 +617,7 @@ foreach ($solution in @($registry.solutions)) {
                 resourceCount = $resourceCount
                 trackedResourceCount = $rowTracked
                 untrackedResourceCount = $rowUntracked
+                provenance = if ($environment.PSObject.Properties.Name -contains 'provenance') { $environment.provenance } else { [pscustomobject] [ordered]@{ status = 'notVersioned'; reason = 'Schema 1.0 registries have no provenance extension.' } }
                 tagDrift = $tagDrift
             })
     }
