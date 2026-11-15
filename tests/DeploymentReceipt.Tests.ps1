@@ -52,6 +52,48 @@ Describe 'Deployment receipt writer' {
         { Write-AzdDeploymentReceipt -Receipt $receipt -RepositoryRoot $TestDrive -OutputPath 'reports/mismatched.json' -SchemaPath $script:schemaPath } | Should -Throw '*does not satisfy*'
     }
 
+    It 'emits schema 1.2 only for source-bound payload readback after a completed deployment' {
+        $generatedAt = [datetimeoffset]::Parse('2026-11-15T00:00:00Z')
+        $lastSuccessfulAt = [datetimeoffset]::Parse('2026-11-14T23:58:00Z')
+        $receipt = New-AzdDeploymentReceipt -Template example -TemplateVersion 0.4.0 -Mode enforce -GeneratedAt $generatedAt -Applied 1 `
+            -Artifacts 'reports/payload-readback.json' -EvidenceClass resourceMutation -EvidenceBinding $script:evidenceBinding `
+            -LastSuccessfulDeploymentAt $lastSuccessfulAt -PayloadReadbackVerified -ComponentLockStatus verified -ComponentLockSha256 ('b' * 64) `
+            -PayloadReadbackArtifact 'reports/payload-readback.json' -PayloadReadbackSha256 ('c' * 64)
+
+        $receipt.schemaVersion | Should -Be '1.2'
+        $receipt.details.azdDeploymentProvenance.payloadReadbackStatus | Should -Be 'verified'
+        $receipt.details.azdDeploymentProvenance.sourceRevision | Should -Be '0123456789abcdef0123456789abcdef01234567'
+        $receipt.details.azdDeploymentProvenance.deploymentId | Should -Be '22222222-2222-2222-2222-222222222222'
+        $receipt.details.azdDeploymentProvenance.lastSuccessfulDeploymentAt | Should -Be '2026-11-14T23:58:00.0000000Z'
+        Write-AzdDeploymentReceipt -Receipt $receipt -RepositoryRoot $TestDrive -OutputPath 'reports/provenance.json' -SchemaPath $script:schemaPath | Should -Be 'reports/provenance.json'
+
+        $receipt.details.azdDeploymentProvenance.sourceRevision = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+        { Write-AzdDeploymentReceipt -Receipt $receipt -RepositoryRoot $TestDrive -OutputPath 'reports/mismatched-provenance.json' -SchemaPath $script:schemaPath } | Should -Throw '*does not match the evidence binding*'
+    }
+
+    It 'preserves unknown component-lock state and rejects unsupported provenance claims' {
+        $receipt = New-AzdDeploymentReceipt -Template example -TemplateVersion 0.4.0 -Mode enforce -Applied 1 `
+            -Artifacts 'reports/payload-readback.json' -EvidenceClass resourceMutation -EvidenceBinding $script:evidenceBinding `
+            -LastSuccessfulDeploymentAt ([datetimeoffset]::Parse('2026-11-14T23:58:00Z')) -PayloadReadbackVerified -ComponentLockStatus unknown `
+            -PayloadReadbackArtifact 'reports/payload-readback.json' -PayloadReadbackSha256 ('c' * 64)
+        $receipt.schemaVersion | Should -Be '1.2'
+        $receipt.details.azdDeploymentProvenance.componentLockStatus | Should -Be 'unknown'
+        $receipt.details.azdDeploymentProvenance.componentLockSha256 | Should -BeNullOrEmpty
+
+        { New-AzdDeploymentReceipt -Template example -TemplateVersion 0.4.0 -Mode plan -EvidenceClass resourceMutation -EvidenceBinding $script:evidenceBinding `
+                -LastSuccessfulDeploymentAt ([datetimeoffset]::Parse('2026-11-14T23:58:00Z')) -PayloadReadbackVerified -ComponentLockStatus verified -ComponentLockSha256 ('b' * 64) } | Should -Throw '*enforce mode*'
+        { New-AzdDeploymentReceipt -Template example -TemplateVersion 0.4.0 -Mode enforce -Failed 1 -EvidenceClass resourceMutation -EvidenceBinding $script:evidenceBinding `
+                -LastSuccessfulDeploymentAt ([datetimeoffset]::Parse('2026-11-14T23:58:00Z')) -PayloadReadbackVerified -ComponentLockStatus verified -ComponentLockSha256 ('b' * 64) } | Should -Throw '*reports failures*'
+        { New-AzdDeploymentReceipt -Template example -TemplateVersion 0.4.0 -Mode enforce -Applied 1 -Artifacts 'reports/payload-readback.json' `
+                -EvidenceClass resourceMutation -EvidenceBinding $script:evidenceBinding -LastSuccessfulDeploymentAt ([datetimeoffset]::Parse('2026-11-14T23:58:00Z')) `
+                -PayloadReadbackVerified -ComponentLockStatus notApplicable -ComponentLockSha256 ('b' * 64) `
+                -PayloadReadbackArtifact 'reports/payload-readback.json' -PayloadReadbackSha256 ('c' * 64) } | Should -Throw '*only when ComponentLockStatus is verified*'
+        { New-AzdDeploymentReceipt -Template example -TemplateVersion 0.4.0 -Mode enforce -Applied 1 -EvidenceClass resourceMutation -EvidenceBinding $script:evidenceBinding `
+                -LastSuccessfulDeploymentAt ([datetimeoffset]::Parse('2026-11-14T23:58:00Z')) -PayloadReadbackVerified -ComponentLockStatus unknown } | Should -Throw '*PayloadReadbackArtifact and PayloadReadbackSha256 are required*'
+        { New-AzdDeploymentReceipt -Template example -TemplateVersion 0.4.0 -Mode enforce -Applied 1 -EvidenceClass resourceMutation -EvidenceBinding $script:evidenceBinding `
+                -PayloadReadbackVerified -ComponentLockStatus unknown -PayloadReadbackArtifact 'reports/payload-readback.json' -PayloadReadbackSha256 ('c' * 64) } | Should -Throw '*LastSuccessfulDeploymentAt is required*'
+    }
+
     It 'rejects partial, mismatched, and unregistered management evidence' {
         { New-AzdDeploymentReceipt -Template example -TemplateVersion 0.2.0 -Mode enforce -EvidenceClass resourceMutation } | Should -Throw '*both required*'
         $wrongKind = $script:evidenceBinding | ConvertTo-Json -Depth 10 | ConvertFrom-Json -AsHashtable

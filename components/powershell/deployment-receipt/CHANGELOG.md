@@ -1,5 +1,14 @@
 # Deployment receipt changelog
 
+## 0.4.0
+
+- Add opt-in schema 1.2 provenance for immutable source, component-lock status,
+  operation identifier and last successful deployment time after explicit
+  payload-readback verification.
+- Require a deployment operation, zero failed actions and applied or unchanged
+  work before writing verified provenance. Legacy 1.0 and 1.1 receipts remain
+  unchanged.
+
 ## 0.3.0
 
 - Require PowerShell 7.6 or later. The public commands and data contracts are unchanged.

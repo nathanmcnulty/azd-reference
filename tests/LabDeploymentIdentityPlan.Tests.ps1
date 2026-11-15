@@ -159,6 +159,24 @@ Describe 'Get-AzdLabDeploymentIdentityPlan' {
         $first.Plan.boundaries.graphAndBootstrap | Should -Be 'outside-deploy-identity-plan'
     }
 
+    It 'preserves review-only planning compatibility with a schema 1.1 registry' {
+        $registry = New-TestRegistry
+        $registry.schemaVersion = '1.1'
+        $registry.solutions[0].environments[0].provenance = [ordered]@{
+            status = 'unknown'
+            componentLockStatus = 'unknown'
+            componentLockSha256 = $null
+            deploymentId = $null
+            lastSuccessfulDeploymentAt = $null
+            receiptSha256 = $null
+            reason = 'No payload-bound deployment receipt is retained.'
+        }
+        $plan = Invoke-TestPlan -Registry $registry -Directory $TestDrive
+        $plan.Plan.sourceBinding.revision | Should -Be ('a' * 40)
+        $plan.Plan.authorization.granted | Should -BeFalse
+        $plan.Plan.boundaries.execution | Should -Match 'review-only'
+    }
+
     It 'does not confuse an inherited native exit code with planner failure' {
         $previousExitCode = Get-Variable -Name LASTEXITCODE -Scope Global -ErrorAction SilentlyContinue
         $previousExitCodeValue = if ($null -ne $previousExitCode) { $previousExitCode.Value } else { $null }

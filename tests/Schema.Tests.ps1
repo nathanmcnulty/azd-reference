@@ -16,9 +16,12 @@ Describe 'Portfolio JSON schemas' {
         @{ Name = 'bound deployment validation'; Schema = 'deployment-validation.schema.json'; Fixture = 'deployment-validation-bound.json' },
         @{ Name = 'deployment receipt'; Schema = 'deployment-receipt.schema.json'; Fixture = 'deployment-receipt.json' },
         @{ Name = 'bound deployment receipt'; Schema = 'deployment-receipt.schema.json'; Fixture = 'deployment-receipt-bound.json' },
+        @{ Name = 'provenance deployment receipt'; Schema = 'deployment-receipt.schema.json'; Fixture = 'deployment-receipt-provenance.json'; InvalidFixture = 'deployment-receipt-v1.1-with-provenance.json' },
+        @{ Name = 'provenance receipt payload hash'; Schema = 'deployment-receipt.schema.json'; Fixture = 'deployment-receipt-provenance.json'; InvalidFixture = 'deployment-receipt-provenance-missing-payload-hash.json' },
         @{ Name = 'notification envelope'; Schema = 'notification-envelope.schema.json'; Fixture = 'notification-envelope.json' },
         @{ Name = 'notification delivery result'; Schema = 'notification-delivery-result.schema.json'; Fixture = 'notification-delivery-result.json' },
-        @{ Name = 'lab environments'; Schema = 'lab-environments.schema.json'; Fixture = 'lab-environments.json' }
+        @{ Name = 'lab environments'; Schema = 'lab-environments.schema.json'; Fixture = 'lab-environments.json' },
+        @{ Name = 'provenance lab environments'; Schema = 'lab-environments.schema.json'; Fixture = 'lab-environments-v1.1.json'; InvalidFixture = 'lab-environments-v1.1-missing-provenance.json' }
     )
 
     It 'accepts the valid <Name> fixture' -ForEach $cases {
@@ -29,8 +32,31 @@ Describe 'Portfolio JSON schemas' {
 
     It 'rejects the invalid <Name> fixture' -ForEach $cases {
         $schemaPath = Join-Path $script:repoRoot "schemas/$Schema"
-        $fixturePath = Join-Path $PSScriptRoot "fixtures/invalid/$Fixture"
+        $invalidFixture = if ($InvalidFixture) { $InvalidFixture } else { $Fixture }
+        $fixturePath = Join-Path $PSScriptRoot "fixtures/invalid/$invalidFixture"
         (Get-Content -LiteralPath $fixturePath -Raw | Test-Json -SchemaFile $schemaPath -ErrorAction SilentlyContinue) | Should -BeFalse
+    }
+
+    It 'keeps schema 1.0 registries closed to provenance and preserves the seven-key desiredTags contract' {
+        $schemaPath = Join-Path $script:repoRoot 'schemas/lab-environments.schema.json'
+        $legacy = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'fixtures/valid/lab-environments.json') -Raw | ConvertFrom-Json
+        $legacy.solutions[0].environments[0] | Add-Member -NotePropertyName provenance -NotePropertyValue ([pscustomobject]@{ status = 'unknown' })
+        ($legacy | ConvertTo-Json -Depth 30 | Test-Json -SchemaFile $schemaPath -ErrorAction SilentlyContinue) | Should -BeFalse
+
+        $versioned = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'fixtures/valid/lab-environments-v1.1.json') -Raw | ConvertFrom-Json
+        $versioned.solutions[0] | Add-Member -NotePropertyName desiredTags -NotePropertyValue ([pscustomobject]@{ 'azd-source-revision' = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' })
+        ($versioned | ConvertTo-Json -Depth 30 | Test-Json -SchemaFile $schemaPath -ErrorAction SilentlyContinue) | Should -BeFalse
+
+        $invalidVerified = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'fixtures/invalid/lab-environments-v1.1-verified-without-lock-hash.json') -Raw
+        ($invalidVerified | Test-Json -SchemaFile $schemaPath -ErrorAction SilentlyContinue) | Should -BeFalse
+    }
+
+    It 'prevents a 1.1 deployment receipt from silently gaining schema 1.2 provenance' {
+        $schemaPath = Join-Path $script:repoRoot 'schemas/deployment-receipt.schema.json'
+        $receipt = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'fixtures/valid/deployment-receipt-bound.json') -Raw | ConvertFrom-Json
+        $provenance = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'fixtures/valid/deployment-receipt-provenance.json') -Raw | ConvertFrom-Json
+        $receipt.details | Add-Member -NotePropertyName azdDeploymentProvenance -NotePropertyValue $provenance.details.azdDeploymentProvenance
+        ($receipt | ConvertTo-Json -Depth 30 | Test-Json -SchemaFile $schemaPath -ErrorAction SilentlyContinue) | Should -BeFalse
     }
 
     It 'accepts every canonical component manifest' {
