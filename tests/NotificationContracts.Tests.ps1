@@ -1,3 +1,4 @@
+# Assert schema invalidity directly; Test-Json need not emit an error for every failure.
 BeforeAll {
     $script:repositoryRoot = Split-Path -Parent $PSScriptRoot
     $script:envelopeSchema = Join-Path $script:repositoryRoot 'schemas/notification-envelope.schema.json'

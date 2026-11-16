@@ -1,3 +1,4 @@
+# Assert schema invalidity directly; Test-Json need not emit an error for every failure.
 Describe 'Permission requirement comparison' {
     BeforeAll {
         $script:repoRoot = Split-Path $PSScriptRoot -Parent

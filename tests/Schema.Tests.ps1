@@ -1,3 +1,4 @@
+# Assert the Boolean contract: nested schema failures can omit errors in PowerShell 7.6.7.
 Describe 'Portfolio JSON schemas' {
     BeforeAll {
         $script:repoRoot = Split-Path $PSScriptRoot -Parent
