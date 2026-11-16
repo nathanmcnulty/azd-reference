@@ -117,9 +117,9 @@ Describe 'Notification contracts' {
         foreach ($propertyName in $required) {
             $result = Get-Content -LiteralPath $script:resultFixture -Raw | ConvertFrom-Json
             $result.PSObject.Properties.Remove($propertyName)
-            { $result | ConvertTo-Json -Depth 10 |
-                Test-Json -SchemaFile $script:resultSchema -ErrorAction Stop } |
-                Should -Throw -Because "$propertyName is required"
+            ($result | ConvertTo-Json -Depth 10 |
+                Test-Json -SchemaFile $script:resultSchema -ErrorAction SilentlyContinue) |
+                Should -BeFalse -Because "$propertyName is required"
         }
     }
 
