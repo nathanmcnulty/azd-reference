@@ -602,6 +602,47 @@
       ],
       "blocker": "Owner-controlled dedicated App identity, selected repository installation and secure client-ID/private-key configuration are needed before this workflow can run.",
       "claim": null
+    },
+    {
+      "id": "REF-017",
+      "title": "Reject false-green validation and reconcile draft backlog IDs",
+      "kind": "maintenance",
+      "priority": "P1",
+      "status": "done",
+      "wave": 1,
+      "problem": "Pester 6.2 can label inconclusive-only runs Passed; the current CI also accepts empty/all-skipped suites. Independent draft backlog additions reused REF-015 for different tasks.",
+      "scope": [
+        ".github/workflows/validate.yml",
+        "README.md",
+        "standards/agent-backlogs.md",
+        "docs/backlog.json",
+        "docs/backlog.md",
+        "Duration draft #103 backlog identifier only"
+      ],
+      "acceptance": [
+        "Require passing cases and reject failed, inconclusive and unexecuted outcomes while preserving deliberate Windows skips for the Linux attestation fixture.",
+        "Prove original/corrected actual workflow blocks against nonempty pass, inconclusive, mixed skip, all-skip, empty and failed fixtures.",
+        "Preserve earlier alert-window REF-015, migrate the later duration draft to REF-016 with provenance and keep historical receipts unchanged. Check default/open draft reservations before new IDs."
+      ],
+      "validation": [
+        "Use PowerShell 7.6+ and Pester 6.2.0 to execute the actual workflow Pester blocks against isolated outcome fixtures and inspect process exit codes.",
+        "Inspect normal hosted validation for exact published Windows/Linux heads.",
+        "Run ./tooling/Test-AzdBacklog.ps1 and ./tooling/Export-AzdBacklogMarkdown.ps1 -Check; inspect current dependency/reference mappings after ID reconciliation."
+      ],
+      "dependencies": [],
+      "authorization": "local-only",
+      "components": [],
+      "sources": [
+        ".github/workflows/validate.yml",
+        "standards/agent-backlogs.md",
+        "https://github.com/nathanmcnulty/azd-reference/pull/101",
+        "https://github.com/nathanmcnulty/azd-reference/pull/103"
+      ],
+      "evidence": [
+        "PowerShell 7.6.6/Pester 6.2.0 actual-workflow reproduction: 24 isolated process runs covering original/corrected Reference and GSA blocks passed their expected outcomes. Both originals accepted inconclusive-only and all-skipped suites; Reference also accepted empty. Corrected Reference accepts passing and mixed pass/skip fixtures only; GSA accepts passing only. Failed fixtures remain failures. The registered tests and their declared platform skips are unchanged. Earlier draft #101 retains REF-015; later duration draft #103 is reconciled to REF-016 with explicit original-ID/title/PR provenance, preserving component bytes/status/acceptance/authorization/claims and historical receipts. REF-017 is reserved for this task. Normal hosted checks remain a publication gate; no cloud, authentication, grant, deployment, merge or release occurred."
+      ],
+      "blocker": null,
+      "claim": null
     }
   ]
 }

@@ -53,6 +53,14 @@ repository prefix and a number, such as `NOTIFY-014` or `notify-014`. Never
 recycle an ID. A local dependency uses that ID. A cross-repository dependency
 uses `owner/repository:item-id`.
 
+Before allocating an ID, inspect the default branch and open backlog-changing
+pull requests; IDs in those drafts are already reserved. If independent drafts
+have collided, preserve the earlier reservation and assign a fresh ID to the
+later draft. Record both task titles, pull requests, the ambiguous old ID and the
+new ID in evidence, then update current dependencies and generated views.
+Preserve historical receipts with their source revisions. This collision repair
+does not make the original ID available for reuse or permit routine renumbering.
+
 Every item states the problem and bounded scope separately. Acceptance entries
 describe observable completion gates. Validation entries are literal commands
 or explicit manual evidence instructions. Commands must be runnable from the

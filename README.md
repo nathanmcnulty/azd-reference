@@ -16,13 +16,20 @@ The test baseline is Pester 6.2 or later; CI selects Pester 6.2.0 explicitly.
 Install-Module Pester -MinimumVersion 6.2.0 -Scope CurrentUser
 Install-Module Microsoft.Graph.Authentication -RequiredVersion 2.38.0 -Scope CurrentUser
 Import-Module Pester -MinimumVersion 6.2.0 -Force
-Invoke-Pester ./tests -CI
+$result = Invoke-Pester ./tests -CI -PassThru
+if ($result.Result -ne 'Passed' -or $result.PassedCount -eq 0 -or $result.InconclusiveCount -or $result.NotRunCount) {
+    throw 'Contract tests must execute passing cases without inconclusive or unexecuted results.'
+}
 ```
 
 CI uses the PowerShell supplied by the GitHub-hosted Windows and Ubuntu images
 and fails if it is below the supported minimum. Intune endpoint payloads have
 an explicit Windows PowerShell 5.1 service contract; authoring and publishing
 tools use the repository baseline.
+
+Windows deliberately skips the Linux-only attestation producer fixture. Those
+skips remain distinct from passed tests; an empty or entirely skipped suite is
+not accepted. Inconclusive outcomes never count as successful validation.
 
 ## Principles
 
