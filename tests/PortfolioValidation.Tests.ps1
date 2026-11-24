@@ -39,7 +39,7 @@ if ((Get-Location).Path -ne $PSScriptRoot) { throw 'Unexpected validation workin
 [Console]::Out.WriteLine('')
 [Console]::Out.WriteLine(('o' * 131072))
 [Console]::Error.WriteLine(('e' * 131072))
-[Console]::Out.Write('stdout-final-é')
+[Console]::Out.Write('stdout-final-é-λ')
 [Console]::Error.Write('stderr-final-λ')
 '@ | Set-Content -LiteralPath $validationPath -Encoding utf8NoBOM
 
@@ -47,7 +47,7 @@ if ((Get-Location).Path -ne $PSScriptRoot) { throw 'Unexpected validation workin
 
         $output.Count | Should -Be 4
         $output[0] | Should -Be ('o' * 131072)
-        $output[1] | Should -Be 'stdout-final-é'
+        $output[1] | Should -Be 'stdout-final-é-λ'
         $output[2] | Should -Be ('e' * 131072)
         $output[3] | Should -Be 'stderr-final-λ'
     }
@@ -66,6 +66,37 @@ exit 17
         $failure | Should -Match '^Consumer validation failed with exit code 17\.'
         $failure | Should -Match 'nonzero-stdout'
         $failure | Should -Match 'nonzero-stderr'
+    }
+
+    It 'fails when PowerShell cannot bind a mandatory validation parameter' {
+        @'
+[CmdletBinding()]
+param([Parameter(Mandatory)][string] $TargetPath)
+[Console]::Out.Write('validation-body-ran')
+'@ | Set-Content -LiteralPath $validationPath -Encoding utf8NoBOM
+
+        $failure = $null
+        try { Invoke-BoundedValidation -ValidationPath $validationPath -WorkingDirectory $caseRoot -TimeoutMinutes 1 }
+        catch { $failure = $_.Exception.Message }
+
+        $failure | Should -Match '^Consumer validation failed with exit code 1\.'
+        $failure | Should -Match 'TargetPath'
+        $failure | Should -Not -Match 'validation-body-ran'
+    }
+
+    It 'fails when PowerShell cannot parse the validation script' {
+        @'
+[Console]::Out.Write('validation-body-ran')
+if (
+'@ | Set-Content -LiteralPath $validationPath -Encoding utf8NoBOM
+
+        $failure = $null
+        try { Invoke-BoundedValidation -ValidationPath $validationPath -WorkingDirectory $caseRoot -TimeoutMinutes 1 }
+        catch { $failure = $_.Exception.Message }
+
+        $failure | Should -Match '^Consumer validation failed with exit code 1\.'
+        $failure | Should -Match 'condition'
+        $failure | Should -Not -Match 'validation-body-ran'
     }
 
     It 'preserves both streams when terminating a real timed-out child' {

@@ -210,10 +210,28 @@ function Invoke-BoundedValidation {
     $startInfo.UseShellExecute = $false
     $startInfo.RedirectStandardOutput = $true
     $startInfo.RedirectStandardError = $true
+    # The child writes PowerShell 7 validation output as UTF-8. Avoid the
+    # Windows active code page silently replacing characters such as lambda.
+    $utf8NoBom = [System.Text.UTF8Encoding]::new($false)
+    $startInfo.StandardOutputEncoding = $utf8NoBom
+    $startInfo.StandardErrorEncoding = $utf8NoBom
     $startInfo.WorkingDirectory = $WorkingDirectory
-    foreach ($argument in '-NoProfile', '-NonInteractive', '-File', $ValidationPath) {
+    foreach ($argument in '-NoProfile', '-NonInteractive', '-CommandWithArgs') {
         [void] $startInfo.ArgumentList.Add($argument)
     }
+    $bootstrap = @'
+$global:LASTEXITCODE = 0
+$utf8 = [System.Text.UTF8Encoding]::new($false)
+[Console]::OutputEncoding = $utf8
+& $args[0]
+$invocationSucceeded = $?
+if (-not $invocationSucceeded -and $global:LASTEXITCODE -eq 0) {
+    $global:LASTEXITCODE = 1
+}
+exit [int] $global:LASTEXITCODE
+'@
+    [void] $startInfo.ArgumentList.Add($bootstrap)
+    [void] $startInfo.ArgumentList.Add($ValidationPath)
 
     $process = [System.Diagnostics.Process]::new()
     $process.StartInfo = $startInfo
