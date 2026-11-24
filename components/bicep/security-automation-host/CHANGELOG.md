@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.0
+
+- Add optional solution-owned runbook, runtime and schedule names, bounded hourly interval and non-secret job parameters; preserve existing defaults.
+- Keep package integrity gating, role scopes and separate-host identity unchanged. Reserved package parameters cannot be overridden.
+- Expose exact resource IDs and runtime/schedule names for consumer readback. This does not implement existing-account adoption or grant Exchange permissions.
+
 ## 0.1.0
 
 - Optional PowerShell 7.4 Flex, Automation and Logic App orchestration hosts.

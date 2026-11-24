@@ -112,6 +112,10 @@
     {
       "id": "azd-reference-skeleton",
       "manifest": "azd-reference/skeleton/azd-permissions.json"
+    },
+    {
+      "id": "azd-exchange-allow-list",
+      "manifest": "azd-work-in-progress/azd-exchange-allow-list/azd-permissions.json"
     }
   ],
   "legacyCopies": [
