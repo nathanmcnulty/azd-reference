@@ -129,8 +129,10 @@ jobs:
 
       - name: Validate the skeleton as a locked consumer
         run: |
-          Get-Content ./skeleton/azd-components.lock.json -Raw |
-            Test-Json -SchemaFile ./schemas/azd-components-lock.schema.json -ErrorAction Stop | Out-Null
+          if (-not (Get-Content ./skeleton/azd-components.lock.json -Raw |
+            Test-Json -SchemaFile ./schemas/azd-components-lock.schema.json -ErrorAction Stop)) {
+            throw 'Skeleton component lock failed schema validation.'
+          }
           ./tooling/Test-AzdComponentDrift.ps1 -TargetPath ./skeleton
           ./tooling/Sync-AzdComponent.ps1 -Component deployment-validation -TargetPath ./skeleton -WhatIf | Out-Null
 

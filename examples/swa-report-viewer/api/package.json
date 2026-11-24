@@ -1,0 +1,7 @@
+{
+  "name": "azd-swa-report-viewer-prototype",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Offline-only SWA rolesSource prototype; native qualification required.",
+  "engines": { "node": "22.x" }
+}
