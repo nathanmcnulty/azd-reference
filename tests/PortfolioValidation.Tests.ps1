@@ -39,7 +39,7 @@ if ((Get-Location).Path -ne $PSScriptRoot) { throw 'Unexpected validation workin
 [Console]::Out.WriteLine('')
 [Console]::Out.WriteLine(('o' * 131072))
 [Console]::Error.WriteLine(('e' * 131072))
-[Console]::Out.Write('stdout-final-é')
+[Console]::Out.Write('stdout-final-é-λ')
 [Console]::Error.Write('stderr-final-λ')
 '@ | Set-Content -LiteralPath $validationPath -Encoding utf8NoBOM
 
@@ -47,7 +47,7 @@ if ((Get-Location).Path -ne $PSScriptRoot) { throw 'Unexpected validation workin
 
         $output.Count | Should -Be 4
         $output[0] | Should -Be ('o' * 131072)
-        $output[1] | Should -Be 'stdout-final-é'
+        $output[1] | Should -Be 'stdout-final-é-λ'
         $output[2] | Should -Be ('e' * 131072)
         $output[3] | Should -Be 'stderr-final-λ'
     }
