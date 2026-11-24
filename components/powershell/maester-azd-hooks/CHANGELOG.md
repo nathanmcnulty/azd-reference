@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.0 - 2026-10-18
+
+- Breaking: require explicit tenant/subscription scope for token requests and an explicit TenantId for Exchange connections; remove unverified interactive Exchange fallback.
+- Validate current ARM subscription identity, tenant and Enabled state with an explicitly scoped fresh read before preup can create a resource group.
+- Require AZURE_TENANT_ID for targeted preup, honoring the process environment before the selected azd environment.
+- Preserve account-shaped id, name, tenantId and state fields for callers; reject missing/invalid context and token response scope metadata.
+- Require a tenant for the Azure login helper and provide normal broker/browser login guidance without device-code authentication.
+- See [caller migration](../../../docs/maester-target-context.md). This is a source-only pilot candidate; no release, consumer adoption or Azure validation is implied.
+
 ## 0.1.7 - 2026-10-15
 
 - Bind every Graph permission lookup, assignment page, grant and readback to the explicitly selected tenant.
