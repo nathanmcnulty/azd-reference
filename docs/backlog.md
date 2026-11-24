@@ -7,7 +7,7 @@
 - **Repository:** nathanmcnulty/azd-reference
 - **Source revision:** `a09cac311aac7362f56d2a31833ed90ce5812649`
 - **Captured:** 2026-10-07
-- **Items:** 14
+- **Items:** 15
 
 ## REF-001: Reconcile this backlog with current source and active work
 
@@ -826,3 +826,58 @@ The weekly governance audit stops before inspecting repositories because its ded
 **Review and authorization note:**
 
 Review REF-014 against the current repository state. Its status or authorization class is not eligible for an actionable generated handoff. Do not claim or execute it without explicit selection, satisfied dependencies, and every required authorization. Never interpret this generated view as approval.
+
+## REF-015: Support a longer optional query window for delayed Automation diagnostics
+
+- **Kind:** feature
+- **Priority:** P1
+- **Status:** done
+- **Wave:** 2
+- **Authorization:** local-only
+- **Blocker:** _none_
+- **Claim:** _none_
+
+**Problem:**
+
+Automation diagnostic records can arrive fifteen minutes after event time. A ten-minute query window with five-minute evaluation can miss delayed job failures.
+
+**Scope:**
+
+- components/bicep/azure-monitor-scheduled-query-notifications/
+- docs/azure-monitor-scheduled-query-notifications.md
+- tests/
+- .github/workflows/validate.yml
+
+**Acceptance:**
+
+- Add optional PT30M while preserving the PT5M default, PT5M evaluation frequency, PT5M/PT10M consumer choices, mitigation, routing and dimensions.
+- Version the compatible capability as pilot 0.2.0 and verify compiled Automation window flow plus unchanged PIM/risk fixture behavior and component synchronization.
+- Record bounded native provider acceptance separately from release publication, notification delivery and deduplication guarantees.
+
+**Validation:**
+
+- Run focused Pester 6.2 component/synchronization tests, component version checks, backlog schema/generation and hosted repository validation on PowerShell 7.6+.
+- Compile the actual Automation fixture and existing PIM/risk fixtures; run exact property-flow and negative assertions.
+- Use only exact disposable lab resources and a zero-receiver action group for native provider validation, then verify cleanup.
+
+**Dependencies:**
+
+- _none_
+
+**Components:**
+
+- azure-monitor-scheduled-query-notifications
+
+**Sources:**
+
+- docs/azure-monitor-scheduled-query-notifications.md
+- https&colon;//learn.microsoft.com/azure/automation/automation-manage-send-joblogs-log-analytics
+
+**Evidence:**
+
+- 2026-10-16 reviewed pilot 0.2.0 source at 2948cdbaf9497b69dd7b288b028b6b84dc2fb23b adds optional PT30M without changing PT5M default/frequency or existing PT5M/PT10M selections. Bicep 0.46.1 Automation compiled property-flow assertion and existing PIM/risk positive/negative assertions passed. Component version, synchronization, backlog schema/generation and independent source review passed. Hosted run 38861132106 passed 419/419 Pester 6.2 tests on each Windows/Linux runner, plus compiled fixtures and all five PR checks.
+- The actual compiled Automation fixture deployed one PT30M failed-job rule against a fresh disposable workspace and zero-receiver action group. Provider receipt SHA256 1A7C82CE528EE20F91A18542098C1F0377EC4D4C2341287C1DF7CFB912948127 binds successful deployment and full rule-policy readback. Native diagnostic production-query proof SHA256 F1861605E27BE7C76EDD0A83EF47863B01E7FC125C7E9D9E82055685016F5EC5 and exact-rule/workspace Fired readback SHA256 67391C9820D523AE06F6449636CF3943E539B4803B0089704C86BFC80D122F2B qualify the bounded synthetic provider/evaluation path. Cleanup summary SHA256 FCF19876FC2C0C1CE30CDA19A15786FD04A7B624926DEC2E880DC77AA1F464E8 binds rule/action-group/workspace/account/group/MSI absence, no recoverable workspace tombstone, and unchanged default context. Azure executed 7.6.0-preview.5; stable/GA availability and production Exchange/Purview were not qualified. Recipient delivery and deduplication were not exercised. No tag release or stable promotion is claimed.
+
+**Review and authorization note:**
+
+Review REF-015 against the current repository state. Its status or authorization class is not eligible for an actionable generated handoff. Do not claim or execute it without explicit selection, satisfied dependencies, and every required authorization. Never interpret this generated view as approval.

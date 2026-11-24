@@ -14,7 +14,7 @@ Describe 'Azure Monitor scheduled-query notifications component' {
 
     It 'publishes the two Bicep modules as a versioned pilot' {
         $script:manifest.id | Should -Be 'azure-monitor-scheduled-query-notifications'
-        $script:manifest.version | Should -Be '0.1.0'
+        $script:manifest.version | Should -Be '0.2.0'
         $script:manifest.status | Should -Be 'pilot'
         @($script:manifest.files).Count | Should -Be 2
         @($script:manifest.files.source) | Should -Be @(
@@ -72,9 +72,9 @@ Describe 'Azure Monitor scheduled-query notifications component' {
         }
     }
 
-    It 'allows only the two reviewed pilot interval shapes' {
+    It 'allows the reviewed windows including delayed Automation diagnostics' {
         $script:alertSource | Should -Match "(?s)@allowed\(\[\s*'PT5M'\s*\]\)\s*param evaluationFrequency string"
-        $script:alertSource | Should -Match "(?s)@allowed\(\[\s*'PT5M'\s*'PT10M'\s*\]\)\s*param windowSize string"
+        $script:alertSource | Should -Match "(?s)@allowed\(\[\s*'PT5M'\s*'PT10M'\s*'PT30M'\s*\]\)\s*param windowSize string = 'PT5M'"
     }
 
     It 'provides representative PIM and risk wrappers using symbolic resource IDs' {

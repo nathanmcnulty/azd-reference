@@ -88,7 +88,7 @@ Describe 'Component synchronization' {
         & $sync -Component azure-monitor-scheduled-query-notifications -TargetPath $consumer | Out-Null
         $lock = Get-Content -LiteralPath (Join-Path $consumer 'azd-components.lock.json') -Raw | ConvertFrom-Json
         $lock.components[0].id | Should -Be 'azure-monitor-scheduled-query-notifications'
-        $lock.components[0].version | Should -Be '0.1.0'
+        $lock.components[0].version | Should -Be '0.2.0'
         $lock.components[0].files.Count | Should -Be 2
         @($lock.components[0].files.target) | Should -Be @(
             'infra/vendor/Azd.AzureMonitorNotifications/logic-app-action-group.bicep',
