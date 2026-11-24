@@ -68,6 +68,37 @@ exit 17
         $failure | Should -Match 'nonzero-stderr'
     }
 
+    It 'fails when PowerShell cannot bind a mandatory validation parameter' {
+        @'
+[CmdletBinding()]
+param([Parameter(Mandatory)][string] $TargetPath)
+[Console]::Out.Write('validation-body-ran')
+'@ | Set-Content -LiteralPath $validationPath -Encoding utf8NoBOM
+
+        $failure = $null
+        try { Invoke-BoundedValidation -ValidationPath $validationPath -WorkingDirectory $caseRoot -TimeoutMinutes 1 }
+        catch { $failure = $_.Exception.Message }
+
+        $failure | Should -Match '^Consumer validation failed with exit code 1\.'
+        $failure | Should -Match 'TargetPath'
+        $failure | Should -Not -Match 'validation-body-ran'
+    }
+
+    It 'fails when PowerShell cannot parse the validation script' {
+        @'
+[Console]::Out.Write('validation-body-ran')
+if (
+'@ | Set-Content -LiteralPath $validationPath -Encoding utf8NoBOM
+
+        $failure = $null
+        try { Invoke-BoundedValidation -ValidationPath $validationPath -WorkingDirectory $caseRoot -TimeoutMinutes 1 }
+        catch { $failure = $_.Exception.Message }
+
+        $failure | Should -Match '^Consumer validation failed with exit code 1\.'
+        $failure | Should -Match 'condition'
+        $failure | Should -Not -Match 'validation-body-ran'
+    }
+
     It 'preserves both streams when terminating a real timed-out child' {
         @'
 [System.IO.File]::WriteAllText((Join-Path $PSScriptRoot 'validation.pid'), [string] $PID)

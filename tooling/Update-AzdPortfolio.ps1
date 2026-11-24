@@ -224,6 +224,10 @@ $global:LASTEXITCODE = 0
 $utf8 = [System.Text.UTF8Encoding]::new($false)
 [Console]::OutputEncoding = $utf8
 & $args[0]
+$invocationSucceeded = $?
+if (-not $invocationSucceeded -and $global:LASTEXITCODE -eq 0) {
+    $global:LASTEXITCODE = 1
+}
 exit [int] $global:LASTEXITCODE
 '@
     [void] $startInfo.ArgumentList.Add($bootstrap)
