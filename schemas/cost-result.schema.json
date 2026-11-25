@@ -44,7 +44,8 @@
     "periodDays",
     "profiles",
     "portfolio",
-    "complete"
+    "complete",
+    "unallocated"
   ],
   "properties": {
     "schemaVersion": {
@@ -163,7 +164,8 @@
           "exclusions",
           "standalone",
           "incremental",
-          "complete"
+          "complete",
+          "unallocated"
         ],
         "properties": {
           "id": {
@@ -840,6 +842,16 @@
           },
           "complete": {
             "type": "boolean"
+          },
+          "unallocated": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 240
+            },
+            "minItems": 0,
+            "maxItems": 24
           }
         }
       },
@@ -991,6 +1003,30 @@
     },
     "complete": {
       "type": "boolean"
+    },
+    "unallocated": {
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "profile",
+          "label"
+        ],
+        "properties": {
+          "profile": {
+            "type": "string",
+            "maxLength": 120,
+            "pattern": "^[a-z][a-z0-9-]{0,59}$"
+          },
+          "label": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 240
+          }
+        }
+      },
+      "maxItems": 288,
+      "type": "array"
     }
   }
 }

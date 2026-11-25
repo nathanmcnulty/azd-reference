@@ -236,7 +236,9 @@ $estimates = foreach ($id in $profileIds) {
     [ordered]@{
         id = $id; repository = $costProfile.repository; revision = $costProfile.revision; configuration = $configuration.id
         options = $configuration.options; schedule = $configuration.schedule; retentionDays = $configuration.retentionDays
-        runs = $runs; lines = $lines; exclusions = $configuration.exclusions; complete = $complete
+        runs = $runs; lines = $lines; exclusions = $configuration.exclusions
+        unallocated = @($configuration['unallocated'] | Where-Object { $_ })
+        complete = $complete
         standalone = ConvertTo-CostSummaryText $standaloneTotals
         incremental = ConvertTo-CostSummaryText $incrementalTotals
     }
@@ -247,5 +249,8 @@ if ($measurements.Count) { throw 'Measured usage refers to a line outside the se
 [ordered]@{
     schemaVersion = '1.0'; request = $request; periodDays = $days; profiles = @($estimates)
     portfolio = ConvertTo-CostSummaryText $portfolioTotals
+    unallocated = @(foreach ($estimate in $estimates) {
+        foreach ($label in $estimate.unallocated) { [ordered]@{profile = $estimate.id; label = $label} }
+    })
     complete = @($estimates | Where-Object { -not $_.complete }).Count -eq 0
 } | ConvertTo-Json -Depth 24

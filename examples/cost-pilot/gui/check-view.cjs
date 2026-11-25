@@ -8,6 +8,8 @@ const row = (label, { low, base, high }) =>
   `<th scope="row">${label}</th><td>${low}</td><td>${base}</td><td>${high}</td>`;
 assert.ok(html.includes(row("Known total", result.portfolio.knownTotal)));
 assert.ok(html.includes("Sentinel analytics · priced"));
+assert.ok(html.includes("Unallocated shared costs"));
+assert.ok(html.includes(result.unallocated[0].label));
 for (const profile of result.profiles) {
   const start = html.indexOf(`<h2>${profile.id}`);
   const end = html.indexOf("</section>", start);

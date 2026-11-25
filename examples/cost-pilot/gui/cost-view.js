@@ -42,14 +42,17 @@ function renderCostPilot(result) {
       ${lines ? table("Line estimates after shared allocation", lines) : ""}
       ${totals("Standalone estimate", profile.standalone)}
       ${totals("Incremental estimate", profile.incremental)}
-      ${profile.exclusions.length ? `<h3>Excluded or unallocated charges</h3><ul>${
+      ${profile.exclusions.length ? `<h3>Excluded charges</h3><ul>${
         profile.exclusions.map((item) => `<li>${escape(item)}</li>`).join("")
       }</ul>` : ""}</section>`;
   }).join("");
   return `<p>${escape(periodStart)} · ${escape(region)} · ${escape(currency)} · evaluated ${escape(asOf)}</p>
     <p>${escape(users)} users · ${escape(devices)} devices · synthetic price fixture</p>
     ${result.complete ? "" : '<p role="status">Partial estimate. Some prices are unavailable or stale.</p>'}
-    ${totals("Portfolio incremental estimate", result.portfolio)}${textRows}`;
+    ${totals("Portfolio incremental estimate", result.portfolio)}
+    ${result.unallocated.length ? `<h2>Unallocated shared costs</h2><ul>${
+      result.unallocated.map(({ profile, label }) => `<li>${escape(profile)} · ${escape(label)}</li>`).join("")
+    }</ul>` : ""}${textRows}`;
 }
 
 if (typeof module === "object" && module.exports) module.exports = { renderCostPilot };

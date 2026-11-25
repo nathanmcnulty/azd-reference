@@ -19,13 +19,24 @@ Open `examples/cost-pilot/gui/index.html` and select that JSON file. The fixture
 | Maester Function App | FC1 at two GiB and UTC Sunday assessments. The selected optional B1 portal contributes dedicated hours. The portal-off configuration retains assessment and storage meters. | [Maester Function App source](https://github.com/nathanmcnulty/azd-maester-functionapp/tree/76976139f2026917484a91223ba278e9aa1fc058) |
 | Sysmon | Compare local-only with the DCR delivering endpoint events to an existing Log Analytics workspace backing Sentinel. The selected case varies intake and retention with device count. Existing workspace overhead stays unallocated. Direct Data Lake export needs its own source and capability review. | [Sysmon source](https://github.com/nathanmcnulty/azd-sysmon/tree/30fe2bc87be0d417151990a8714f81eb3ec5b84d) |
 
+For the checked-in 5,000-user and 5,000-device scenario, the CLI and GUI report
+base incremental estimates of 18.92 for Auth Notifications, 38.23 for Maester,
+and 3,859.50 for Sysmon in synthetic USD. The total is 3,916.65. The Auth
+Notifications timer runs even with collection disabled. Turning off the
+Maester portal removes its dedicated compute hours. Local-only Sysmon keeps
+event collection on the device and removes the workspace ingestion and
+analytics meters. A future Data Lake archival mode would need to account for
+storage and retrieval and specify how operators would investigate events
+without the priced Sentinel analytics path. If both destinations are enabled,
+estimate both copies of ingestion.
+
 ## Contract and conventions
 
 - The versioned schemas separate profile assumptions, observed prices, the request, the result, and optional measured usage. The input selects a closed configuration per solution. Each profile records the commit and the files behind that configuration. Factors are ordered low, base, and high, with a rationale per meter. The profile grammar accepts only predefined quantity bases.
 - The request binds the UTC evaluation date and the first UTC day of a calendar month. The calculation uses the actual days in that month and counts occurrences of the configured UTC schedules. A per-30-day quantity scales with calendar days. The retention estimate uses end-of-period retained volume, capped at the configured retention days, as the month’s capacity proxy. `priorRetentionDays` models growth from an earlier period without inferring billable historical usage.
 - `gb` and `gb-month` are decimal storage units. `gib-second` uses binary GiB and seconds. Currency is USD in the pilot. Arithmetic uses decimal values. Each line is rounded to two decimals, midpoint away from zero, then summed. Amounts are emitted as invariant two-decimal strings so consumers display the same value.
 - A priced line requires an exact region, currency, service, SKU, meter, and unit match. Effective and observed dates must satisfy the request. The latest qualifying observation is selected. Prices beyond their stated age are stale. Missing and stale line amounts are null, and known totals are labeled partial. The fixed prices are synthetic.
-- Standalone estimates apply eligible allowances within each profile. Incremental estimates share one pool per meter and scenario for the explicit allocation scope. Ordering is ordinal by profile and line ID. Identical eligible shared fixed resources are allocated once to the first profile and conflicting definitions are rejected. Excluded or unallocated charges are listed with each profile.
+- Standalone estimates apply eligible allowances within each profile. Incremental estimates share one pool per meter and scenario for the explicit allocation scope. Ordering is ordinal by profile and line ID. Identical eligible shared fixed resources are allocated once to the first profile and conflicting definitions are rejected. A separate unallocated bucket lists shared charges with no verified allocation basis. `complete` describes the price coverage of the modeled lines.
 - Optional measured usage can be supplied with `-MeasurementPath`. It must match the exact selected profile revision, configuration, line unit, and month. It is displayed separately with coverage and provenance and is never used to recompute estimated costs. Actual billing export, private import, negotiated prices, credits, tax, and workload measurement belong to the separately authorized #143 lane.
 
 ## Adoption checklist

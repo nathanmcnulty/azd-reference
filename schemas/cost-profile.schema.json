@@ -165,7 +165,7 @@
                     "runs",
                     "users",
                     "devices",
-                        "deviceMonths",
+                    "deviceMonths",
                     "retainedDeviceDays"
                   ]
                 },
@@ -204,11 +204,11 @@
                   "type": "string",
                   "maxLength": 120,
                   "pattern": "^[a-z][a-z0-9-]{0,59}$"
-                    },
-                    "sharedResource": {
-                      "type": "string",
-                      "maxLength": 120,
-                      "pattern": "^[a-z][a-z0-9-]{0,59}$"
+                },
+                "sharedResource": {
+                  "type": "string",
+                  "maxLength": 120,
+                  "pattern": "^[a-z][a-z0-9-]{0,59}$"
                 }
               }
             },
@@ -216,6 +216,16 @@
             "maxItems": 24
           },
           "exclusions": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 240
+            },
+            "minItems": 0,
+            "maxItems": 24
+          },
+          "unallocated": {
             "type": "array",
             "items": {
               "type": "string",

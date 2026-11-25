@@ -33,6 +33,10 @@ Describe 'Offline cost pilot' {
         $result.portfolio.knownTotal.base | Should -BeExactly '3916.65'
         $result.portfolio.knownTotal.high | Should -BeExactly '11677.07'
         $result.complete | Should -BeTrue
+        $result.unallocated[0].profile | Should -BeExactly 'sysmon'
+        $duration = $result.profiles[1].lines | Where-Object id -EQ 'duration'
+        $duration.price.unit | Should -BeExactly 'gib-second'
+        $duration.quantity.base | Should -Be (4 * 120 * 2)
         $reversed = $script:sourcePaths[2..0]
         Invoke-CostFixture -Profiles $reversed | Should -BeExactly $json
         $json | & node (Join-Path $script:fixture 'gui/check-view.cjs')

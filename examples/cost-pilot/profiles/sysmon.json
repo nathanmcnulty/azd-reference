@@ -86,7 +86,10 @@
         }
       ],
       "exclusions": [
-        "Existing shared workspace fixed costs are unallocated. Local endpoint costs and Data Lake archival are excluded."
+        "Local endpoint costs and Data Lake archival are excluded."
+      ],
+      "unallocated": [
+        "Existing shared workspace fixed costs have no verified allocation basis."
       ]
     }
   ]
