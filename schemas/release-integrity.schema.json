@@ -16,7 +16,10 @@
       "type": "string"
     },
     "schemaVersion": {
-      "const": "1.0"
+      "enum": [
+        "1.0",
+        "1.1"
+      ]
     },
     "scope": {
       "type": "string",
@@ -101,6 +104,100 @@
           "const": "https://slsa.dev/provenance/v1"
         }
       }
+    },
+    "registeredWorkflows": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "nathanmcnulty/azd-gui"
+      ],
+      "properties": {
+        "nathanmcnulty/azd-gui": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "reviewedCommit",
+            "workflowPath",
+            "workflowSha256",
+            "guardSha256"
+          ],
+          "properties": {
+            "reviewedCommit": {
+              "type": "string",
+              "maxLength": 40,
+              "pattern": "^[0-9a-f]{40}$"
+            },
+            "workflowPath": {
+              "const": ".github/workflows/release.yml"
+            },
+            "workflowSha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "guardSha256": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "scripts/assert-powershell-version.ps1",
+                "scripts/confirm-release-tag.ps1",
+                "scripts/get-release-attestation-files.ps1",
+                "scripts/new-release-source-bundle.ps1",
+                "scripts/release-tag-allowed-signers",
+                "scripts/sign-windows-artifact.ps1",
+                "scripts/verify-release-artifacts.ps1"
+              ],
+              "properties": {
+                "scripts/assert-powershell-version.ps1": {
+                  "$ref": "#/$defs/sha256"
+                },
+                "scripts/confirm-release-tag.ps1": {
+                  "$ref": "#/$defs/sha256"
+                },
+                "scripts/get-release-attestation-files.ps1": {
+                  "$ref": "#/$defs/sha256"
+                },
+                "scripts/new-release-source-bundle.ps1": {
+                  "$ref": "#/$defs/sha256"
+                },
+                "scripts/release-tag-allowed-signers": {
+                  "$ref": "#/$defs/sha256"
+                },
+                "scripts/sign-windows-artifact.ps1": {
+                  "$ref": "#/$defs/sha256"
+                },
+                "scripts/verify-release-artifacts.ps1": {
+                  "$ref": "#/$defs/sha256"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "if": {
+    "properties": {
+      "schemaVersion": {
+        "const": "1.1"
+      }
+    }
+  },
+  "then": {
+    "required": [
+      "registeredWorkflows"
+    ]
+  },
+  "else": {
+    "not": {
+      "required": [
+        "registeredWorkflows"
+      ]
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "maxLength": 64,
+      "pattern": "^[0-9a-f]{64}$"
     }
   }
 }
