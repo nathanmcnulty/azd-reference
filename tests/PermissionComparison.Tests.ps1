@@ -1,3 +1,4 @@
+# Assert schema invalidity directly; Test-Json need not emit an error for every failure.
 Describe 'Permission requirement comparison' {
     BeforeAll {
         $script:repoRoot = Split-Path $PSScriptRoot -Parent
@@ -104,9 +105,9 @@ Describe 'Permission requirement comparison' {
         New-PermissionTestManifest -Id 'base' -Requirement @((New-TestRequirement))
         $manifest = Get-Content (Join-Path $TestDrive 'base/azd-permissions.json') -Raw | ConvertFrom-Json
         $manifest.requirements[0].evidence[0].path = '../outside.txt'
-        { $manifest | ConvertTo-Json -Depth 10 | Test-Json -SchemaFile $script:schema -ErrorAction Stop } | Should -Throw
+        ($manifest | ConvertTo-Json -Depth 10 | Test-Json -SchemaFile $script:schema -ErrorAction SilentlyContinue) | Should -BeFalse
         $manifest.requirements[0].evidence[0].path = 'source.txt:stream'
-        { $manifest | ConvertTo-Json -Depth 10 | Test-Json -SchemaFile $script:schema -ErrorAction Stop } | Should -Throw
+        ($manifest | ConvertTo-Json -Depth 10 | Test-Json -SchemaFile $script:schema -ErrorAction SilentlyContinue) | Should -BeFalse
         $registryPath = New-PermissionTestRegistry base
         $registry = Get-Content $registryPath -Raw | ConvertFrom-Json
         $registry.solutions[0].manifest = 'base/azd-permissions.json:stream'
@@ -114,7 +115,7 @@ Describe 'Permission requirement comparison' {
         { & $script:tool -PortfolioRoot $TestDrive -RegistryPath $registryPath } | Should -Throw
         $manifest.requirements[0].evidence[0].path = 'source.txt'
         $manifest.requirements[0].kind = 'scope-or-role'
-        { $manifest | ConvertTo-Json -Depth 10 | Test-Json -SchemaFile $script:schema -ErrorAction Stop } | Should -Throw
+        ($manifest | ConvertTo-Json -Depth 10 | Test-Json -SchemaFile $script:schema -ErrorAction SilentlyContinue) | Should -BeFalse
         $manifest.requirements[0].kind = 'application'
         $manifest.requirements[0].evidence[0] | Add-Member -NotePropertyName documentationUrl -NotePropertyValue 'https://example.invalid/permission-reference'
         $manifest | ConvertTo-Json -Depth 10 | Test-Json -SchemaFile $script:schema -ErrorAction Stop | Should -BeTrue
@@ -129,10 +130,10 @@ Describe 'Permission requirement comparison' {
         New-PermissionTestManifest -Id 'base' -Requirement @((New-TestRequirement))
         $manifest = Get-Content (Join-Path $TestDrive 'base/azd-permissions.json') -Raw | ConvertFrom-Json
         $manifest.gaps = @('unresolved capability')
-        { $manifest | ConvertTo-Json -Depth 10 | Test-Json -SchemaFile $script:schema -ErrorAction Stop } | Should -Throw
+        ($manifest | ConvertTo-Json -Depth 10 | Test-Json -SchemaFile $script:schema -ErrorAction SilentlyContinue) | Should -BeFalse
         $manifest.coverage = 'partial'
         $manifest.gaps = @()
-        { $manifest | ConvertTo-Json -Depth 10 | Test-Json -SchemaFile $script:schema -ErrorAction Stop } | Should -Throw
+        ($manifest | ConvertTo-Json -Depth 10 | Test-Json -SchemaFile $script:schema -ErrorAction SilentlyContinue) | Should -BeFalse
     }
 
     It 'honors excluded features and an explicit deployment phase without including runtime roles' {
