@@ -1,0 +1,105 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Cost price observations",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "observations"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0"
+    },
+    "observations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "service",
+          "sku",
+          "meter",
+          "unit",
+          "region",
+          "currency",
+          "effectiveOn",
+          "observedOn",
+          "maxAgeDays",
+          "source",
+          "rate",
+          "freeUnits"
+        ],
+        "properties": {
+          "service": {
+            "type": "string",
+            "maxLength": 120,
+            "pattern": "^[a-z][a-z0-9-]{0,59}$"
+          },
+          "sku": {
+            "type": "string",
+            "maxLength": 120,
+            "pattern": "^[a-z][a-z0-9-]{0,59}$"
+          },
+          "meter": {
+            "type": "string",
+            "maxLength": 120,
+            "pattern": "^[a-z][a-z0-9-]{0,59}$"
+          },
+          "unit": {
+            "enum": [
+              "request",
+              "gib-second",
+              "gb",
+              "gb-month",
+              "hour",
+              "operation"
+            ]
+          },
+          "region": {
+            "type": "string",
+            "maxLength": 120,
+            "pattern": "^[a-z][a-z0-9-]{0,59}$"
+          },
+          "currency": {
+            "enum": [
+              "USD"
+            ]
+          },
+          "effectiveOn": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+          },
+          "observedOn": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+          },
+          "maxAgeDays": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 365
+          },
+          "source": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 240
+          },
+          "rate": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1000000
+          },
+          "freeUnits": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1000000000
+          }
+        }
+      },
+      "minItems": 0,
+      "maxItems": 100
+    }
+  }
+}

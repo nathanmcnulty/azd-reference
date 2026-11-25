@@ -134,6 +134,10 @@ For immutable signed component tags and release attestations, see
 
 ## Portfolio status and updates
 
+The [offline cost estimator pilot](docs/cost-estimator-pilot.md) evaluates three
+reviewed solution profiles using fixed price fixtures and shows the same result
+in the CLI and browser fixture.
+
 Audit the registered local checkouts without fetching or executing consumer code:
 
 ```powershell

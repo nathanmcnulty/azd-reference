@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "1.0",
+  "asOf": "2026-02-01",
+  "periodStart": "2026-01-01",
+  "region": "eastus2",
+  "currency": "USD",
+  "users": 5000,
+  "devices": 5000,
+  "priorRetentionDays": 0,
+  "includeOneTime": true,
+  "allocationScope": "pilot-shared-subscription",
+  "selections": [
+    {
+      "profile": "auth-notifications",
+      "configuration": "rare-email"
+    },
+    {
+      "profile": "maester-functionapp",
+      "configuration": "fc1-b1-portal"
+    },
+    {
+      "profile": "sysmon",
+      "configuration": "existing-sentinel"
+    }
+  ]
+}

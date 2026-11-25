@@ -1,0 +1,207 @@
+{
+  "schemaVersion": "1.0",
+  "id": "maester-functionapp",
+  "repository": "azd-maester-functionapp",
+  "revision": "76976139f2026917484a91223ba278e9aa1fc058",
+  "sourcePaths": [
+    "infra/main.bicep",
+    "src/MaesterTimerTrigger/function.json"
+  ],
+  "configurations": [
+    {
+      "id": "fc1-no-portal",
+      "options": {
+        "hosting": "fc1",
+        "portal": false
+      },
+      "schedule": "sundayUtc",
+      "retentionDays": 0,
+      "lines": [
+        {
+          "id": "executions",
+          "label": "Weekly assessment executions",
+          "category": "usage",
+          "price": {
+            "service": "functions",
+            "sku": "fc1",
+            "meter": "executions",
+            "unit": "request"
+          },
+          "basis": "runs",
+          "factors": {
+            "low": 1,
+            "base": 1,
+            "high": 1
+          },
+          "reason": "One invocation per configured UTC Sunday.",
+          "allowedScope": "pilot-shared-subscription"
+        },
+        {
+          "id": "duration",
+          "label": "Assessment compute",
+          "category": "usage",
+          "price": {
+            "service": "functions",
+            "sku": "fc1",
+            "meter": "duration",
+            "unit": "gib-second"
+          },
+          "basis": "runs",
+          "factors": {
+            "low": 120,
+            "base": 240,
+            "high": 600
+          },
+          "reason": "Synthetic 60/120/300 seconds per assessment at the configured two GiB.",
+          "allowedScope": "pilot-shared-subscription"
+        },
+        {
+          "id": "reports",
+          "label": "Report and package storage",
+          "category": "fixed",
+          "price": {
+            "service": "storage",
+            "sku": "standard-lrs",
+            "meter": "capacity",
+            "unit": "gb-month"
+          },
+          "basis": "fixed",
+          "factors": {
+            "low": 0.1,
+            "base": 0.2,
+            "high": 0.5
+          },
+          "reason": "Synthetic standing report, package and function storage capacity."
+        },
+        {
+          "id": "app-logs",
+          "label": "Assessment logs",
+          "category": "usage",
+          "price": {
+            "service": "azure-monitor",
+            "sku": "log-analytics",
+            "meter": "ingestion",
+            "unit": "gb"
+          },
+          "basis": "runs",
+          "factors": {
+            "low": 0.003,
+            "base": 0.01,
+            "high": 0.03
+          },
+          "reason": "Synthetic application log GB per scheduled assessment."
+        }
+      ],
+      "exclusions": [
+        "Mail, identity administration and external licensing charges are excluded."
+      ]
+    },
+    {
+      "id": "fc1-b1-portal",
+      "options": {
+        "hosting": "fc1",
+        "portal": true,
+        "portal-sku": "b1"
+      },
+      "schedule": "sundayUtc",
+      "retentionDays": 0,
+      "lines": [
+        {
+          "id": "executions",
+          "label": "Weekly assessment executions",
+          "category": "usage",
+          "price": {
+            "service": "functions",
+            "sku": "fc1",
+            "meter": "executions",
+            "unit": "request"
+          },
+          "basis": "runs",
+          "factors": {
+            "low": 1,
+            "base": 1,
+            "high": 1
+          },
+          "reason": "One invocation per configured UTC Sunday.",
+          "allowedScope": "pilot-shared-subscription"
+        },
+        {
+          "id": "duration",
+          "label": "Assessment compute",
+          "category": "usage",
+          "price": {
+            "service": "functions",
+            "sku": "fc1",
+            "meter": "duration",
+            "unit": "gib-second"
+          },
+          "basis": "runs",
+          "factors": {
+            "low": 120,
+            "base": 240,
+            "high": 600
+          },
+          "reason": "Synthetic 60/120/300 seconds per assessment at the configured two GiB.",
+          "allowedScope": "pilot-shared-subscription"
+        },
+        {
+          "id": "reports",
+          "label": "Report and package storage",
+          "category": "fixed",
+          "price": {
+            "service": "storage",
+            "sku": "standard-lrs",
+            "meter": "capacity",
+            "unit": "gb-month"
+          },
+          "basis": "fixed",
+          "factors": {
+            "low": 0.1,
+            "base": 0.2,
+            "high": 0.5
+          },
+          "reason": "Synthetic standing report, package and function storage capacity."
+        },
+        {
+          "id": "app-logs",
+          "label": "Assessment logs",
+          "category": "usage",
+          "price": {
+            "service": "azure-monitor",
+            "sku": "log-analytics",
+            "meter": "ingestion",
+            "unit": "gb"
+          },
+          "basis": "runs",
+          "factors": {
+            "low": 0.003,
+            "base": 0.01,
+            "high": 0.03
+          },
+          "reason": "Synthetic application log GB per scheduled assessment."
+        },
+        {
+          "id": "portal",
+          "label": "Dedicated report portal",
+          "category": "optional",
+          "price": {
+            "service": "app-service",
+            "sku": "b1",
+            "meter": "compute",
+            "unit": "hour"
+          },
+          "basis": "periodDays",
+          "factors": {
+            "low": 24,
+            "base": 24,
+            "high": 24
+          },
+          "reason": "A selected B1 portal runs 24 hours per calendar day."
+        }
+      ],
+      "exclusions": [
+        "Mail, identity administration and external licensing charges are excluded."
+      ]
+    }
+  ]
+}

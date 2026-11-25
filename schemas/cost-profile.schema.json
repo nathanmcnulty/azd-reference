@@ -1,0 +1,234 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Cost profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "id",
+    "revision",
+    "repository",
+    "sourcePaths",
+    "configurations"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0"
+    },
+    "id": {
+      "type": "string",
+      "maxLength": 120,
+      "pattern": "^[a-z][a-z0-9-]{0,59}$"
+    },
+    "revision": {
+      "type": "string",
+      "maxLength": 40,
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "repository": {
+      "type": "string",
+      "maxLength": 120,
+      "pattern": "^[a-z][a-z0-9-]{0,59}$"
+    },
+    "sourcePaths": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "maxLength": 160,
+        "pattern": "^[a-zA-Z0-9_.-]+(?:/[a-zA-Z0-9_.-]+)*$"
+      },
+      "minItems": 1,
+      "maxItems": 12
+    },
+    "configurations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "options",
+          "schedule",
+          "retentionDays",
+          "lines",
+          "exclusions"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 120,
+            "pattern": "^[a-z][a-z0-9-]{0,59}$"
+          },
+          "options": {
+            "type": "object",
+            "minProperties": 1,
+            "maxProperties": 12,
+            "propertyNames": {
+              "type": "string",
+              "maxLength": 120,
+              "pattern": "^[a-z][a-z0-9-]{0,59}$"
+            },
+            "additionalProperties": {
+              "type": [
+                "string",
+                "boolean"
+              ],
+              "maxLength": 60
+            }
+          },
+          "schedule": {
+            "enum": [
+              "none",
+              "everyFiveMinutes",
+              "sundayUtc"
+            ]
+          },
+          "retentionDays": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3650
+          },
+          "lines": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "id",
+                "label",
+                "category",
+                "price",
+                "basis",
+                "factors",
+                "reason"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "maxLength": 120,
+                  "pattern": "^[a-z][a-z0-9-]{0,59}$"
+                },
+                "label": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 240
+                },
+                "category": {
+                  "enum": [
+                    "fixed",
+                    "usage",
+                    "oneTime",
+                    "optional"
+                  ]
+                },
+                "price": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "service",
+                    "sku",
+                    "meter",
+                    "unit"
+                  ],
+                  "properties": {
+                    "service": {
+                      "type": "string",
+                      "maxLength": 120,
+                      "pattern": "^[a-z][a-z0-9-]{0,59}$"
+                    },
+                    "sku": {
+                      "type": "string",
+                      "maxLength": 120,
+                      "pattern": "^[a-z][a-z0-9-]{0,59}$"
+                    },
+                    "meter": {
+                      "type": "string",
+                      "maxLength": 120,
+                      "pattern": "^[a-z][a-z0-9-]{0,59}$"
+                    },
+                    "unit": {
+                      "enum": [
+                        "request",
+                        "gib-second",
+                        "gb",
+                        "gb-month",
+                        "hour",
+                        "operation"
+                      ]
+                    }
+                  }
+                },
+                "basis": {
+                  "enum": [
+                    "fixed",
+                    "periodDays",
+                    "runs",
+                    "users",
+                    "devices",
+                        "deviceMonths",
+                    "retainedDeviceDays"
+                  ]
+                },
+                "factors": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "low",
+                    "base",
+                    "high"
+                  ],
+                  "properties": {
+                    "low": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1000000
+                    },
+                    "base": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1000000
+                    },
+                    "high": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1000000
+                    }
+                  }
+                },
+                "reason": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 240
+                },
+                "allowedScope": {
+                  "type": "string",
+                  "maxLength": 120,
+                  "pattern": "^[a-z][a-z0-9-]{0,59}$"
+                    },
+                    "sharedResource": {
+                      "type": "string",
+                      "maxLength": 120,
+                      "pattern": "^[a-z][a-z0-9-]{0,59}$"
+                }
+              }
+            },
+            "minItems": 0,
+            "maxItems": 24
+          },
+          "exclusions": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 240
+            },
+            "minItems": 0,
+            "maxItems": 24
+          }
+        }
+      },
+      "minItems": 1,
+      "maxItems": 8
+    }
+  }
+}
