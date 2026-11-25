@@ -35,6 +35,189 @@ Describe 'Release integrity standard' {
         $result.findings | Should -Contain 'attestationActionUnpinnedOrMissing'
         @($result.findings | Where-Object { $_ -like 'workflowActionUnpinned:actions/attest@v4' }).Count | Should -Be 1
     }
+
+    Context 'Registered GUI release workflow' {
+        BeforeAll {
+            # Use a second installed layout and inert fixture pins. The real
+            # workflow and signing configuration stay in the GUI repository.
+            $fixtureReference = Join-Path $TestDrive 'fixture-reference'
+            $script:guiFixture = Join-Path $TestDrive 'gui-fixture'
+            $script:guiRepository = 'nathanmcnulty/azd-gui'
+            $workflowRelativePath = '.github/workflows/release.yml'
+            $directories = @(
+                (Join-Path $fixtureReference 'tooling')
+                (Join-Path $fixtureReference 'portfolio')
+                (Join-Path $fixtureReference 'schemas')
+                (Join-Path $script:guiFixture '.github/workflows')
+                (Join-Path $script:guiFixture 'scripts')
+            )
+            foreach ($directory in $directories) {
+                New-Item -ItemType Directory -Path $directory -Force | Out-Null
+            }
+            $script:registeredTool = Join-Path $fixtureReference 'tooling/Test-AzdReleaseIntegrity.ps1'
+            $script:legacyPolicy = Join-Path $PSScriptRoot 'fixtures/valid/release-integrity.json'
+            Copy-Item -LiteralPath $script:tool -Destination $script:registeredTool
+            Copy-Item -LiteralPath (Join-Path $script:repoRoot 'schemas/release-integrity.schema.json') -Destination (Join-Path $fixtureReference 'schemas')
+            Copy-Item -LiteralPath (Join-Path $script:repoRoot 'SECURITY.md') -Destination $script:guiFixture
+
+            $workflow = @'
+name: Inert release fixture
+on:
+  push:
+    tags:
+      - v*
+permissions:
+  contents: read
+jobs:
+  attest:
+    permissions:
+      contents: read
+      attestations: write
+      id-token: write
+    steps:
+      - name: Upload fixture
+        uses: actions/upload-artifact@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa # fixture
+      - name: Attest fixture
+        uses: actions/attest@bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb # fixture
+        with:
+          subject-path: inert.zip
+  stage_release:
+    needs: attest
+    if: github.repository == 'nathanmcnulty/azd-gui' && startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+    steps:
+      - run: gh release create --draft --verify-tag
+'@
+            $workflowPath = Join-Path $script:guiFixture $workflowRelativePath
+            Set-Content -LiteralPath $workflowPath -Value $workflow -Encoding utf8NoBOM -NoNewline
+            $fixturePolicy = Get-Content -LiteralPath (Join-Path $script:repoRoot 'portfolio/release-integrity.json') -Raw | ConvertFrom-Json -AsHashtable
+            $registration = $fixturePolicy.registeredWorkflows[$script:guiRepository]
+            $registration.reviewedCommit = '1' * 40
+            $registration.workflowSha256 = (Get-FileHash -LiteralPath $workflowPath).Hash.ToLowerInvariant()
+            $script:registeredGuardPaths = @($registration.guardSha256.Keys)
+            foreach ($relativePath in $script:registeredGuardPaths) {
+                $guardPath = Join-Path $script:guiFixture $relativePath
+                $guard = "# Inert fixture for $relativePath"
+                if ($relativePath -ceq 'scripts/confirm-release-tag.ps1') {
+                    $guard += "`n# git/tags/ and verification.verified`n# git --no-replace-objects merge-base --is-ancestor"
+                }
+                Set-Content -LiteralPath $guardPath -Value $guard -Encoding utf8NoBOM -NoNewline
+                $registration.guardSha256[$relativePath] = (Get-FileHash -LiteralPath $guardPath).Hash.ToLowerInvariant()
+            }
+            $script:fixturePolicyPath = Join-Path $fixtureReference 'portfolio/release-integrity.json'
+            ConvertTo-Json -InputObject $fixturePolicy -Depth 10 |
+                Set-Content -LiteralPath $script:fixturePolicyPath -Encoding utf8NoBOM
+        }
+
+        BeforeEach {
+            $script:guiTarget = Join-Path $TestDrive ([guid]::NewGuid().ToString('N'))
+            Copy-Item -LiteralPath $script:guiFixture -Destination $script:guiTarget -Recurse
+        }
+
+        It 'checks the exact matching GUI workflow and guards offline' {
+            function git { throw 'The static audit must remain offline.' }
+            function gh { throw 'The static audit must remain offline.' }
+            $result = & $script:registeredTool -RepositoryRoot $script:guiTarget -AuditRepository $script:guiRepository -FailOnFindings
+            $result.state | Should -Be 'current'
+            $result.findings.Count | Should -Be 0
+        }
+
+        It 'keeps the standard workflow for the default and other repository names' {
+            (& $script:registeredTool -RepositoryRoot $script:guiTarget).findings |
+                Should -Be 'releaseAttestationWorkflowMissing'
+            foreach ($name in @('other-owner/azd-gui', 'nathanmcnulty/azd-other', 'nathanmcnulty/AZD-GUI')) {
+                (& $script:registeredTool -RepositoryRoot $script:guiTarget -AuditRepository $name).findings |
+                    Should -Be 'releaseAttestationWorkflowMissing'
+            }
+        }
+
+        It 'reports a missing registered workflow even when the starter exists' {
+            $workflowPath = Join-Path $script:guiTarget '.github/workflows/release.yml'
+            Remove-Item -LiteralPath $workflowPath
+            $starter = Join-Path $script:repoRoot '.github/workflows/release-attestation.yml'
+            Copy-Item -LiteralPath $starter -Destination (Split-Path $workflowPath -Parent)
+            (& $script:registeredTool -RepositoryRoot $script:guiTarget -AuditRepository $script:guiRepository).findings |
+                Should -Contain 'registeredReleaseFileMissing:.github/workflows/release.yml'
+        }
+
+        It 'requires the exact workflow filename casing' {
+            $directory = Join-Path $script:guiTarget '.github/workflows'
+            Rename-Item -LiteralPath (Join-Path $directory 'release.yml') -NewName 'rename.yml'
+            Rename-Item -LiteralPath (Join-Path $directory 'rename.yml') -NewName 'Release.yml'
+            (& $script:registeredTool -RepositoryRoot $script:guiTarget -AuditRepository $script:guiRepository).findings |
+                Should -Contain 'registeredReleaseFileMissing:.github/workflows/release.yml'
+        }
+
+        It 'fails on a missing tag guard' {
+            Remove-Item -LiteralPath (Join-Path $script:guiTarget 'scripts/confirm-release-tag.ps1')
+            (& $script:registeredTool -RepositoryRoot $script:guiTarget -AuditRepository $script:guiRepository).findings |
+                Should -Contain 'registeredReleaseFileMissing:scripts/confirm-release-tag.ps1'
+            { & $script:registeredTool -RepositoryRoot $script:guiTarget -AuditRepository $script:guiRepository -FailOnFindings } |
+                Should -Throw '*Release integrity findings*'
+        }
+
+        It 'detects changes to each pinned guard' {
+            foreach ($relativePath in $script:registeredGuardPaths) {
+                $path = Join-Path $script:guiTarget $relativePath
+                $original = [IO.File]::ReadAllBytes($path)
+                Add-Content -LiteralPath $path -Value '# Changed' -Encoding utf8NoBOM
+                try {
+                    (& $script:registeredTool -RepositoryRoot $script:guiTarget -AuditRepository $script:guiRepository).findings |
+                        Should -Contain "registeredReleaseFileHashMismatch:$relativePath"
+                }
+                finally {
+                    [IO.File]::WriteAllBytes($path, $original)
+                }
+            }
+        }
+
+        It 'rejects a linked directory containing otherwise matching guards' {
+            $scripts = Join-Path $script:guiTarget 'scripts'
+            $original = Join-Path $script:guiFixture 'scripts'
+            Rename-Item -LiteralPath $scripts -NewName 'original-scripts'
+            $linkType = if ($IsWindows) { 'Junction' } else { 'SymbolicLink' }
+            New-Item -ItemType $linkType -Path $scripts -Target $original | Out-Null
+            (& $script:registeredTool -RepositoryRoot $script:guiTarget -AuditRepository $script:guiRepository).findings |
+                Should -Contain 'registeredReleaseFileTypeMismatch:scripts/confirm-release-tag.ps1'
+        }
+
+        It 'rejects drift in the reviewed <Name>' -ForEach @(
+            @{ Name = 'tag trigger'; Before = '- v*'; After = '- arbitrary*' }
+            @{ Name = 'attestation action pin'; Before = 'actions/attest@bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'; After = 'actions/attest@v4' }
+            @{ Name = 'draft staging'; Before = '--draft '; After = '' }
+            @{ Name = 'repository permission'; Before = 'contents: read'; After = 'contents: write' }
+        ) {
+            $path = Join-Path $script:guiTarget '.github/workflows/release.yml'
+            $workflow = Get-Content -LiteralPath $path -Raw
+            Set-Content -LiteralPath $path -Value $workflow.Replace($Before, $After) -Encoding utf8NoBOM -NoNewline
+            (& $script:registeredTool -RepositoryRoot $script:guiTarget -AuditRepository $script:guiRepository).findings |
+                Should -Be 'registeredReleaseFileHashMismatch:.github/workflows/release.yml'
+        }
+
+        It 'still checks the security policy' {
+            $path = Join-Path $script:guiTarget 'SECURITY.md'
+            $security = Get-Content -LiteralPath $path -Raw
+            Set-Content -LiteralPath $path -Value ($security -replace '(?m)^## Response targets\r?$', '') -Encoding utf8NoBOM
+            (& $script:registeredTool -RepositoryRoot $script:guiTarget -AuditRepository $script:guiRepository).findings |
+                Should -Be 'securityPolicyHeadingMissing:## Response targets'
+        }
+
+        It 'rejects a supplied registration policy and preserves the legacy default policy' {
+            { & $script:registeredTool -RepositoryRoot $script:guiTarget -AuditRepository $script:guiRepository -PolicyPath $script:fixturePolicyPath } |
+                Should -Throw '*requires the bundled release integrity policy*'
+            (& $script:registeredTool -RepositoryRoot $script:repoRoot -PolicyPath $script:legacyPolicy -FailOnFindings).state |
+                Should -Be 'current'
+        }
+
+        It 'keeps a path outside the registration out of the schema' {
+            $policy = Get-Content -LiteralPath $script:fixturePolicyPath -Raw | ConvertFrom-Json -AsHashtable
+            $policy.registeredWorkflows[$script:guiRepository].workflowPath = '../release.yml'
+            $schemaPath = Join-Path $script:repoRoot 'schemas/release-integrity.schema.json'
+            { ConvertTo-Json -InputObject $policy -Depth 10 | Test-Json -SchemaFile $schemaPath -ErrorAction Stop } |
+                Should -Throw
+        }
+    }
 }
 
 Describe 'Explicit component release acceptance' {

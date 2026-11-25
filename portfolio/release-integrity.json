@@ -1,6 +1,6 @@
 {
   "$schema": "../schemas/release-integrity.schema.json",
-  "schemaVersion": "1.0",
+  "schemaVersion": "1.1",
   "scope": "public azd repositories",
   "enforcement": "migration",
   "securityPolicy": {
@@ -25,5 +25,21 @@
     "sbomAttestationRecommended": true,
     "attestationAction": "actions/attest",
     "predicateType": "https://slsa.dev/provenance/v1"
+  },
+  "registeredWorkflows": {
+    "nathanmcnulty/azd-gui": {
+      "reviewedCommit": "7d90f19381750b9c8f4b489d1d04fef0ac684bd6",
+      "workflowPath": ".github/workflows/release.yml",
+      "workflowSha256": "af914227185d8e36c131b873b63d1e9eb59dc75090883cf59a46cad56a489dae",
+      "guardSha256": {
+        "scripts/assert-powershell-version.ps1": "fad71551f118ed8c74709538230b70f6d9ac87cd283b28024d1a88b7f2ef49ab",
+        "scripts/confirm-release-tag.ps1": "fd3f69d32729bed03da12ed63400d3e7a70ba137bb74f80ba6479a146a4c68ff",
+        "scripts/get-release-attestation-files.ps1": "a17c1cf9cabdcc4657919a3eb306091a97717a1599e4091871a896c1f4333e55",
+        "scripts/new-release-source-bundle.ps1": "e7b960b4397d183e50d311b9c1e90c81792065d8fd15da8e6ed656e70f065d1f",
+        "scripts/release-tag-allowed-signers": "2b3c465f58b77017f3ec40a9cfb7e79c539aea4fbcec33d41a466aa2c7ab6477",
+        "scripts/sign-windows-artifact.ps1": "71d4e537c4508c79322db33e700004eeec1b56ac8485617601ff97a4ffd43a48",
+        "scripts/verify-release-artifacts.ps1": "29f415c04a651f5dd38b6c7133aaae06721d446e66a38a8a9fe9a3d4a97544fa"
+      }
+    }
   }
 }

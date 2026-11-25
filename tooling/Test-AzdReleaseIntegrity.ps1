@@ -30,7 +30,10 @@ param(
     [switch] $AsJson,
 
     [Parameter(ParameterSetName = 'StaticAudit')]
-    [switch] $FailOnFindings
+    [switch] $FailOnFindings,
+
+    [Parameter(ParameterSetName = 'StaticAudit')]
+    [string] $AuditRepository
 )
 
 Set-StrictMode -Version Latest
@@ -194,6 +197,47 @@ if ($PSCmdlet.ParameterSetName -eq 'ComponentRelease') {
     return
 }
 
+function Read-RegisteredReleaseFile {
+    param(
+        [string] $Root,
+        [string] $RelativePath,
+        [string] $Sha256,
+        [System.Collections.Generic.List[string]] $Findings
+    )
+
+    # The policy schema fixes each relative path. Refuse links within the checkout.
+    $path = $Root
+    $segments = $RelativePath.Split('/')
+    for ($index = 0; $index -lt $segments.Length; $index++) {
+        $segment = $segments[$index]
+        $item = Get-ChildItem -LiteralPath $path -Filter $segment -Force |
+            Where-Object -Property Name -CEQ $segment
+        if ($null -eq $item) {
+            Add-Finding -Findings $Findings -Finding "registeredReleaseFileMissing:$RelativePath"
+            return
+        }
+        if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -or
+            ($item.PSIsContainer -ne ($index -lt ($segments.Length - 1)))) {
+            Add-Finding -Findings $Findings -Finding "registeredReleaseFileTypeMismatch:$RelativePath"
+            return
+        }
+        $path = $item.FullName
+    }
+
+    $bytes = [IO.File]::ReadAllBytes($path)
+    $actualSha256 = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($bytes)).ToLowerInvariant()
+    if ($actualSha256 -cne $Sha256) {
+        Add-Finding -Findings $Findings -Finding "registeredReleaseFileHashMismatch:$RelativePath"
+        return
+    }
+    [Text.Encoding]::UTF8.GetString($bytes)
+}
+
+$useRegisteredWorkflow = $AuditRepository -ceq 'nathanmcnulty/azd-gui'
+if ($useRegisteredWorkflow -and $PSBoundParameters.ContainsKey('PolicyPath')) {
+    throw 'The registered azd-gui workflow requires the bundled release integrity policy.'
+}
+
 if (-not $PolicyPath) { $PolicyPath = Join-Path $referenceRoot 'portfolio/release-integrity.json' }
 $policyFull = [System.IO.Path]::GetFullPath($PolicyPath)
 $policySchema = Join-Path $referenceRoot 'schemas/release-integrity.schema.json'
@@ -218,12 +262,39 @@ else {
     }
 }
 
-$workflowPath = Join-Path $repositoryRootFull ([string] $policy.artifacts.workflowPath)
-if (-not (Test-Path -LiteralPath $workflowPath -PathType Leaf)) {
-    Add-Finding -Findings $findings -Finding 'releaseAttestationWorkflowMissing'
+$workflowText = $null
+$tagVerifierText = ''
+$ancestryCommand = 'git merge-base --is-ancestor'
+if ($useRegisteredWorkflow) {
+    if ($policy.schemaVersion -cne '1.1') {
+        throw 'The bundled release integrity policy is missing the azd-gui workflow registration.'
+    }
+
+    $registered = $policy.registeredWorkflows.'nathanmcnulty/azd-gui'
+    $workflowText = Read-RegisteredReleaseFile -Root $repositoryRootFull -RelativePath $registered.workflowPath `
+        -Sha256 $registered.workflowSha256 -Findings $findings
+
+    foreach ($guard in $registered.guardSha256.PSObject.Properties) {
+        $guardText = Read-RegisteredReleaseFile -Root $repositoryRootFull -RelativePath $guard.Name `
+            -Sha256 $guard.Value -Findings $findings
+        if ($guard.Name -ceq 'scripts/confirm-release-tag.ps1') {
+            $tagVerifierText = [string] $guardText
+        }
+    }
+    $ancestryCommand = 'git --no-replace-objects merge-base --is-ancestor'
 }
 else {
-    $workflowText = Get-Content -LiteralPath $workflowPath -Raw
+    $workflowPath = Join-Path $repositoryRootFull ([string] $policy.artifacts.workflowPath)
+    if (-not (Test-Path -LiteralPath $workflowPath -PathType Leaf)) {
+        Add-Finding -Findings $findings -Finding 'releaseAttestationWorkflowMissing'
+    }
+    else {
+        $workflowText = [string] (Get-Content -LiteralPath $workflowPath -Raw)
+        $tagVerifierText = $workflowText
+    }
+}
+
+if ($null -ne $workflowText) {
     if ($workflowText -notmatch '(?m)^\s*on:\s*$' -or $workflowText -notmatch '(?m)^\s+tags:\s*$') {
         Add-Finding -Findings $findings -Finding 'releaseTagTriggerMissing'
     }
@@ -241,10 +312,10 @@ else {
     if ($workflowText -notmatch '(?m)^\s*subject-path:\s*') {
         Add-Finding -Findings $findings -Finding 'attestationSubjectMissing'
     }
-    if ($workflowText -notmatch 'git/tags/|verification\.verified') {
+    if ($tagVerifierText -notmatch 'git/tags/|verification\.verified') {
         Add-Finding -Findings $findings -Finding 'signedTagVerificationMissing'
     }
-    if ($workflowText -notmatch 'git merge-base --is-ancestor') {
+    if ($tagVerifierText -notmatch [regex]::Escape($ancestryCommand)) {
         Add-Finding -Findings $findings -Finding 'releaseBranchAncestryVerificationMissing'
     }
 

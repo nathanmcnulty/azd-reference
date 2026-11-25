@@ -51,6 +51,31 @@ The starter workflow uses GitHub's SLSA provenance predicate and full commit
 SHAs for every action. Consumers can verify a downloaded bundle with
 `gh attestation verify <path> -R OWNER/REPOSITORY`.
 
+## Registered workflow for Azure Deployment Studio
+
+The Reference checker uses the starter workflow unless the caller selects the
+exact `nathanmcnulty/azd-gui` repository. Run the static audit against a clean
+checkout of that repository.
+
+```powershell
+$guiRoot = (Resolve-Path -LiteralPath ../azd-gui).Path
+./tooling/Test-AzdReleaseIntegrity.ps1 -RepositoryRoot $guiRoot -AuditRepository nathanmcnulty/azd-gui -FailOnFindings
+```
+
+The bundled policy version 1.1 records the reviewed GUI commit and SHA-256
+hashes of the existing GUI workflow and guards from its
+[signed release review](https://github.com/nathanmcnulty/azd-gui/pull/224).
+Use the bundled policy for this audit so a caller-supplied policy cannot replace
+those pins. Review changes to the workflow or guards before updating the
+registration. The checker reads the supplied checkout offline. Checking protected tag settings,
+a signed tag, or an actual release's attestations requires separate evidence.
+
+The reviewed workflow gives `contents: write` only to its existing draft
+staging job. That job depends on successful attestation, runs on the exact
+repository's version tags, rechecks the tag and artifact, and refuses to update
+a public release. The workflow pin covers those restrictions. The build and
+attestation jobs keep `contents: read`.
+
 ## Migration sequence
 
 1. Add the standard `SECURITY.md` sections.
