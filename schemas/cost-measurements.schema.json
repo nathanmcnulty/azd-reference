@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Optional measured cost usage observations",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "observations"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0"
+    },
+    "observations": {
+      "type": "array",
+      "maxItems": 288,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "profile",
+          "line",
+          "revision",
+          "configuration",
+          "periodStart",
+          "observedOn",
+          "unit",
+          "quantity",
+          "coverage",
+          "source"
+        ],
+        "properties": {
+          "profile": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]{0,59}$"
+          },
+          "line": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]{0,59}$"
+          },
+          "revision": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{40}$"
+          },
+          "configuration": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]{0,59}$"
+          },
+          "periodStart": {
+            "type": "string",
+            "format": "date"
+          },
+          "observedOn": {
+            "type": "string",
+            "format": "date"
+          },
+          "unit": {
+            "enum": [
+              "request",
+              "gib-second",
+              "gb",
+              "gb-month",
+              "hour",
+              "operation"
+            ]
+          },
+          "quantity": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 4000000000000000
+          },
+          "coverage": {
+            "enum": [
+              "partial",
+              "complete"
+            ]
+          },
+          "source": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 240
+          }
+        }
+      }
+    }
+  }
+}

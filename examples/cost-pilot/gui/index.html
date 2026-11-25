@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cost estimate fixture</title>
+  <style>
+    body { font: 1rem system-ui, sans-serif; margin: 2rem auto; padding: 0 1rem; max-width: 65rem; color: #182539; }
+    section { border-top: 1px solid #a7b4c7; margin-top: 2rem; }
+    table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+    caption, th[scope="row"] { text-align: left; }
+    caption { font-weight: 700; padding-bottom: .4rem; }
+    th, td { padding: .5rem; border-bottom: 1px solid #d5dee8; }
+    td { text-align: right; font-variant-numeric: tabular-nums; }
+    small { display: block; font-weight: 400; }
+    th[scope="col"] { background: #edf2f8; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Cost estimate fixture</h1>
+    <label for="estimate">Evaluator result JSON</label>
+    <input id="estimate" type="file" accept=".json,application/json">
+    <p id="message" role="status"></p>
+    <div id="result"></div>
+  </main>
+  <script src="./cost-view.js"></script>
+  <script>
+    document.getElementById("estimate").addEventListener("change", async (event) => {
+      const destination = document.getElementById("result");
+      const message = document.getElementById("message");
+      destination.textContent = "";
+      message.textContent = "";
+      const file = event.target.files[0];
+      if (!file) return;
+      try {
+        if (file.size > 2 * 1024 * 1024) throw new Error();
+        destination.innerHTML = renderCostPilot(JSON.parse(await file.text()));
+      } catch {
+        message.textContent = "Choose a valid version 1.0 evaluator result.";
+      }
+    });
+  </script>
+</body>
+</html>

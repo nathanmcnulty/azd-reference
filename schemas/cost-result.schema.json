@@ -1,0 +1,1032 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Cost evaluation result",
+  "$defs": {
+    "nullableAmounts": {
+      "anyOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "low",
+            "base",
+            "high"
+          ],
+          "properties": {
+            "low": {
+              "type": "string",
+              "maxLength": 28,
+              "pattern": "^(0|[1-9][0-9]*)\\.[0-9]{2}$"
+            },
+            "base": {
+              "type": "string",
+              "maxLength": 28,
+              "pattern": "^(0|[1-9][0-9]*)\\.[0-9]{2}$"
+            },
+            "high": {
+              "type": "string",
+              "maxLength": 28,
+              "pattern": "^(0|[1-9][0-9]*)\\.[0-9]{2}$"
+            }
+          }
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "request",
+    "periodDays",
+    "profiles",
+    "portfolio",
+    "complete",
+    "unallocated"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0"
+    },
+    "request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "asOf",
+        "periodStart",
+        "region",
+        "currency",
+        "users",
+        "devices",
+        "priorRetentionDays",
+        "includeOneTime",
+        "allocationScope",
+        "selections"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "1.0"
+        },
+        "asOf": {
+          "type": "string",
+          "format": "date",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        },
+        "periodStart": {
+          "type": "string",
+          "format": "date",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        },
+        "region": {
+          "type": "string",
+          "maxLength": 120,
+          "pattern": "^[a-z][a-z0-9-]{0,59}$"
+        },
+        "currency": {
+          "enum": [
+            "USD"
+          ]
+        },
+        "users": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000000
+        },
+        "devices": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000000
+        },
+        "priorRetentionDays": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 3650
+        },
+        "includeOneTime": {
+          "type": "boolean"
+        },
+        "allocationScope": {
+          "type": "string",
+          "maxLength": 120,
+          "pattern": "^[a-z][a-z0-9-]{0,59}$"
+        },
+        "selections": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "profile",
+              "configuration"
+            ],
+            "properties": {
+              "profile": {
+                "type": "string",
+                "maxLength": 120,
+                "pattern": "^[a-z][a-z0-9-]{0,59}$"
+              },
+              "configuration": {
+                "type": "string",
+                "maxLength": 120,
+                "pattern": "^[a-z][a-z0-9-]{0,59}$"
+              }
+            }
+          },
+          "minItems": 1,
+          "maxItems": 12
+        }
+      }
+    },
+    "periodDays": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 31
+    },
+    "profiles": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "repository",
+          "revision",
+          "configuration",
+          "options",
+          "schedule",
+          "retentionDays",
+          "runs",
+          "lines",
+          "exclusions",
+          "standalone",
+          "incremental",
+          "complete",
+          "unallocated"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 120,
+            "pattern": "^[a-z][a-z0-9-]{0,59}$"
+          },
+          "repository": {
+            "type": "string",
+            "maxLength": 120,
+            "pattern": "^[a-z][a-z0-9-]{0,59}$"
+          },
+          "revision": {
+            "type": "string",
+            "maxLength": 40,
+            "pattern": "^[0-9a-f]{40}$"
+          },
+          "configuration": {
+            "type": "string",
+            "maxLength": 120,
+            "pattern": "^[a-z][a-z0-9-]{0,59}$"
+          },
+          "options": {
+            "type": "object",
+            "minProperties": 1,
+            "maxProperties": 12,
+            "propertyNames": {
+              "type": "string",
+              "maxLength": 120,
+              "pattern": "^[a-z][a-z0-9-]{0,59}$"
+            },
+            "additionalProperties": {
+              "type": [
+                "string",
+                "boolean"
+              ],
+              "maxLength": 60
+            }
+          },
+          "schedule": {
+            "enum": [
+              "none",
+              "everyFiveMinutes",
+              "sundayUtc"
+            ]
+          },
+          "retentionDays": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3650
+          },
+          "runs": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9000
+          },
+          "lines": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "id",
+                "label",
+                "category",
+                "price",
+                "reason",
+                "status",
+                "quantity",
+                "grantApplied",
+                "standalone",
+                "incremental",
+                "observation",
+                "allocatedElsewhere",
+                "measurement"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "maxLength": 120,
+                  "pattern": "^[a-z][a-z0-9-]{0,59}$"
+                },
+                "label": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 240
+                },
+                "category": {
+                  "enum": [
+                    "fixed",
+                    "usage",
+                    "oneTime",
+                    "optional"
+                  ]
+                },
+                "price": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "service",
+                    "sku",
+                    "meter",
+                    "unit"
+                  ],
+                  "properties": {
+                    "service": {
+                      "type": "string",
+                      "maxLength": 120,
+                      "pattern": "^[a-z][a-z0-9-]{0,59}$"
+                    },
+                    "sku": {
+                      "type": "string",
+                      "maxLength": 120,
+                      "pattern": "^[a-z][a-z0-9-]{0,59}$"
+                    },
+                    "meter": {
+                      "type": "string",
+                      "maxLength": 120,
+                      "pattern": "^[a-z][a-z0-9-]{0,59}$"
+                    },
+                    "unit": {
+                      "enum": [
+                        "request",
+                        "gib-second",
+                        "gb",
+                        "gb-month",
+                        "hour",
+                        "operation"
+                      ]
+                    }
+                  }
+                },
+                "reason": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 240
+                },
+                "status": {
+                  "enum": [
+                    "priced",
+                    "missing",
+                    "stale",
+                    "excluded"
+                  ]
+                },
+                "quantity": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "low",
+                    "base",
+                    "high"
+                  ],
+                  "properties": {
+                    "low": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 4000000000000000
+                    },
+                    "base": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 4000000000000000
+                    },
+                    "high": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 4000000000000000
+                    }
+                  }
+                },
+                "grantApplied": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "low",
+                    "base",
+                    "high"
+                  ],
+                  "properties": {
+                    "low": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 4000000000000000
+                    },
+                    "base": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 4000000000000000
+                    },
+                    "high": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 4000000000000000
+                    }
+                  }
+                },
+                "standalone": {
+                  "$ref": "#/$defs/nullableAmounts"
+                },
+                "incremental": {
+                  "$ref": "#/$defs/nullableAmounts"
+                },
+                "observation": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "service",
+                        "sku",
+                        "meter",
+                        "unit",
+                        "region",
+                        "currency",
+                        "effectiveOn",
+                        "observedOn",
+                        "maxAgeDays",
+                        "source",
+                        "rate",
+                        "freeUnits"
+                      ],
+                      "properties": {
+                        "service": {
+                          "type": "string",
+                          "maxLength": 120,
+                          "pattern": "^[a-z][a-z0-9-]{0,59}$"
+                        },
+                        "sku": {
+                          "type": "string",
+                          "maxLength": 120,
+                          "pattern": "^[a-z][a-z0-9-]{0,59}$"
+                        },
+                        "meter": {
+                          "type": "string",
+                          "maxLength": 120,
+                          "pattern": "^[a-z][a-z0-9-]{0,59}$"
+                        },
+                        "unit": {
+                          "enum": [
+                            "request",
+                            "gib-second",
+                            "gb",
+                            "gb-month",
+                            "hour",
+                            "operation"
+                          ]
+                        },
+                        "region": {
+                          "type": "string",
+                          "maxLength": 120,
+                          "pattern": "^[a-z][a-z0-9-]{0,59}$"
+                        },
+                        "currency": {
+                          "enum": [
+                            "USD"
+                          ]
+                        },
+                        "effectiveOn": {
+                          "type": "string",
+                          "format": "date",
+                          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+                        },
+                        "observedOn": {
+                          "type": "string",
+                          "format": "date",
+                          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+                        },
+                        "maxAgeDays": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 365
+                        },
+                        "source": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 240
+                        },
+                        "rate": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 1000000
+                        },
+                        "freeUnits": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 1000000000
+                        }
+                      }
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "allocatedElsewhere": {
+                  "type": "boolean"
+                },
+                "measurement": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "profile",
+                        "line",
+                        "revision",
+                        "configuration",
+                        "periodStart",
+                        "observedOn",
+                        "unit",
+                        "quantity",
+                        "coverage",
+                        "source"
+                      ],
+                      "properties": {
+                        "profile": {
+                          "type": "string",
+                          "pattern": "^[a-z][a-z0-9-]{0,59}$"
+                        },
+                        "line": {
+                          "type": "string",
+                          "pattern": "^[a-z][a-z0-9-]{0,59}$"
+                        },
+                        "revision": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{40}$"
+                        },
+                        "configuration": {
+                          "type": "string",
+                          "pattern": "^[a-z][a-z0-9-]{0,59}$"
+                        },
+                        "periodStart": {
+                          "type": "string",
+                          "format": "date"
+                        },
+                        "observedOn": {
+                          "type": "string",
+                          "format": "date"
+                        },
+                        "unit": {
+                          "enum": [
+                            "request",
+                            "gib-second",
+                            "gb",
+                            "gb-month",
+                            "hour",
+                            "operation"
+                          ]
+                        },
+                        "quantity": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 4000000000000000
+                        },
+                        "coverage": {
+                          "enum": [
+                            "partial",
+                            "complete"
+                          ]
+                        },
+                        "source": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 240
+                        }
+                      }
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              }
+            },
+            "minItems": 0,
+            "maxItems": 24
+          },
+          "exclusions": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 240
+            },
+            "minItems": 0,
+            "maxItems": 24
+          },
+          "standalone": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "fixed",
+              "usage",
+              "oneTime",
+              "optional",
+              "knownTotal"
+            ],
+            "properties": {
+              "fixed": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "low",
+                  "base",
+                  "high"
+                ],
+                "properties": {
+                  "low": {
+                    "type": "string",
+                    "maxLength": 28,
+                    "pattern": "^(0|[1-9][0-9]*)\\.[0-9]{2}$"
+                  },
+                  "base": {
+                    "type": "string",
+                    "maxLength": 28,
+                    "pattern": "^(0|[1-9][0-9]*)\\.[0-9]{2}$"
+                  },
+                  "high": {
+                    "type": "string",
+                    "maxLength": 28,
+                    "pattern": "^(0|[1-9][0-9]*)\\.[0-9]{2}$"
+                  }
+                }
+              },
+              "usage": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "low",
+                  "base",
+                  "high"
+                ],
+                "properties": {
+                  "low": {
+                    "type": "string",
+                    "maxLength": 28,
+                    "pattern": "^(0|[1-9][0-9]*)\\.[0-9]{2}$"
+                  },
+                  "base": {
+                    "type": "string",
+                    "maxLength": 28,
+                    "pattern": "^(0|[1-9][0-9]*)\\.[0-9]{2}$"
+                  },
+                  "high": {
+                    "type": "string",
+                    "maxLength": 28,
+                    "pattern": "^(0|[1-9][0-9]*)\\.[0-9]{2}$"
+                  }
+                }
+              },
+              "oneTime": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "low",
+                  "base",
+                  "high"
+                ],
+                "properties": {
+                  "low": {
+                    "type": "string",
+                    "maxLength": 28,
+                    "pattern": "^(0|[1-9][0-9]*)\\.[0-9]{2}$"
+                  },
+                  "base": {
+                    "type": "string",
+                    "maxLength": 28,
+                    "pattern": "^(0|[1-9][0-9]*)\\.[0-9]{2}$"
+                  },
+                  "high": {
+                    "type": "string",
+                    "maxLength": 28,
+                    "pattern": "^(0|[1-9][0-9]*)\\.[0-9]{2}$"
+                  }
+                }
+              },
+              "optional": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "low",
+                  "base",
+                  "high"
+                ],
+                "properties": {
+                  "low": {
+                    "type": "string",
+                    "maxLength": 28,
+                    "pattern": "^(0|[1-9][0-9]*)\\.[0-9]{2}$"
+                  },
+                  "base": {
+                    "type": "string",
+                    "maxLength": 28,
+                    "pattern": "^(0|[1-9][0-9]*)\\.[0-9]{2}$"
+                  },
+                  "high": {
+                    "type": "string",
+                    "maxLength": 28,
+                    "pattern": "^(0|[1-9][0-9]*)\\.[0-9]{2}$"
+                  }
+                }
+              },
+              "knownTotal": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "low",
+                  "base",
+                  "high"
+                ],
+                "properties": {
+                  "low": {
+                    "type": "string",
+                    "maxLength": 28,
+                    "pattern": "^(0|[1-9][0-9]*)\\.[0-9]{2}$"
+                  },
+                  "base": {
+                    "type": "string",
+                    "maxLength": 28,
+                    "pattern": "^(0|[1-9][0-9]*)\\.[0-9]{2}$"
+                  },
+                  "high": {
+                    "type": "string",
+                    "maxLength": 28,
+                    "pattern": "^(0|[1-9][0-9]*)\\.[0-9]{2}$"
+                  }
+                }
+              }
+            }
+          },
+          "incremental": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "fixed",
+              "usage",
+              "oneTime",
+              "optional",
+              "knownTotal"
+            ],
+            "properties": {
+              "fixed": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "low",
+                  "base",
+                  "high"
+                ],
+                "properties": {
+                  "low": {
+                    "type": "string",
+                    "maxLength": 28,
+                    "pattern": "^(0|[1-9][0-9]*)\\.[0-9]{2}$"
+                  },
+                  "base": {
+                    "type": "string",
+                    "maxLength": 28,
+                    "pattern": "^(0|[1-9][0-9]*)\\.[0-9]{2}$"
+                  },
+                  "high": {
+                    "type": "string",
+                    "maxLength": 28,
+                    "pattern": "^(0|[1-9][0-9]*)\\.[0-9]{2}$"
+                  }
+                }
+              },
+              "usage": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "low",
+                  "base",
+                  "high"
+                ],
+                "properties": {
+                  "low": {
+                    "type": "string",
+                    "maxLength": 28,
+                    "pattern": "^(0|[1-9][0-9]*)\\.[0-9]{2}$"
+                  },
+                  "base": {
+                    "type": "string",
+                    "maxLength": 28,
+                    "pattern": "^(0|[1-9][0-9]*)\\.[0-9]{2}$"
+                  },
+                  "high": {
+                    "type": "string",
+                    "maxLength": 28,
+                    "pattern": "^(0|[1-9][0-9]*)\\.[0-9]{2}$"
+                  }
+                }
+              },
+              "oneTime": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "low",
+                  "base",
+                  "high"
+                ],
+                "properties": {
+                  "low": {
+                    "type": "string",
+                    "maxLength": 28,
+                    "pattern": "^(0|[1-9][0-9]*)\\.[0-9]{2}$"
+                  },
+                  "base": {
+                    "type": "string",
+                    "maxLength": 28,
+                    "pattern": "^(0|[1-9][0-9]*)\\.[0-9]{2}$"
+                  },
+                  "high": {
+                    "type": "string",
+                    "maxLength": 28,
+                    "pattern": "^(0|[1-9][0-9]*)\\.[0-9]{2}$"
+                  }
+                }
+              },
+              "optional": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "low",
+                  "base",
+                  "high"
+                ],
+                "properties": {
+                  "low": {
+                    "type": "string",
+                    "maxLength": 28,
+                    "pattern": "^(0|[1-9][0-9]*)\\.[0-9]{2}$"
+                  },
+                  "base": {
+                    "type": "string",
+                    "maxLength": 28,
+                    "pattern": "^(0|[1-9][0-9]*)\\.[0-9]{2}$"
+                  },
+                  "high": {
+                    "type": "string",
+                    "maxLength": 28,
+                    "pattern": "^(0|[1-9][0-9]*)\\.[0-9]{2}$"
+                  }
+                }
+              },
+              "knownTotal": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "low",
+                  "base",
+                  "high"
+                ],
+                "properties": {
+                  "low": {
+                    "type": "string",
+                    "maxLength": 28,
+                    "pattern": "^(0|[1-9][0-9]*)\\.[0-9]{2}$"
+                  },
+                  "base": {
+                    "type": "string",
+                    "maxLength": 28,
+                    "pattern": "^(0|[1-9][0-9]*)\\.[0-9]{2}$"
+                  },
+                  "high": {
+                    "type": "string",
+                    "maxLength": 28,
+                    "pattern": "^(0|[1-9][0-9]*)\\.[0-9]{2}$"
+                  }
+                }
+              }
+            }
+          },
+          "complete": {
+            "type": "boolean"
+          },
+          "unallocated": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 240
+            },
+            "minItems": 0,
+            "maxItems": 24
+          }
+        }
+      },
+      "minItems": 1,
+      "maxItems": 12
+    },
+    "portfolio": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "fixed",
+        "usage",
+        "oneTime",
+        "optional",
+        "knownTotal"
+      ],
+      "properties": {
+        "fixed": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "low",
+            "base",
+            "high"
+          ],
+          "properties": {
+            "low": {
+              "type": "string",
+              "maxLength": 28,
+              "pattern": "^(0|[1-9][0-9]*)\\.[0-9]{2}$"
+            },
+            "base": {
+              "type": "string",
+              "maxLength": 28,
+              "pattern": "^(0|[1-9][0-9]*)\\.[0-9]{2}$"
+            },
+            "high": {
+              "type": "string",
+              "maxLength": 28,
+              "pattern": "^(0|[1-9][0-9]*)\\.[0-9]{2}$"
+            }
+          }
+        },
+        "usage": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "low",
+            "base",
+            "high"
+          ],
+          "properties": {
+            "low": {
+              "type": "string",
+              "maxLength": 28,
+              "pattern": "^(0|[1-9][0-9]*)\\.[0-9]{2}$"
+            },
+            "base": {
+              "type": "string",
+              "maxLength": 28,
+              "pattern": "^(0|[1-9][0-9]*)\\.[0-9]{2}$"
+            },
+            "high": {
+              "type": "string",
+              "maxLength": 28,
+              "pattern": "^(0|[1-9][0-9]*)\\.[0-9]{2}$"
+            }
+          }
+        },
+        "oneTime": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "low",
+            "base",
+            "high"
+          ],
+          "properties": {
+            "low": {
+              "type": "string",
+              "maxLength": 28,
+              "pattern": "^(0|[1-9][0-9]*)\\.[0-9]{2}$"
+            },
+            "base": {
+              "type": "string",
+              "maxLength": 28,
+              "pattern": "^(0|[1-9][0-9]*)\\.[0-9]{2}$"
+            },
+            "high": {
+              "type": "string",
+              "maxLength": 28,
+              "pattern": "^(0|[1-9][0-9]*)\\.[0-9]{2}$"
+            }
+          }
+        },
+        "optional": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "low",
+            "base",
+            "high"
+          ],
+          "properties": {
+            "low": {
+              "type": "string",
+              "maxLength": 28,
+              "pattern": "^(0|[1-9][0-9]*)\\.[0-9]{2}$"
+            },
+            "base": {
+              "type": "string",
+              "maxLength": 28,
+              "pattern": "^(0|[1-9][0-9]*)\\.[0-9]{2}$"
+            },
+            "high": {
+              "type": "string",
+              "maxLength": 28,
+              "pattern": "^(0|[1-9][0-9]*)\\.[0-9]{2}$"
+            }
+          }
+        },
+        "knownTotal": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "low",
+            "base",
+            "high"
+          ],
+          "properties": {
+            "low": {
+              "type": "string",
+              "maxLength": 28,
+              "pattern": "^(0|[1-9][0-9]*)\\.[0-9]{2}$"
+            },
+            "base": {
+              "type": "string",
+              "maxLength": 28,
+              "pattern": "^(0|[1-9][0-9]*)\\.[0-9]{2}$"
+            },
+            "high": {
+              "type": "string",
+              "maxLength": 28,
+              "pattern": "^(0|[1-9][0-9]*)\\.[0-9]{2}$"
+            }
+          }
+        }
+      }
+    },
+    "complete": {
+      "type": "boolean"
+    },
+    "unallocated": {
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "profile",
+          "label"
+        ],
+        "properties": {
+          "profile": {
+            "type": "string",
+            "maxLength": 120,
+            "pattern": "^[a-z][a-z0-9-]{0,59}$"
+          },
+          "label": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 240
+          }
+        }
+      },
+      "maxItems": 288,
+      "type": "array"
+    }
+  }
+}

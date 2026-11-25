@@ -1,0 +1,248 @@
+{
+  "schemaVersion": "1.0",
+  "id": "auth-notifications",
+  "repository": "azd-auth-notifications",
+  "revision": "a8578f8b1f99ca5760f8e470fc6b1169cf763187",
+  "sourcePaths": [
+    "infra/main.bicep",
+    "infra/resources.bicep",
+    "src/index.ts"
+  ],
+  "configurations": [
+    {
+      "id": "collection-off",
+      "options": {
+        "hosting": "fc1",
+        "collection": false,
+        "teams": false
+      },
+      "schedule": "everyFiveMinutes",
+      "retentionDays": 0,
+      "lines": [
+        {
+          "id": "executions",
+          "label": "Timer executions",
+          "category": "usage",
+          "price": {
+            "service": "functions",
+            "sku": "fc1",
+            "meter": "executions",
+            "unit": "request"
+          },
+          "basis": "runs",
+          "factors": {
+            "low": 1,
+            "base": 1,
+            "high": 1
+          },
+          "reason": "One invocation per actual five-minute schedule tick.",
+          "allowedScope": "pilot-shared-subscription"
+        },
+        {
+          "id": "duration",
+          "label": "Timer compute",
+          "category": "usage",
+          "price": {
+            "service": "functions",
+            "sku": "fc1",
+            "meter": "duration",
+            "unit": "gib-second"
+          },
+          "basis": "runs",
+          "factors": {
+            "low": 2,
+            "base": 4,
+            "high": 8
+          },
+          "reason": "Synthetic 1/2/4 seconds per tick at the configured two GiB.",
+          "allowedScope": "pilot-shared-subscription"
+        },
+        {
+          "id": "state",
+          "label": "Storage capacity",
+          "category": "fixed",
+          "price": {
+            "service": "storage",
+            "sku": "standard-lrs",
+            "meter": "capacity",
+            "unit": "gb-month"
+          },
+          "basis": "fixed",
+          "factors": {
+            "low": 0.1,
+            "base": 0.2,
+            "high": 0.4
+          },
+          "reason": "Synthetic standing state, probe artifacts and deployment package volume."
+        },
+        {
+          "id": "app-logs",
+          "label": "Application monitoring",
+          "category": "usage",
+          "price": {
+            "service": "azure-monitor",
+            "sku": "log-analytics",
+            "meter": "ingestion",
+            "unit": "gb"
+          },
+          "basis": "runs",
+          "factors": {
+            "low": 0.000001,
+            "base": 0.000003,
+            "high": 0.00001
+          },
+          "reason": "Synthetic application log GB per invocation."
+        },
+        {
+          "id": "deploy-storage",
+          "label": "Initial deployment storage requests",
+          "category": "oneTime",
+          "price": {
+            "service": "storage",
+            "sku": "standard-lrs",
+            "meter": "initial-operations",
+            "unit": "operation"
+          },
+          "basis": "fixed",
+          "factors": {
+            "low": 100,
+            "base": 200,
+            "high": 400
+          },
+          "reason": "Synthetic initial package and state operations."
+        }
+      ],
+      "exclusions": [
+        "No collection or new delivery operations in the selected configuration.",
+        "Authorization, licensing and transport charges are excluded."
+      ]
+    },
+    {
+      "id": "rare-email",
+      "options": {
+        "hosting": "fc1",
+        "collection": true,
+        "teams": false,
+        "channel": "email"
+      },
+      "schedule": "everyFiveMinutes",
+      "retentionDays": 0,
+      "lines": [
+        {
+          "id": "executions",
+          "label": "Timer executions",
+          "category": "usage",
+          "price": {
+            "service": "functions",
+            "sku": "fc1",
+            "meter": "executions",
+            "unit": "request"
+          },
+          "basis": "runs",
+          "factors": {
+            "low": 1,
+            "base": 1,
+            "high": 1
+          },
+          "reason": "One invocation per actual five-minute schedule tick.",
+          "allowedScope": "pilot-shared-subscription"
+        },
+        {
+          "id": "duration",
+          "label": "Timer compute",
+          "category": "usage",
+          "price": {
+            "service": "functions",
+            "sku": "fc1",
+            "meter": "duration",
+            "unit": "gib-second"
+          },
+          "basis": "runs",
+          "factors": {
+            "low": 2,
+            "base": 4,
+            "high": 8
+          },
+          "reason": "Synthetic 1/2/4 seconds per tick at the configured two GiB.",
+          "allowedScope": "pilot-shared-subscription"
+        },
+        {
+          "id": "state",
+          "label": "Storage capacity",
+          "category": "fixed",
+          "price": {
+            "service": "storage",
+            "sku": "standard-lrs",
+            "meter": "capacity",
+            "unit": "gb-month"
+          },
+          "basis": "fixed",
+          "factors": {
+            "low": 0.1,
+            "base": 0.2,
+            "high": 0.4
+          },
+          "reason": "Synthetic standing state, probe artifacts and deployment package volume."
+        },
+        {
+          "id": "app-logs",
+          "label": "Application monitoring",
+          "category": "usage",
+          "price": {
+            "service": "azure-monitor",
+            "sku": "log-analytics",
+            "meter": "ingestion",
+            "unit": "gb"
+          },
+          "basis": "runs",
+          "factors": {
+            "low": 0.000001,
+            "base": 0.000003,
+            "high": 0.00001
+          },
+          "reason": "Synthetic application log GB per invocation."
+        },
+        {
+          "id": "deploy-storage",
+          "label": "Initial deployment storage requests",
+          "category": "oneTime",
+          "price": {
+            "service": "storage",
+            "sku": "standard-lrs",
+            "meter": "initial-operations",
+            "unit": "operation"
+          },
+          "basis": "fixed",
+          "factors": {
+            "low": 100,
+            "base": 200,
+            "high": 400
+          },
+          "reason": "Synthetic initial package and state operations."
+        },
+        {
+          "id": "collection",
+          "label": "Synthetic rare-event state operations",
+          "category": "optional",
+          "price": {
+            "service": "storage",
+            "sku": "standard-lrs",
+            "meter": "transactions",
+            "unit": "operation"
+          },
+          "basis": "users",
+          "factors": {
+            "low": 0,
+            "base": 0.02,
+            "high": 0.1
+          },
+          "reason": "Synthetic per-user monthly activity, including the zero-event case."
+        }
+      ],
+      "exclusions": [
+        "Graph transport and licensing charges are excluded.",
+        "No retained delivery payload compaction was selected."
+      ]
+    }
+  ]
+}

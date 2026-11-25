@@ -1,0 +1,96 @@
+{
+  "schemaVersion": "1.0",
+  "id": "sysmon",
+  "repository": "azd-sysmon",
+  "revision": "30fe2bc87be0d417151990a8714f81eb3ec5b84d",
+  "sourcePaths": [
+    "infra/main.bicep",
+    "docs/architecture.md"
+  ],
+  "configurations": [
+    {
+      "id": "local-only",
+      "options": {
+        "workspace": false,
+        "sentinel": false
+      },
+      "schedule": "none",
+      "retentionDays": 0,
+      "lines": [],
+      "exclusions": [
+        "Windows endpoint compute, disk and local administration are excluded."
+      ]
+    },
+    {
+      "id": "existing-sentinel",
+      "options": {
+        "workspace": true,
+        "sentinel": true
+      },
+      "schedule": "none",
+      "retentionDays": 90,
+      "lines": [
+        {
+          "id": "ingestion",
+          "label": "Windows event ingestion",
+          "category": "usage",
+          "price": {
+            "service": "azure-monitor",
+            "sku": "log-analytics",
+            "meter": "ingestion",
+            "unit": "gb"
+          },
+          "basis": "deviceMonths",
+          "factors": {
+            "low": 0.3,
+            "base": 0.9,
+            "high": 2.7
+          },
+          "reason": "Synthetic GB per device per 30 days; the evaluator scales this to the selected calendar month."
+        },
+        {
+          "id": "retention",
+          "label": "Retained event data",
+          "category": "usage",
+          "price": {
+            "service": "azure-monitor",
+            "sku": "log-analytics",
+            "meter": "retention",
+            "unit": "gb-month"
+          },
+          "basis": "retainedDeviceDays",
+          "factors": {
+            "low": 0.01,
+            "base": 0.03,
+            "high": 0.09
+          },
+          "reason": "Synthetic GB per device-day; retention model caps previously accumulated and new days at the selected retention."
+        },
+        {
+          "id": "analytics",
+          "label": "Sentinel analytics",
+          "category": "optional",
+          "price": {
+            "service": "sentinel",
+            "sku": "payg",
+            "meter": "analytics",
+            "unit": "gb"
+          },
+          "basis": "deviceMonths",
+          "factors": {
+            "low": 0.3,
+            "base": 0.9,
+            "high": 2.7
+          },
+          "reason": "Synthetic GB per device per 30 days; billed quantity is modeled separately from collection."
+        }
+      ],
+      "exclusions": [
+        "Local endpoint costs and Data Lake archival are excluded."
+      ],
+      "unallocated": [
+        "Existing shared workspace fixed costs have no verified allocation basis."
+      ]
+    }
+  ]
+}
