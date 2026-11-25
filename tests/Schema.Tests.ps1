@@ -1,3 +1,4 @@
+# Assert the Boolean contract: nested schema failures can omit errors in PowerShell 7.6.7.
 Describe 'Portfolio JSON schemas' {
     BeforeAll {
         $script:repoRoot = Split-Path $PSScriptRoot -Parent
@@ -28,7 +29,7 @@ Describe 'Portfolio JSON schemas' {
     It 'rejects the invalid <Name> fixture' -ForEach $cases {
         $schemaPath = Join-Path $script:repoRoot "schemas/$Schema"
         $fixturePath = Join-Path $PSScriptRoot "fixtures/invalid/$Fixture"
-        { Get-Content -LiteralPath $fixturePath -Raw | Test-Json -SchemaFile $schemaPath -ErrorAction Stop } | Should -Throw
+        (Get-Content -LiteralPath $fixturePath -Raw | Test-Json -SchemaFile $schemaPath -ErrorAction SilentlyContinue) | Should -BeFalse
     }
 
     It 'accepts every canonical component manifest' {
@@ -100,27 +101,27 @@ Describe 'Portfolio JSON schemas' {
     It 'rejects parent traversal in every repository-relative path contract' {
         $manifest = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'fixtures/valid/component-manifest.json') -Raw | ConvertFrom-Json
         $manifest.files[0].source = '../outside.psm1'
-        { $manifest | ConvertTo-Json -Depth 10 | Test-Json -SchemaFile (Join-Path $script:repoRoot 'schemas/component-manifest.schema.json') -ErrorAction Stop } | Should -Throw
+        ($manifest | ConvertTo-Json -Depth 10 | Test-Json -SchemaFile (Join-Path $script:repoRoot 'schemas/component-manifest.schema.json') -ErrorAction SilentlyContinue) | Should -BeFalse
 
         $lock = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'fixtures/valid/azd-components.lock.json') -Raw | ConvertFrom-Json
         $lock.components[0].files[0].target = 'scripts/../../outside.psm1'
-        { $lock | ConvertTo-Json -Depth 10 | Test-Json -SchemaFile (Join-Path $script:repoRoot 'schemas/azd-components-lock.schema.json') -ErrorAction Stop } | Should -Throw
+        ($lock | ConvertTo-Json -Depth 10 | Test-Json -SchemaFile (Join-Path $script:repoRoot 'schemas/azd-components-lock.schema.json') -ErrorAction SilentlyContinue) | Should -BeFalse
 
         $receipt = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'fixtures/valid/deployment-receipt.json') -Raw | ConvertFrom-Json
         $receipt.artifacts = @('../../outside.json')
-        { $receipt | ConvertTo-Json -Depth 10 | Test-Json -SchemaFile (Join-Path $script:repoRoot 'schemas/deployment-receipt.schema.json') -ErrorAction Stop } | Should -Throw
+        ($receipt | ConvertTo-Json -Depth 10 | Test-Json -SchemaFile (Join-Path $script:repoRoot 'schemas/deployment-receipt.schema.json') -ErrorAction SilentlyContinue) | Should -BeFalse
 
         $portfolio = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'fixtures/valid/portfolio-consumers.json') -Raw | ConvertFrom-Json
         $portfolio.consumers[0].checkoutDirectory = '../outside'
-        { $portfolio | ConvertTo-Json -Depth 10 | Test-Json -SchemaFile (Join-Path $script:repoRoot 'schemas/portfolio-consumers.schema.json') -ErrorAction Stop } | Should -Throw
+        ($portfolio | ConvertTo-Json -Depth 10 | Test-Json -SchemaFile (Join-Path $script:repoRoot 'schemas/portfolio-consumers.schema.json') -ErrorAction SilentlyContinue) | Should -BeFalse
 
         $portfolio = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'fixtures/valid/portfolio-consumers.json') -Raw | ConvertFrom-Json
         $portfolio.consumers[0].repositoryValidationWorkflow = '../outside.yml'
-        { $portfolio | ConvertTo-Json -Depth 10 | Test-Json -SchemaFile (Join-Path $script:repoRoot 'schemas/portfolio-consumers.schema.json') -ErrorAction Stop } | Should -Throw
+        ($portfolio | ConvertTo-Json -Depth 10 | Test-Json -SchemaFile (Join-Path $script:repoRoot 'schemas/portfolio-consumers.schema.json') -ErrorAction SilentlyContinue) | Should -BeFalse
 
         $portfolio = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'fixtures/valid/portfolio-consumers.json') -Raw | ConvertFrom-Json
         $portfolio.consumers[0].PSObject.Properties.Remove('repositoryValidationWorkflow')
-        { $portfolio | ConvertTo-Json -Depth 10 | Test-Json -SchemaFile (Join-Path $script:repoRoot 'schemas/portfolio-consumers.schema.json') -ErrorAction Stop } | Should -Throw
+        ($portfolio | ConvertTo-Json -Depth 10 | Test-Json -SchemaFile (Join-Path $script:repoRoot 'schemas/portfolio-consumers.schema.json') -ErrorAction SilentlyContinue) | Should -BeFalse
     }
 
     It 'requires schema 1.1 and a complete namespace to appear together' {
@@ -131,12 +132,12 @@ Describe 'Portfolio JSON schemas' {
             $schemaPath = Join-Path $script:repoRoot "schemas/$($item.Schema)"
             $fixture = Get-Content -LiteralPath (Join-Path $PSScriptRoot "fixtures/valid/$($item.Fixture)") -Raw | ConvertFrom-Json
             $fixture.schemaVersion = '1.0'
-            { $fixture | ConvertTo-Json -Depth 30 | Test-Json -SchemaFile $schemaPath -ErrorAction Stop } | Should -Throw
+            ($fixture | ConvertTo-Json -Depth 30 | Test-Json -SchemaFile $schemaPath -ErrorAction SilentlyContinue) | Should -BeFalse
 
             $fixture.schemaVersion = '1.1'
             if ($item.Path -eq 'details') { $fixture.details.PSObject.Properties.Remove('azdManagementEvidence') }
             else { $fixture.environment.metadata.PSObject.Properties.Remove('azdManagementEvidence') }
-            { $fixture | ConvertTo-Json -Depth 30 | Test-Json -SchemaFile $schemaPath -ErrorAction Stop } | Should -Throw
+            ($fixture | ConvertTo-Json -Depth 30 | Test-Json -SchemaFile $schemaPath -ErrorAction SilentlyContinue) | Should -BeFalse
         }
     }
 }
