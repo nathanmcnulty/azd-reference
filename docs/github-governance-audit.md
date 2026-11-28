@@ -68,7 +68,7 @@ from the registry automatically removes it from the next token's scope; the
 App installation can then be narrowed too.
 
 The token-generation action is pinned to full commit
-`bcd2ba49218906704ab6c1aa796996da409d3eb1` (`v3.2.0`). Installation tokens
+`f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc` (`v3.4.0`). Installation tokens
 expire after one hour, and the action revokes its token after the job. The App
 private key itself does not become short-lived: treat it as a durable secret,
 never put it in workflow output or repository files, and rotate it deliberately.
@@ -112,7 +112,7 @@ and unexpected responses produce an unavailable-audit finding.
 - [Deciding when to build a GitHub App](https://docs.github.com/en/apps/creating-github-apps/about-creating-github-apps/deciding-when-to-build-a-github-app)
 - [Choosing permissions for a GitHub App](https://docs.github.com/en/apps/creating-github-apps/registering-a-github-app/choosing-permissions-for-a-github-app)
 - [Generating an installation access token](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/generating-an-installation-access-token-for-a-github-app)
-- [`actions/create-github-app-token`](https://github.com/actions/create-github-app-token/tree/bcd2ba49218906704ab6c1aa796996da409d3eb1)
+- [`actions/create-github-app-token`](https://github.com/actions/create-github-app-token/tree/f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc)
 - [Built-in `GITHUB_TOKEN` scope](https://docs.github.com/en/actions/concepts/security/github_token)
 - [Available workflow token permissions](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#permissions)
 - [Actions settings API permissions](https://docs.github.com/en/rest/actions/permissions#get-github-actions-permissions-for-a-repository)
