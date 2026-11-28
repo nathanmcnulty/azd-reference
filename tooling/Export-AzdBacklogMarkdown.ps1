@@ -56,7 +56,7 @@ $raw = Get-Content -LiteralPath $fullPath -Raw
 if (-not ($raw | Test-Json -SchemaFile $schemaPath -ErrorAction Stop)) {
     throw "Backlog does not satisfy its schema: '$fullPath'."
 }
-$backlog = $raw | ConvertFrom-Json -Depth 100
+$backlog = $raw | ConvertFrom-Json -Depth 100 -DateKind String
 
 $lines = [Collections.Generic.List[string]]::new()
 $lines.Add("# Backlog: $($backlog.repository)")

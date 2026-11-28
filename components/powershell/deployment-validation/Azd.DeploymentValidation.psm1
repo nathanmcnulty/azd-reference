@@ -343,7 +343,7 @@ function Invoke-AzdValidationCheck {
         status = $status
         summary = $resultSummary
         sideEffect = $SideEffect
-        durationMs = [int] $stopwatch.ElapsedMilliseconds
+        durationMs = [int64] [math]::Max([int64] 0, $stopwatch.ElapsedMilliseconds)
         expected = ConvertTo-AzdSafeData -Value $Expected
         actual = ConvertTo-AzdSafeData -Value $actual
         evidence = ConvertTo-AzdSafeData -Value $evidence
@@ -551,7 +551,7 @@ function New-AzdValidationReport {
         reportType = 'azdDeploymentValidation'
         startedAt = $StartedAt.UtcDateTime.ToString('o')
         completedAt = $completedAt.UtcDateTime.ToString('o')
-        durationMs = [int] [math]::Max(0, ($completedAt - $StartedAt).TotalMilliseconds)
+        durationMs = [int64] [math]::Max([double] 0, ($completedAt - $StartedAt).TotalMilliseconds)
         template = [ordered]@{ name = $TemplateName; version = $TemplateVersion }
         environment = ConvertTo-AzdSafeData -Value $normalizedEnvironment
         mode = $Mode

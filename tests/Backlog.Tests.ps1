@@ -186,6 +186,30 @@ Describe 'Agent backlog contract and tooling' {
         { & $script:validator -Paths $path } | Should -Throw '*Duplicate item ID*'
     }
 
+    It 'preserves claim timestamp text across cultures' {
+        $path = Join-Path $TestDrive 'timestamp.json'
+        $claim = New-ValidClaim
+        $claim.startedAt = '2026-10-16T01:02:03-07:00'
+        Write-BacklogFixture -Path $path -Backlog (New-Backlog -Repository 'nathanmcnulty/timestamp' -Items @(
+                New-BacklogItem -Id 'TIME-001' -Status in-progress -Claim $claim
+            ))
+        $originalCulture = [Globalization.CultureInfo]::CurrentCulture
+        $rendered = @()
+        try {
+            foreach ($culture in 'en-US', 'fr-FR') {
+                [Globalization.CultureInfo]::CurrentCulture = [Globalization.CultureInfo]::GetCultureInfo($culture)
+                $outputPath = Join-Path $TestDrive "backlog-$culture.md"
+                & $script:exporter -Path $path -OutputPath $outputPath | Out-Null
+                $markdown = Get-Content -LiteralPath $outputPath -Raw
+                $markdown | Should -Match '2026-10-16T01&colon;02&colon;03-07&colon;00'
+                { & $script:exporter -Path $path -OutputPath $outputPath -Check } | Should -Not -Throw
+                $rendered += $markdown
+            }
+        }
+        finally { [Globalization.CultureInfo]::CurrentCulture = $originalCulture }
+        $rendered[0] | Should -BeExactly $rendered[1]
+    }
+
     It 'renders hostile Markdown as inert text and detects a stale generated view' {
         $path = Join-Path $TestDrive 'hostile.json'
         $outputPath = Join-Path $TestDrive 'backlog.md'

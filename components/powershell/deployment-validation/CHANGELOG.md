@@ -1,5 +1,10 @@
 # Deployment validation changelog
 
+## 2.0.1
+
+- Preserve nonnegative validation durations as Int64 values so reports and
+  checks remain valid beyond the Int32 millisecond range.
+
 ## 2.0.0
 
 - Require PowerShell 7.6 or later. The public commands and data contracts are unchanged.
