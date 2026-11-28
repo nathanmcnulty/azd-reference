@@ -1,0 +1,275 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "azd lab environment registry",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "tenantId",
+    "targetSubscriptionId",
+    "subscriptions",
+    "solutions"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "schemaVersion": {
+      "const": "1.0"
+    },
+    "tenantId": {
+      "$ref": "#/$defs/uuid"
+    },
+    "targetSubscriptionId": {
+      "$ref": "#/$defs/uuid"
+    },
+    "subscriptions": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/uuid"
+      }
+    },
+    "subscriptionPolicies": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/subscriptionPolicy"
+      }
+    },
+    "notes": {
+      "type": "string",
+      "maxLength": 2000
+    },
+    "solutions": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/solution"
+      }
+    }
+  },
+  "$defs": {
+    "uuid": {
+      "type": "string",
+      "pattern": "^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[1-5][0-9A-Fa-f]{3}-[89ABab][0-9A-Fa-f]{3}-[0-9A-Fa-f]{12}$"
+    },
+    "repository": {
+      "type": "string",
+      "pattern": "^https://github\\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
+    },
+    "identifier": {
+      "type": "string",
+      "minLength": 2,
+      "maxLength": 64,
+      "pattern": "^[a-z][a-z0-9-]*[a-z0-9]$"
+    },
+    "resourceGroup": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 90,
+      "pattern": "^[^<>%&\\\\?/]+$"
+    },
+    "subscriptionPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "subscriptionId",
+        "displayName",
+        "role",
+        "monthlyCreditUSD",
+        "budgetName",
+        "budgetAmountUSD",
+        "planningCeilingUSD"
+      ],
+      "properties": {
+        "subscriptionId": {
+          "$ref": "#/$defs/uuid"
+        },
+        "displayName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "role": {
+          "enum": [
+            "primary",
+            "support"
+          ]
+        },
+        "monthlyCreditUSD": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "budgetName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "budgetAmountUSD": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "planningCeilingUSD": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "notes": {
+          "type": "string",
+          "maxLength": 1000
+        }
+      }
+    },
+    "tags": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "solution": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "environment": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "lab-environment": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "owner": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "managed-by": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "cost-center": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "portfolio": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        }
+      }
+    },
+    "solution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "repository",
+        "desiredEnvironment",
+        "environments"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "repository": {
+          "$ref": "#/$defs/repository"
+        },
+        "desiredEnvironment": {
+          "$ref": "#/$defs/identifier"
+        },
+        "desiredResourceGroup": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/resourceGroup"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "deployableKind": {
+          "enum": [
+            "azure",
+            "tenant",
+            "artifact",
+            "support"
+          ]
+        },
+        "desiredTags": {
+          "$ref": "#/$defs/tags"
+        },
+        "notes": {
+          "type": "string",
+          "maxLength": 1000
+        },
+        "environments": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/observedEnvironment"
+          }
+        }
+      }
+    },
+    "observedEnvironment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "subscriptionId",
+        "resourceGroup",
+        "sourceRevision",
+        "validationStatus",
+        "tenantObjectsTracked"
+      ],
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/identifier"
+        },
+        "subscriptionId": {
+          "$ref": "#/$defs/uuid"
+        },
+        "resourceGroup": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/resourceGroup"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "sourceRevision": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "validationStatus": {
+          "enum": [
+            "unknown",
+            "failed",
+            "control-plane-only",
+            "validated"
+          ]
+        },
+        "tenantObjectsTracked": {
+          "type": "boolean"
+        },
+        "notes": {
+          "type": "string",
+          "maxLength": 1000
+        }
+      }
+    }
+  }
+}
